@@ -1,4 +1,4 @@
-package uapBackend.controller;
+package nepaBackend.controller;
 
 import java.util.ArrayList;
 //import java.sql.ResultSet;
@@ -23,8 +23,8 @@ import org.springframework.web.bind.annotation.RestController;
 //import org.springframework.web.bind.annotation.RequestParam;
 //import org.springframework.dao.DataAccessException;
 
-import uapBackend.SearchInputs;
-import uapBackend.model.EISDoc;
+import nepaBackend.SearchInputs;
+import nepaBackend.model.EISDoc;
 
 @RestController
 @RequestMapping("/test")

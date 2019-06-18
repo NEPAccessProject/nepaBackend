@@ -1,4 +1,4 @@
-package uapBackend;
+package nepaBackend;
 
 import org.springframework.beans.factory.annotation.Autowired;
 

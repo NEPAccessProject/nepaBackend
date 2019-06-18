@@ -1,4 +1,4 @@
-package uapBackend.controller;
+package nepaBackend.controller;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 
-import uapBackend.ApplicationUserRepository;
-import uapBackend.PasswordChange;
-import uapBackend.model.ApplicationUser;
-import uapBackend.security.SecurityConstants;
+import nepaBackend.ApplicationUserRepository;
+import nepaBackend.PasswordChange;
+import nepaBackend.model.ApplicationUser;
+import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/user")

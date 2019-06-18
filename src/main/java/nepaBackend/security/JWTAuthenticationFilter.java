@@ -1,8 +1,8 @@
-package uapBackend.security;
+package nepaBackend.security;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import uapBackend.model.ApplicationUser;
-import uapBackend.UserDetailsImpl;
+import nepaBackend.UserDetailsImpl;
+import nepaBackend.model.ApplicationUser;
 
 import com.auth0.jwt.JWT;
 import org.springframework.security.authentication.AuthenticationManager;

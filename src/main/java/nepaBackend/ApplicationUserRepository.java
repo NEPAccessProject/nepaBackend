@@ -1,8 +1,8 @@
-package uapBackend;
+package nepaBackend;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import uapBackend.model.ApplicationUser;
+import nepaBackend.model.ApplicationUser;
 
 public interface ApplicationUserRepository extends JpaRepository<ApplicationUser, Long> {
     ApplicationUser findByUsername(String username);

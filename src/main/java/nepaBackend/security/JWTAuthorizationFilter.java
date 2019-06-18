@@ -1,4 +1,4 @@
-package uapBackend.security;
+package nepaBackend.security;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;

@@ -1,4 +1,4 @@
-package uapBackend;
+package nepaBackend;
 
 import java.util.Collection;
 import java.util.Set;
@@ -6,7 +6,7 @@ import java.util.Set;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import uapBackend.model.ApplicationUser;
+import nepaBackend.model.ApplicationUser;
 
 public class UserDetailsImpl implements UserDetails{
 	

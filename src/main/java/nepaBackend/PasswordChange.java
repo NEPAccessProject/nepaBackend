@@ -1,4 +1,4 @@
-package uapBackend;
+package nepaBackend;
 
 public class PasswordChange {
 	public String newPassword;
