@@ -23,7 +23,7 @@ public class ApplicationUser { // application_user
     private String email;
 
 	@Column(name = "role")
-    private int role; // role describes permissions for using the app
+    private String role; // role describes permissions for using the app
 
     public long getId() {
         return id;
@@ -53,11 +53,11 @@ public class ApplicationUser { // application_user
 		this.email = emailAddress;
 	}
 
-	public int getRole() {
+	public String getRole() {
 		return role;
 	}
 
-	public void setRole(int role) {
+	public void setRole(String role) {
 		this.role = role;
 	}
 

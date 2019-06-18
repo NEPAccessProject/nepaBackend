@@ -43,18 +43,24 @@ public class UserController {
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
+    // Disabled
     @PostMapping("/register")
-    public @ResponseBody ResponseEntity<Void> register(@RequestBody ApplicationUser user) {
+    private @ResponseBody ResponseEntity<Void> register(@RequestBody ApplicationUser user) {
+//    	return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
+    	
     	// email address, username are included and saved
     	// role has to be set and password has to be encrypted
-    	if(usernameExists(user.getUsername())) {
-    		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); // TODO: Other response code?
+    	
+    	if(usernameExists(user.getUsername())) { // check for duplicates
+    		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
     	}
         user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
-        user.setRole(0);
+        user.setRole("ROLE_USER");
         applicationUserRepository.save(user);
 		return new ResponseEntity<Void>(HttpStatus.OK);
     }
+    
+    // TODO: Generate user route, with sanity and duplicate check
 
     // To check if a username exists earlier than trying to register it.
     @PostMapping("/exists")
@@ -77,29 +83,35 @@ public class UserController {
 	@PostMapping(path = "/details") // verify user has access?
 	public void checkDetails() {}
 	
-	// TODO: Require old password, compare before changing
 	@PostMapping(path = "/details/changePassword")
 	public ResponseEntity<Void> changePassword(@RequestBody PasswordChange passwords,
 			@RequestHeader Map<String, String> headers) {
 
+		// TODO: Sanity check new password better, return error if invalid
+		if(passwords.newPassword == null || passwords.newPassword.length() == 0) {
+			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+		}
 
 		// get token, which has already been verified
 		String token = headers.get("authorization");
 		// get ID
         String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
                 .getId();
-        String password = bCryptPasswordEncoder.encode(passwords.newPassword);
-//        String old = bCryptPasswordEncoder.encode(passwords.oldPassword);
 
 		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-//		if(user.getPassword() == old) {
+
+        Boolean matches = bCryptPasswordEncoder.matches(passwords.oldPassword,
+        		user.getPassword());
+		
+		if(matches) {
 			// update
-			user.setPassword(password);
+			user.setPassword(bCryptPasswordEncoder.encode(passwords.newPassword));
 			applicationUserRepository.save(user);
 			return new ResponseEntity<Void>(HttpStatus.OK);
-//		}
+		}
 
-//		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
+		// if it doesn't match, Unauthorized
+		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
 	}
 
     // TODO: Change user details (email/username?)
