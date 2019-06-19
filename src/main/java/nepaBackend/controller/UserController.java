@@ -25,6 +25,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.PasswordChange;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.security.PasswordGenerator;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -60,7 +61,46 @@ public class UserController {
 		return new ResponseEntity<Void>(HttpStatus.OK);
     }
     
-    // TODO: Generate user route, with sanity and duplicate check
+    // Generate user route, with sanity and duplicate check
+    // Add each user to database with encoded password
+    // Return list of users with updated passwords (from BEFORE encoding, obviously)
+    @PostMapping("/generate")
+    public @ResponseBody ApplicationUser[] generate(@RequestBody ApplicationUser users[]) {
+    	ApplicationUser returnUsers[] = new ApplicationUser[users.length];
+    	int i = 0;
+    	for(ApplicationUser user : users) {
+    		
+    		// TODO: Sanity check
+    		// TODO: Deal with no email or no username provided?
+    		
+        	returnUsers[i] = new ApplicationUser();
+        	returnUsers[i].setUsername(user.getUsername());
+        	if(usernameExists(user.getUsername())) { // check for duplicates
+        		// skip, deal with it externally when you get a result with no password
+        	} else {
+            	returnUsers[i].setEmailAddress(user.getEmail());
+                user.setRole("ROLE_USER");
+            	returnUsers[i].setRole("ROLE_USER");
+        		PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
+        	            .useDigits(true)
+        	            .useLower(true)
+        	            .useUpper(true)
+        	            .build();
+        	    String password = passwordGenerator.generate(8); // output ex.: lrU12fmM 75iwI90o
+            	returnUsers[i].setPassword(password);
+            		
+                user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+                applicationUserRepository.save(user);
+        	}
+
+        	System.out.println(returnUsers[i]);
+        	System.out.println(i);
+        	i++;    
+    	}
+    	
+    	// Note: IDs will be 0 on the return objects
+    	return returnUsers;
+    }
 
     // To check if a username exists earlier than trying to register it.
     @PostMapping("/exists")
@@ -72,8 +112,8 @@ public class UserController {
 			sQuery, new Object[] { username },
 			Integer.class
 		);
-		System.out.println(username);
-		System.out.println(count);
+//		System.out.println(username);
+//		System.out.println(count);
 		if(count > 0) {
 			return true;
 		}
