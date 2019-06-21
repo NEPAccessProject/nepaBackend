@@ -90,6 +90,7 @@ public class UserController {
             	returnUsers[i].setPassword(password);
             		
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+                // TODO: Save all at once instead of individually?
                 applicationUserRepository.save(user);
         	}
 
