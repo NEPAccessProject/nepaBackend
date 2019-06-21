@@ -56,7 +56,7 @@ public class UserController {
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
     	}
         user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
-        user.setRole("ROLE_USER");
+        user.setRole("USER");
         applicationUserRepository.save(user);
 		return new ResponseEntity<Void>(HttpStatus.OK);
     }
@@ -65,7 +65,14 @@ public class UserController {
     // Add each user to database with encoded password
     // Return list of users with updated passwords (from BEFORE encoding, obviously)
     @PostMapping("/generate")
-    public @ResponseBody ApplicationUser[] generate(@RequestBody ApplicationUser users[]) {
+    public @ResponseBody ResponseEntity<ApplicationUser[]> generate(@RequestBody ApplicationUser users[],
+			@RequestHeader Map<String, String> headers) {
+    	
+    	String token = headers.get("authorization");
+    	if(!isAdmin(token)) {
+    		return new ResponseEntity<ApplicationUser[]>(HttpStatus.UNAUTHORIZED);
+    	}
+    	
     	ApplicationUser returnUsers[] = new ApplicationUser[users.length];
     	int i = 0;
     	for(ApplicationUser user : users) {
@@ -79,8 +86,8 @@ public class UserController {
         		// skip, deal with it externally when you get a result with no password
         	} else {
             	returnUsers[i].setEmailAddress(user.getEmail());
-                user.setRole("ROLE_USER");
-            	returnUsers[i].setRole("ROLE_USER");
+                user.setRole("USER");
+            	returnUsers[i].setRole("USER");
         		PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
         	            .useDigits(true)
         	            .useLower(true)
@@ -100,7 +107,7 @@ public class UserController {
     	}
     	
     	// Note: IDs will be 0 on the return objects
-    	return returnUsers;
+    	return new ResponseEntity<ApplicationUser[]>(returnUsers, HttpStatus.OK);
     }
 
     // To check if a username exists earlier than trying to register it.
@@ -129,7 +136,8 @@ public class UserController {
 			@RequestHeader Map<String, String> headers) {
 
 		// TODO: Sanity check new password better, return error if invalid
-		if(passwords.newPassword == null || passwords.newPassword.length() == 0) {
+		if(passwords.newPassword == null || passwords.newPassword.length() == 0 
+				|| passwords.newPassword.length() > 50) {
 			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 		}
 
@@ -153,6 +161,27 @@ public class UserController {
 
 		// if it doesn't match, Unauthorized
 		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
+	}
+
+	@PostMapping(path = "/checkAdmin")
+	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("Authorization");
+		boolean result = isAdmin(token);
+		return new ResponseEntity<Boolean>(result, HttpStatus.OK);
+	}
+	
+	private boolean isAdmin(String token) {
+		boolean result = false;
+		// get ID
+        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                .getId();
+
+		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		if(user.getRole().contentEquals("ADMIN")) {
+			result = true;
+		}
+		return result;
+
 	}
 
     // TODO: Change user details (email/username?)
