@@ -64,10 +64,13 @@ public class UserController {
     // Generate user route, with sanity and duplicate check
     // Add each user to database with encoded password
     // Return list of users with updated passwords (from BEFORE encoding, obviously)
-    @PostMapping("/generate")
+    @PostMapping(path = "/generate", 
+    		consumes = "application/json", 
+    		produces = "application/json", 
+    		headers = "Accept=application/json")
     public @ResponseBody ResponseEntity<ApplicationUser[]> generate(@RequestBody ApplicationUser users[],
 			@RequestHeader Map<String, String> headers) {
-    	
+    	System.out.println(users);
     	String token = headers.get("authorization");
     	if(!isAdmin(token)) {
     		return new ResponseEntity<ApplicationUser[]>(HttpStatus.UNAUTHORIZED);
@@ -165,20 +168,26 @@ public class UserController {
 
 	@PostMapping(path = "/checkAdmin")
 	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
-		String token = headers.get("Authorization");
+		String token = headers.get("authorization");
 		boolean result = isAdmin(token);
-		return new ResponseEntity<Boolean>(result, HttpStatus.OK);
+		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
+		if(result) {
+			returnStatus = HttpStatus.OK;
+		}
+		return new ResponseEntity<Boolean>(result, returnStatus);
 	}
 	
 	private boolean isAdmin(String token) {
 		boolean result = false;
 		// get ID
-        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-                .getId();
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
 
-		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-		if(user.getRole().contentEquals("ADMIN")) {
-			result = true;
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().contentEquals("ADMIN")) {
+				result = true;
+			}
 		}
 		return result;
 
