@@ -77,8 +77,14 @@ public class UserController {
     	}
     	
     	ApplicationUser returnUsers[] = new ApplicationUser[users.length];
+		PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
+	            .useDigits(true)
+	            .useLower(true)
+	            .useUpper(true)
+	            .build();
     	int i = 0;
     	for(ApplicationUser user : users) {
+    		
     		
     		// TODO: Sanity check
     		// TODO: Deal with no email or no username provided?
@@ -91,15 +97,10 @@ public class UserController {
             	returnUsers[i].setEmailAddress(user.getEmail());
                 user.setRole("USER");
             	returnUsers[i].setRole("USER");
-        		PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
-        	            .useDigits(true)
-        	            .useLower(true)
-        	            .useUpper(true)
-        	            .build();
         	    String password = passwordGenerator.generate(8); // output ex.: lrU12fmM 75iwI90o
             	returnUsers[i].setPassword(password);
             		
-                user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+                user.setPassword(bCryptPasswordEncoder.encode(password));
                 // TODO: Save all at once instead of individually?
                 applicationUserRepository.save(user);
         	}
