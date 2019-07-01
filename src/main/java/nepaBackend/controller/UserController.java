@@ -95,12 +95,15 @@ public class UserController {
         		// skip, deal with it externally when you get a result with no password
         	} else {
             	returnUsers[i].setEmailAddress(user.getEmail());
+            	// TODO: Might eventually want to set roles.
                 user.setRole("USER");
             	returnUsers[i].setRole("USER");
+            	
         	    String password = passwordGenerator.generate(8); // output ex.: lrU12fmM 75iwI90o
             	returnUsers[i].setPassword(password);
-            		
-                user.setPassword(bCryptPasswordEncoder.encode(password));
+            	// bCrypt internally handles salt and outputs a 60 character encoded string
+                user.setPassword(bCryptPasswordEncoder.encode(password)); 
+                
                 // TODO: Save all at once instead of individually?
                 applicationUserRepository.save(user);
         	}
@@ -132,7 +135,7 @@ public class UserController {
 		return false;
     }
 
-	@PostMapping(path = "/details") // verify user has access?
+	@PostMapping(path = "/details") // verify user has access (valid JWT)
 	public void checkDetails() {}
 	
 	@PostMapping(path = "/details/changePassword")
@@ -153,6 +156,7 @@ public class UserController {
 
 		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
 
+		// Need to use .matches() to verify password manually
         Boolean matches = bCryptPasswordEncoder.matches(passwords.oldPassword,
         		user.getPassword());
 		
@@ -199,4 +203,6 @@ public class UserController {
 
     // Login is already handled by /login on base domain by JWTAuthenticationFilter
     // extending UsernamePasswordAuthenticationFilter.
+	
+	// TODO: Could use a better tool for adding, updating, removing users.
 }
