@@ -1,6 +1,7 @@
 package nepaBackend.controller;
 import javax.mail.internet.MimeMessage;
-
+ 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Controller;
@@ -13,6 +14,7 @@ import nepaBackend.ResetEmail;
 @Controller
 public class SimpleEmailController {
      
+    @Autowired
     private JavaMailSender sender;
  
     @PostMapping("/reset")
