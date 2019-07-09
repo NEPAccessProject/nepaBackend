@@ -30,6 +30,7 @@ public class WebSecurity extends WebSecurityConfigurerAdapter {
 //         .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll() // allow registration
 //         .antMatchers(HttpMethod.POST, "/**").permitAll() // allow all (when post)
          .antMatchers(HttpMethod.POST, "/user/exists").permitAll()
+         .antMatchers(HttpMethod.POST, "/reset").permitAll()
          .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).denyAll() // deny registration
 //         .antMatchers(HttpMethod.POST, "/user/generate").hasAuthority("ADMIN") // TODO: Roles for admin access to generate user
          .anyRequest().authenticated() // require authentication for the rest

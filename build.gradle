@@ -68,4 +68,7 @@ dependencies {
     // JWT for Java, Android
     compile("com.auth0:java-jwt:3.4.0")
     
+    // https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-mail
+	compile group: 'org.springframework.boot', name: 'spring-boot-starter-mail', version: '1.2.0.RELEASE'
+    
 }

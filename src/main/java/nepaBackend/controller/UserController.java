@@ -171,6 +171,7 @@ public class UserController {
 		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
 	}
 
+	// Return true if admin role
 	@PostMapping(path = "/checkAdmin")
 	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -182,6 +183,7 @@ public class UserController {
 		return new ResponseEntity<Boolean>(result, returnStatus);
 	}
 	
+	// Helper function for checkAdmin
 	private boolean isAdmin(String token) {
 		boolean result = false;
 		// get ID
