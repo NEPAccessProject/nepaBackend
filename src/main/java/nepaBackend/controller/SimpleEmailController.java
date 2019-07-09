@@ -21,14 +21,16 @@ public class SimpleEmailController {
     @ResponseBody
     String home(@RequestBody ResetEmail email) {
         try {
-            sendEmail(email.email);
+            sendResetEmail(email.email);
             return "Email Sent!";
         }catch(Exception ex) {
             return "Error in sending email: "+ex;
         }
     }
  
-    private void sendEmail(String email) throws Exception{
+    // TODO: Turn this into a link that will take the user to a page that asks them
+    // to put in a new password, and implement that functionality.
+    private void sendResetEmail(String email) throws Exception{
         MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message);
          
@@ -38,4 +40,6 @@ public class SimpleEmailController {
          
         sender.send(message);
     }
+    
+    // TODO: User generation emails
 }
