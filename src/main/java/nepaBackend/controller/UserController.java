@@ -4,12 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.json.JsonParser;
 import org.springframework.boot.json.JsonParserFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +39,9 @@ public class UserController {
 
 	@Autowired
 	JdbcTemplate jdbcTemplate;
+	
+    @Autowired
+    private JavaMailSender sender;
 	
     private ApplicationUserRepository applicationUserRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -70,7 +78,12 @@ public class UserController {
     		headers = "Accept=application/json")
     public @ResponseBody ResponseEntity<ApplicationUser[]> generate(@RequestBody ApplicationUser users[],
 			@RequestHeader Map<String, String> headers) {
-    	System.out.println(users);
+    	
+    	// TODO: Need an option to not email user their account info
+    	// TODO: Change this to true for production
+    	boolean sendUserEmails = false;
+    	// TODO: Need an option to include role
+
     	String token = headers.get("authorization");
     	if(!isAdmin(token)) {
     		return new ResponseEntity<ApplicationUser[]>(HttpStatus.UNAUTHORIZED);
@@ -85,17 +98,33 @@ public class UserController {
     	int i = 0;
     	for(ApplicationUser user : users) {
     		
+    		if(user.getUsername() == null) {
+    			user.setUsername("");
+    		}
     		
-    		// TODO: Sanity check
-    		// TODO: Deal with no email or no username provided?
-    		
+    		// Need returnUsers to keep track of literal passwords
+    		// because we need to ensure the new users get their credentials
         	returnUsers[i] = new ApplicationUser();
-        	returnUsers[i].setUsername(user.getUsername());
+        	
+    		// TODO: Better sanity check
+    		// TODO: Deal with no email provided
+    		
+    		if(user.getUsername().length() < 1) { // No username provided?
+    			String[] split = (user.getEmail().split("@"));
+    			if(split[1].equalsIgnoreCase("email.arizona.edu")) {
+    				// Try using NetID if Arizona email (should just be first part)
+    				user.setUsername(split[0]);
+    			} else { // Or use the email as the username
+    				user.setUsername(user.getEmail());
+    			}
+    		} 
+    		
         	if(usernameExists(user.getUsername())) { // check for duplicates
         		// skip, deal with it externally when you get a result with no password
         	} else {
+                returnUsers[i].setUsername(user.getUsername());
             	returnUsers[i].setEmailAddress(user.getEmail());
-            	// TODO: Might eventually want to set roles.
+            	// TODO: Eventually want to set roles.
                 user.setRole("USER");
             	returnUsers[i].setRole("USER");
             	
@@ -106,18 +135,69 @@ public class UserController {
                 
                 // TODO: Save all at once instead of individually?
                 applicationUserRepository.save(user);
+
+                MimeMessage message = sender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message);
+                
+                if(sendUserEmails) {
+                    try {
+                    	// TODO: Log some email details to database?
+    					helper.setTo(user.getEmail());
+    	                helper.setText("An account has been created for you at http://mis-jvinalappl1.microagelab.arizona.edu "
+    	                		+ "and your credentials are:\n"
+    	                		+ "\nUsername: " + user.getUsername()
+    	                		+ "\nPassword: " + password
+    	                		+ "\n\nYou can change your password after logging in by clicking on your username in the top right.");
+    	                helper.setSubject("NEPAccess Account");
+    	                sender.send(message);
+    				} catch (MessagingException e) {
+    					// TODO Auto-generated catch block
+    					// TODO: Log errors to database?
+    					e.printStackTrace();
+    				}
+                }
+                
+                 
         	}
 
-        	System.out.println(returnUsers[i]);
-        	System.out.println(i);
         	i++;    
     	}
+    	
+    	// Email full list to admin
+    	emailUserListToAdmin(returnUsers);
     	
     	// Note: IDs will be 0 on the return objects
     	return new ResponseEntity<ApplicationUser[]>(returnUsers, HttpStatus.OK);
     }
+    
+    // Helper function for generate()
+    private void emailUserListToAdmin(ApplicationUser[] returnUsers) {
+        MimeMessage message = sender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message);
+        
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        for(ApplicationUser user : returnUsers) {
+        	sb.append("Account " + i + ":"
+        			+ "\nUsername: " + user.getUsername()
+        			+ "\nPassword: " + user.getPassword()
+        			+ "\nEmail: " + user.getEmail() + "\n\n");
+        	i++;
+        }
+        
+        try {
+    		helper.setTo(SecurityConstants.EMAIL_HANDLE);
+            helper.setText(sb.toString());
+            helper.setSubject("NEPAccess Account Generation");
+            sender.send(message);
+        } catch (MessagingException e) {
+			// TODO: Log errors to database?
+			e.printStackTrace();
+        }
+		
+	}
 
-    // To check if a username exists earlier than trying to register it.
+	// To check if a username exists earlier than trying to register it.
     @PostMapping("/exists")
     public @ResponseBody boolean usernameExists(@RequestBody String username) {
     	String sQuery = "SELECT COUNT(*) FROM application_user WHERE username = ?";
@@ -200,11 +280,8 @@ public class UserController {
 
 	}
 
-    // TODO: Change user details (email/username?)
-    // an Admin role could optionally be allowed to change any record
+    // TODO: Route and tool to add/change/remove any user, for admin use only
 
     // Login is already handled by /login on base domain by JWTAuthenticationFilter
     // extending UsernamePasswordAuthenticationFilter.
-	
-	// TODO: Could use a better tool for adding, updating, removing users.
 }
