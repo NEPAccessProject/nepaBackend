@@ -97,70 +97,73 @@ public class UserController {
 	            .build();
     	int i = 0;
     	for(ApplicationUser user : users) {
-    		
-    		if(user.getUsername() == null) {
-    			user.setUsername("");
-    		}
-    		
-    		// Need returnUsers to keep track of literal passwords
-    		// because we need to ensure the new users get their credentials
-        	returnUsers[i] = new ApplicationUser();
-        	
-    		// TODO: Better sanity check
-    		// TODO: Deal with no email provided
-    		
-    		if(user.getUsername().length() < 1) { // No username provided?
-    			String[] split = (user.getEmail().split("@"));
-    			if(split[1].equalsIgnoreCase("email.arizona.edu")) {
-    				// Try using NetID if Arizona email (should just be first part)
-    				user.setUsername(split[0]);
-    			} else { // Or use the email as the username
-    				user.setUsername(user.getEmail());
-    			}
-    		} 
-    		
-        	if(usernameExists(user.getUsername())) { // check for duplicates
-        		// skip, deal with it externally when you get a result with no password
-        	} else {
-                returnUsers[i].setUsername(user.getUsername());
-            	returnUsers[i].setEmailAddress(user.getEmail());
-            	// TODO: Eventually want to set roles.
-                user.setRole("USER");
-            	returnUsers[i].setRole("USER");
+    		if(user != null) { // Don't process an empty line, in case that's possible
+
+        		
+        		if(user.getUsername() == null) {
+        			user.setUsername("");
+        		}
+        		
+        		// Need returnUsers to keep track of literal passwords
+        		// because we need to ensure the new users get their credentials
+            	returnUsers[i] = new ApplicationUser();
             	
-        	    String password = passwordGenerator.generate(8); // output ex.: lrU12fmM 75iwI90o
-            	returnUsers[i].setPassword(password);
-            	// bCrypt internally handles salt and outputs a 60 character encoded string
-                user.setPassword(bCryptPasswordEncoder.encode(password)); 
-                
-                // TODO: Save all at once instead of individually?
-                applicationUserRepository.save(user);
+        		// TODO: Better sanity check
+        		// TODO: Deal with no email provided
+        		
+        		if(user.getUsername().length() < 1) { // No username provided?
+        			String[] split = (user.getEmail().split("@"));
+        			if(split[1].equalsIgnoreCase("email.arizona.edu")) {
+        				// Try using NetID if Arizona email (should just be first part)
+        				user.setUsername(split[0]);
+        			} else { // Or use the email as the username
+        				user.setUsername(user.getEmail());
+        			}
+        		} 
+        		
+            	if(usernameExists(user.getUsername())) { // check for duplicates
+            		// skip, deal with it externally when you get a result with no password
+            	} else {
+                    returnUsers[i].setUsername(user.getUsername());
+                	returnUsers[i].setEmailAddress(user.getEmail());
+                	// TODO: Eventually want to set roles.
+                    user.setRole("USER");
+                	returnUsers[i].setRole("USER");
+                	
+            	    String password = passwordGenerator.generate(8); // output ex.: lrU12fmM 75iwI90o
+                	returnUsers[i].setPassword(password);
+                	// bCrypt internally handles salt and outputs a 60 character encoded string
+                    user.setPassword(bCryptPasswordEncoder.encode(password)); 
+                    
+                    // TODO: Save all at once instead of individually?
+                    applicationUserRepository.save(user);
 
-                MimeMessage message = sender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message);
-                
-                if(sendUserEmails && user.getEmail() != null) {
-                    try {
-                    	// TODO: Log some email details to database?
-    					helper.setTo(user.getEmail());
-    	                helper.setText("An account has been created for you at http://mis-jvinalappl1.microagelab.arizona.edu "
-    	                		+ "and your credentials are:\n"
-    	                		+ "\nUsername: " + user.getUsername()
-    	                		+ "\nPassword: " + password
-    	                		+ "\n\nYou can change your password after logging in by clicking on your username in the top right.");
-    	                helper.setSubject("NEPAccess Account");
-    	                sender.send(message);
-    				} catch (MessagingException e) {
-    					// TODO Auto-generated catch block
-    					// TODO: Log errors to database?
-    					e.printStackTrace();
-    				}
-                }
-                
-                 
-        	}
+                    MimeMessage message = sender.createMimeMessage();
+                    MimeMessageHelper helper = new MimeMessageHelper(message);
+                    
+                    if(sendUserEmails && user.getEmail() != null) {
+                        try {
+                        	// TODO: Log some email details to database?
+        					helper.setTo(user.getEmail());
+        	                helper.setText("An account has been created for you at http://mis-jvinalappl1.microagelab.arizona.edu "
+        	                		+ "and your credentials are:\n"
+        	                		+ "\nUsername: " + user.getUsername()
+        	                		+ "\nPassword: " + password
+        	                		+ "\n\nYou can change your password after logging in by clicking on your username in the top right.");
+        	                helper.setSubject("NEPAccess Account");
+        	                sender.send(message);
+        				} catch (MessagingException e) {
+        					// TODO Auto-generated catch block
+        					// TODO: Log errors to database?
+        					e.printStackTrace();
+        				}
+                    }
+                    
+                     
+            	}
 
-        	i++;    
+            	i++;   
+    		} 
     	}
     	
     	// Email full list to admin
