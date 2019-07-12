@@ -81,7 +81,7 @@ public class UserController {
     	
     	// TODO: Need an option to not email user their account info
     	// TODO: Change this to true for production
-    	boolean sendUserEmails = false;
+    	boolean sendUserEmails = true;
     	// TODO: Need an option to include role
 
     	String token = headers.get("authorization");
