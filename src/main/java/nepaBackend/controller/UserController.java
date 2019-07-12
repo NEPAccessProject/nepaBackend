@@ -139,7 +139,7 @@ public class UserController {
                 MimeMessage message = sender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message);
                 
-                if(sendUserEmails) {
+                if(sendUserEmails && user.getEmail() != null) {
                     try {
                     	// TODO: Log some email details to database?
     					helper.setTo(user.getEmail());
