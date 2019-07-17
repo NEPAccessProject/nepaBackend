@@ -20,6 +20,7 @@ public class SimpleEmailController {
     @PostMapping("/reset")
     @ResponseBody
     String home(@RequestBody ResetEmail email) {
+        // TODO: Verify email is registered.
         try {
             sendResetEmail(email.email);
             return "Email Sent!";
@@ -30,9 +31,10 @@ public class SimpleEmailController {
  
     // TODO: Turn this into a link that will take the user to a page that asks them
     // to put in a new password, and implement that functionality.
-    // TODO: Verify email is registered.
     // TODO: Limits on how often reset email can be sent, limit on how long before link expires
-    // TODO (frontend): Captcha
+    // Reset link should probably expire in say 30 minutes and save a time in the database 
+    // (can just be hour minute second) that can be checked to prevent spam, also captcha helps
+    // TODO (frontend): Captcha, landing page to set password from reset link
     private void sendResetEmail(String email) throws Exception{
         MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message);
@@ -44,5 +46,5 @@ public class SimpleEmailController {
         sender.send(message);
     }
     
-    // TODO: User generation emails with passwords or login links like with password reset
+    // TODO: User generation emails with login links like with password reset
 }
