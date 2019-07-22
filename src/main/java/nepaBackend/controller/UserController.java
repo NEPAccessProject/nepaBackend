@@ -55,8 +55,6 @@ public class UserController {
     // Disabled
     @PostMapping("/register")
     private @ResponseBody ResponseEntity<Void> register(@RequestBody ApplicationUser user) {
-//    	return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
-    	
     	// email address, username are included and saved
     	// role has to be set and password has to be encrypted
     	
