@@ -28,7 +28,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 
 import nepaBackend.ApplicationUserRepository;
-import nepaBackend.PasswordChange;
+import nepaBackend.absurdity.PasswordChange;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.security.PasswordGenerator;
 import nepaBackend.security.SecurityConstants;

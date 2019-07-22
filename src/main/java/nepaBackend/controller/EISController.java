@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 //import org.springframework.web.bind.annotation.RequestParam;
 //import org.springframework.dao.DataAccessException;
 
-import nepaBackend.SearchInputs;
+import nepaBackend.absurdity.SearchInputs;
 import nepaBackend.model.EISDoc;
 
 @RestController
