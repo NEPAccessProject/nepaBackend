@@ -69,7 +69,7 @@ public class ResetEmailController {
             
     		LocalDateTime timeNow = LocalDateTime.now();
     		
-    		// If there has been a reset
+    		// If there has been a reset (default null column)
     		if(resetUser.getLastReset() != null) {
     			// And if 24 hours haven't passed since the last email reset
     			if((timeNow.minusDays(1)).isBefore(resetUser.getLastReset())) {
@@ -98,7 +98,7 @@ public class ResetEmailController {
         		+ "  The link will remain valid for 24 hours or until your password is changed.");
         helper.setSubject("NEPAccess Reset Password Request");
          
-//        sender.send(message);
+        sender.send(message);
         
         // Save LocalDateTime in database
         resetUser.setLastReset(LocalDateTime.now());
