@@ -1,6 +1,7 @@
 package nepaBackend.controller;
 import static com.auth0.jwt.algorithms.Algorithm.HMAC512;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Map;
@@ -51,6 +52,10 @@ public class ResetEmailController {
     }
 
 	// TODO: Test on production server, see if email works
+    // TODO: Limits on how often reset email can be sent
+    // can save datetime in db and check against that
+    // TODO (frontend): Captcha, landing page to set password from reset link
+    // Route to generate and email a reset link to given email address
     @CrossOrigin
     @PostMapping(path = "/reset/send", 
     		consumes = "application/json", 
@@ -62,6 +67,17 @@ public class ResetEmailController {
         	// Throws exception if email doesn't exist or if multiple records are found
     		ApplicationUser resetUser = applicationUserRepository.findByEmail(resetEmail.email);
             
+    		LocalDateTime timeNow = LocalDateTime.now();
+    		
+    		// If there has been a reset
+    		if(resetUser.getLastReset() != null) {
+    			// And if 24 hours haven't passed since the last email reset
+    			if(timeNow.minusHours(24).isAfter(resetUser.getLastReset())) {
+    				// then return a special HttpStatus
+    				return new ResponseEntity<String>("Too soon", HttpStatus.I_AM_A_TEAPOT);
+    			}
+    		}
+    		
     		sendResetEmail(resetUser);
             return new ResponseEntity<String>("Email sent!", HttpStatus.OK);
         }catch(Exception ex) {
@@ -69,9 +85,6 @@ public class ResetEmailController {
         }
     }
  
-    // TODO: Limits on how often reset email can be sent
-    // can save datetime in db and check against that
-    // TODO (frontend): Captcha, landing page to set password from reset link
     private void sendResetEmail(ApplicationUser resetUser) throws Exception{
         MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message);
@@ -86,10 +99,14 @@ public class ResetEmailController {
         helper.setSubject("NEPAccess Reset Password Request");
          
         sender.send(message);
+        
+        // Save LocalDateTime in database
+        resetUser.setLastReset(LocalDateTime.now());
+        applicationUserRepository.save(resetUser);
 //        System.out.println(message.getContent().toString());
     }
 
-    // Generate a JWT that lasts for 24 hours and return a valid reset link
+    // Helper method generates a JWT that lasts for 24 hours and return a valid reset link
 	private String getResetLink(ApplicationUser resetUser) {
         String token = JWT.create()
                 .withSubject(resetUser.getUsername())
@@ -105,7 +122,7 @@ public class ResetEmailController {
 		return "http://mis-jvinalappl1.microagelab.arizona.edu/reset?token="+token;
 	}
 
-	// Custom check of custom JWT generated for password resets
+	// Route for custom check of custom JWT generated for password resets
     @CrossOrigin
     @PostMapping(path = "/reset/check")
     ResponseEntity<Void> resetCheck(@RequestHeader Map<String, String> headers) {
@@ -127,6 +144,7 @@ public class ResetEmailController {
     	}
     }
     
+    // Takes a password, sends verification through custom check, saves new password
     @CrossOrigin
     @PostMapping(path = "/reset/change", 
     		consumes = "application/json", 

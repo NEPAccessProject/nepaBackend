@@ -1,4 +1,6 @@
 package nepaBackend.model;
+import java.time.LocalDateTime;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -13,19 +15,23 @@ public class ApplicationUser { // application_user
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @Column(name = "username")
+    @Column(name = "username", length=50, unique=true)
     private String username;
     
     @Column(name = "password")
     private String password;
     
-    @Column(name = "email")
+    @Column(name = "email", length=191, unique=true)
     private String email;
 
 	@Column(name = "role")
     private String role; // role describes permissions for using the app
 
-    public long getId() {
+	@Column(name = "last_reset", columnDefinition="TIMESTAMP")
+	private LocalDateTime lastReset;
+	
+
+	public long getId() {
         return id;
     }
 
@@ -59,6 +65,14 @@ public class ApplicationUser { // application_user
 
 	public void setRole(String role) {
 		this.role = role;
+	}
+	
+    public LocalDateTime getLastReset() {
+		return lastReset;
+	}
+
+	public void setLastReset(LocalDateTime lastReset) {
+		this.lastReset = lastReset;
 	}
 
 	public boolean isAccountNonExpired() {
