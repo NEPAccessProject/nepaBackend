@@ -119,7 +119,8 @@ public class UserController {
         			}
         		} 
         		
-            	if(usernameExists(user.getUsername())) { // check for duplicates
+        		// check for duplicates, length constraints
+            	if( usernameInvalid(user.getUsername()) || emailInvalid(user.getEmail()) ) { 
             		// skip, deal with it externally when you get a result with no password
             	} else {
                     returnUsers[i].setUsername(user.getUsername());
@@ -170,8 +171,43 @@ public class UserController {
     	// Note: IDs will be 0 on the return objects
     	return new ResponseEntity<ApplicationUser[]>(returnUsers, HttpStatus.OK);
     }
-    
-    // Helper function for generate()
+
+    // TODO: Better sanity check than length and uniqueness
+	// Helper method validates email
+    private boolean emailInvalid(String email) {
+		if(email.length() == 0 || email.length() > 191) {
+			return true;
+		}
+		return emailExists(email);
+	}
+
+	// Helper method validates username
+	private boolean usernameInvalid(String username) {
+		if(username.length() == 0 || username.length() > 50) {
+			return true;
+		}
+		return usernameExists(username);
+	}
+
+	// To check if an email exists earlier than trying to register it.
+    @PostMapping("/emailexists")
+    public @ResponseBody boolean emailExists(@RequestBody String email) {
+    	String sQuery = "SELECT COUNT(*) FROM application_user WHERE email = ?";
+		// Run query
+		int count = jdbcTemplate.queryForObject
+		(
+			sQuery, new Object[] { email },
+			Integer.class
+		);
+//		System.out.println(username);
+//		System.out.println(count);
+		if(count > 0) {
+			return true;
+		}
+		return false;
+    }
+
+	// Helper function for generate()
     private void emailUserListToAdmin(ApplicationUser[] returnUsers) {
         MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message);
