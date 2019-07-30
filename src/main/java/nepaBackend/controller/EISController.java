@@ -71,22 +71,22 @@ public class EISController {
 			// Populate lists
 			if(saneInput(searchInputs.startPublish)) {
 				inputList.add(searchInputs.startPublish);
-				whereList.add(" (register_date) >= ?)");
+				whereList.add(" ((register_date) >= ?)");
 			}
 			
 			if(saneInput(searchInputs.endPublish)) {
 				inputList.add(searchInputs.endPublish);
-				whereList.add(" (register_date) <= ?)");
+				whereList.add(" ((register_date) <= ?)");
 			}
 
 			if(saneInput(searchInputs.startComment)) {
 				inputList.add(searchInputs.startComment);
-				whereList.add(" (comment_date) >= ?)");
+				whereList.add(" ((comment_date) >= ?)");
 			}
 			
 			if(saneInput(searchInputs.endComment)) {
 				inputList.add(searchInputs.endComment);
-				whereList.add(" (comment_date) <= ?)");
+				whereList.add(" ((comment_date) <= ?)");
 			}
 
 			if(saneInput(searchInputs.needsComments)) { // Don't need an input for this right now
