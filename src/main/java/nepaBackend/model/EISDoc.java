@@ -21,10 +21,10 @@ public class EISDoc {
     String documentType;  // TODO: Enum?
   
     @Column(name="comment_date")
-    String commentDate; // mm/dd/yyyy TODO: MySQL stores Date as yyyy/mm/dd
+    String commentDate; // mm/dd/yyyy TODO: Reformat + turn into DATE, MySQL stores Date as yyyy/mm/dd
   
     @Column(name="register_date")
-    String registerDate; // mm/dd/yyyy TODO: MySQL stores Date as yyyy/mm/dd
+    String registerDate; // mm/dd/yyyy TODO: same
   
     @Column(name="agency")
     String agency; // TODO: Enum?
