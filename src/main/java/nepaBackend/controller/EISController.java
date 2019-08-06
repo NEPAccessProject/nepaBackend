@@ -14,14 +14,8 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
-//import org.springframework.jdbc.core.PreparedStatementSetter;
-//import org.springframework.jdbc.core.ResultSetExtractor;
-//import org.springframework.web.bind.annotation.RequestMethod;
-//import org.springframework.web.bind.annotation.RequestParam;
-//import org.springframework.dao.DataAccessException;
 
 import nepaBackend.absurdity.SearchInputs;
 import nepaBackend.model.EISDoc;
@@ -89,10 +83,16 @@ public class EISController {
 				whereList.add(" ((comment_date) <= ?)");
 			}
 
-			if(saneInput(searchInputs.needsComments)) { // Don't need an input for this right now
-				// TODO: Temporary logic, filenames should each have their own field in the database later 
-				// and they may also be a different format
-				whereList.add(" (documents LIKE 'CommentLetters-_____%' OR documents LIKE 'EisDocuments-_____%;CommentLetters-_____%')");
+			// TODO: Temporary logic, filenames should each have their own field in the database later 
+			// and they may also be a different format
+			// (this will eliminate the need for the _% LIKE logic also)
+			// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
+			if(saneInput(searchInputs.needsComments)) {
+				whereList.add(" (documents LIKE 'CommentLetters-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
+			}
+
+			if(saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
+				whereList.add(" (documents LIKE 'EisDocuments-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
 			}
 			
 			if(saneInput(searchInputs.state)) {

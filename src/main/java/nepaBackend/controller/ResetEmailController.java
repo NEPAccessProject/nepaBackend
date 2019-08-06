@@ -2,19 +2,16 @@ package nepaBackend.controller;
 import static com.auth0.jwt.algorithms.Algorithm.HMAC512;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.Map;
 
 import javax.mail.internet.MimeMessage;
-import javax.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -27,7 +24,6 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 
 import nepaBackend.ApplicationUserRepository;
-import nepaBackend.UserDetailsImpl;
 import nepaBackend.absurdity.ResetEmail;
 import nepaBackend.absurdity.ResetPassword;
 import nepaBackend.model.ApplicationUser;

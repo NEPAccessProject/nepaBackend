@@ -16,6 +16,7 @@ public class SearchInputs {
 	public String[] state;
 	public String[] agency;
 	public boolean needsComments;
+	public boolean needsDocument;
 	
 	public SearchInputs() {
 	}
