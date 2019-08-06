@@ -28,6 +28,7 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.absurdity.Generate;
 import nepaBackend.absurdity.PasswordChange;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.security.PasswordGenerator;
@@ -74,12 +75,14 @@ public class UserController {
     		consumes = "application/json", 
     		produces = "application/json", 
     		headers = "Accept=application/json")
-    public @ResponseBody ResponseEntity<ApplicationUser[]> generate(@RequestBody ApplicationUser users[],
+    public @ResponseBody ResponseEntity<ApplicationUser[]> generate(@RequestBody Generate gen,
+//    		@RequestBody ApplicationUser users[],
+//    		@RequestBody boolean shouldSendEmail,
 			@RequestHeader Map<String, String> headers) {
     	
     	// TODO: Need an option to not email user their account info
     	// TODO: Change this to true for production
-    	boolean sendUserEmails = true;
+    	boolean sendUserEmails = gen.shouldSend;
     	// TODO: Need an option to include role
 
     	String token = headers.get("authorization");
@@ -87,14 +90,14 @@ public class UserController {
     		return new ResponseEntity<ApplicationUser[]>(HttpStatus.UNAUTHORIZED);
     	}
     	
-    	ApplicationUser returnUsers[] = new ApplicationUser[users.length];
+    	ApplicationUser returnUsers[] = new ApplicationUser[gen.users.length];
 		PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
 	            .useDigits(true)
 	            .useLower(true)
 	            .useUpper(true)
 	            .build();
     	int i = 0;
-    	for(ApplicationUser user : users) {
+    	for(ApplicationUser user : gen.users) {
     		if(user != null) { // Don't process an empty line, in case that's possible
 
         		
@@ -105,9 +108,6 @@ public class UserController {
         		// Need returnUsers to keep track of literal passwords
         		// because we need to ensure the new users get their credentials
             	returnUsers[i] = new ApplicationUser();
-            	
-        		// TODO: Better sanity check
-        		// TODO: Deal with no email provided
         		
         		if(user.getUsername().length() < 1) { // No username provided?
         			String[] split = (user.getEmail().split("@"));
@@ -121,11 +121,12 @@ public class UserController {
         		
         		// check for duplicates, length constraints
             	if( usernameInvalid(user.getUsername()) || emailInvalid(user.getEmail()) ) { 
+                	returnUsers[i].setEmailAddress(user.getEmail());
             		// skip, deal with it externally when you get a result with no password
             	} else {
                     returnUsers[i].setUsername(user.getUsername());
                 	returnUsers[i].setEmailAddress(user.getEmail());
-                	// TODO: Eventually want to set roles.
+                	// TODO: Eventually may want to set roles from request
                     user.setRole("USER");
                 	returnUsers[i].setRole("USER");
                 	
@@ -134,14 +135,21 @@ public class UserController {
                 	// bCrypt internally handles salt and outputs a 60 character encoded string
                     user.setPassword(bCryptPasswordEncoder.encode(password)); 
                     
+                    boolean saved = false; // No point in sending the email if not saved
                     // TODO: Save all at once instead of individually?
-                    applicationUserRepository.save(user);
-
-                    MimeMessage message = sender.createMimeMessage();
-                    MimeMessageHelper helper = new MimeMessageHelper(message);
-                    
-                    if(sendUserEmails && user.getEmail() != null) {
+                    try {
+                        applicationUserRepository.save(user);
+                        saved = true;
+                    } catch(Exception e) {
+    					e.printStackTrace();
+    					saved = false;
+                    }
+//                    System.out.println("shouldSend: " + sendUserEmails);
+                    if(sendUserEmails && saved && user.getEmail() != null) {
                         try {
+
+                            MimeMessage message = sender.createMimeMessage();
+                            MimeMessageHelper helper = new MimeMessageHelper(message);
                         	// TODO: Log some email details to database?
         					helper.setTo(user.getEmail());
         	                helper.setText("An account has been created for you at http://mis-jvinalappl1.microagelab.arizona.edu "
@@ -151,6 +159,7 @@ public class UserController {
         	                		+ "\n\nYou can change your password after logging in by clicking on your username in the top right.");
         	                helper.setSubject("NEPAccess Account");
         	                sender.send(message);
+//        	                System.out.println(message);
         				} catch (MessagingException e) {
         					// TODO Auto-generated catch block
         					// TODO: Log errors to database?
@@ -228,7 +237,7 @@ public class UserController {
             helper.setSubject("NEPAccess Account Generation");
             sender.send(message);
         } catch (MessagingException e) {
-			// TODO: Log errors to database?
+			// TODO: Log errors to database
 			e.printStackTrace();
         }
 		
