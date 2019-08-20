@@ -1,5 +1,7 @@
 package nepaBackend.model;
 
+import java.time.LocalDateTime;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -29,10 +31,14 @@ public class EmailLog {
 
 	@Column(name = "error_type", columnDefinition = "TEXT") // Optional field to describe the nature of an error if one occurred
     private String errorType;
+	
+	@Column(name = "log_time", columnDefinition="TIMESTAMP")
+	private LocalDateTime logTime;
 
     
 
-    public EmailLog() { }
+
+	public EmailLog() { }
 
 	public EmailLog(Long id, String email, String username, boolean sent, String emailType, String errorType) {
 		//super();  // TODO: Do we need this for this project?
@@ -74,7 +80,7 @@ public class EmailLog {
 		this.sent = sent;
 	}
 
-    public String isEmailType() {
+    public String getEmailType() {
 		return emailType;
 	}
 
@@ -88,5 +94,14 @@ public class EmailLog {
 
 	public void setErrorType(String errorType) {
 		this.errorType = errorType;
+	}
+	
+
+    public LocalDateTime getLogTime() {
+		return logTime;
+	}
+
+	public void setLogTime(LocalDateTime logTime) {
+		this.logTime = logTime;
 	}
 }

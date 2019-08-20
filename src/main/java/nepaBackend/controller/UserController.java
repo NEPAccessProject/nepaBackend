@@ -1,5 +1,6 @@
 package nepaBackend.controller;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import javax.mail.MessagingException;
@@ -148,6 +149,7 @@ public class UserController {
     		    			log.setUsername(user.getUsername());
     		    			log.setSent(false);
     		    			log.setEmailType("Generate");
+    		    			log.setLogTime(LocalDateTime.now());
     		    			log.setErrorType(e.toString());
     		    			emailLogRepository.save(log);
     		    		}catch(Exception logEx) {
@@ -189,6 +191,7 @@ public class UserController {
         		    			log.setUsername(user.getUsername());
         		    			log.setSent(false);
         		    			log.setEmailType("Generate");
+        		    			log.setLogTime(LocalDateTime.now());
         		    			log.setErrorType(e.toString());
         		    			emailLogRepository.save(log);
         		    		}catch(Exception logEx) {
@@ -203,7 +206,6 @@ public class UserController {
     		    			log.setUsername(user.getUsername());
     		    			log.setSent(false);
     		    			log.setEmailType("Generate");
-    		    			log.setErrorType("No error");
     		    			emailLogRepository.save(log);
     		    		}catch(Exception logEx) {
     		    			// Do nothing

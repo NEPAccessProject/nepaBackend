@@ -99,6 +99,7 @@ public class ResetEmailController {
     			log.setEmail(resetEmail.email);
     			log.setSent(false);
     			log.setEmailType("Reset");
+    			log.setLogTime(LocalDateTime.now());
     			log.setErrorType(ex.toString() + " :: Status=" + HttpStatus.INTERNAL_SERVER_ERROR.toString());
     			System.out.println("Saving error?");
     			emailLogRepository.save(log);
