@@ -22,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.EmailLogRepository;
 import nepaBackend.absurdity.Generate;
 import nepaBackend.absurdity.PasswordChange;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.model.EmailLog;
 import nepaBackend.security.PasswordGenerator;
 import nepaBackend.security.SecurityConstants;
 
@@ -39,6 +41,7 @@ public class UserController {
     private JavaMailSender sender;
 	
     private ApplicationUserRepository applicationUserRepository;
+    private EmailLogRepository emailLogRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public UserController(ApplicationUserRepository applicationUserRepository,
@@ -153,10 +156,31 @@ public class UserController {
         	                		+ "\n\nYou can change your password after logging in by clicking on your username in the top right.");
         	                helper.setSubject("NEPAccess Account");
         	                sender.send(message);
+        		    		try {
+        		    			EmailLog log = new EmailLog();
+        		    			log.setEmail(user.getEmail());
+        		    			log.setUsername(user.getUsername());
+        		    			log.setSent(true);
+        		    			log.setEmailType("Generate");
+        		    			emailLogRepository.save(log);
+        		    		}catch(Exception logEx) {
+        		    			// Do nothing
+        		    		}
 //        	                System.out.println(message);
         				} catch (MessagingException e) {
         					// TODO Auto-generated catch block
-        					// TODO: Log errors to database?
+        					// Log error to database
+        		    		try {
+        		    			EmailLog log = new EmailLog();
+        		    			log.setEmail(user.getEmail());
+        		    			log.setUsername(user.getUsername());
+        		    			log.setSent(false);
+        		    			log.setEmailType("Generate");
+        		    			log.setErrorType(e.toString());
+        		    			emailLogRepository.save(log);
+        		    		}catch(Exception logEx) {
+        		    			// Do nothing
+        		    		}
         					e.printStackTrace();
         				}
                     }

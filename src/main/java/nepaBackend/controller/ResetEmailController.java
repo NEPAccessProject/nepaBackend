@@ -24,9 +24,11 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.EmailLogRepository;
 import nepaBackend.absurdity.ResetEmail;
 import nepaBackend.absurdity.ResetPassword;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.model.EmailLog;
 import nepaBackend.security.SecurityConstants;
  
 // TODO: Email addresses must be unique per account or else reset email will fail
@@ -39,6 +41,7 @@ public class ResetEmailController {
     private JavaMailSender sender;
     
     private ApplicationUserRepository applicationUserRepository;
+    private EmailLogRepository emailLogRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public ResetEmailController(ApplicationUserRepository applicationUserRepository,
@@ -75,8 +78,27 @@ public class ResetEmailController {
     		}
     		
     		sendResetEmail(resetUser);
+    		try {
+    			EmailLog log = new EmailLog();
+    			log.setEmail(resetEmail.email);
+    			log.setSent(true);
+    			log.setEmailType("Reset");
+    			emailLogRepository.save(log);
+    		}catch(Exception ex) {
+    			// Do nothing
+    		}
             return new ResponseEntity<String>("Email sent!", HttpStatus.OK);
         }catch(Exception ex) {
+    		try {
+    			EmailLog log = new EmailLog();
+    			log.setEmail(resetEmail.email);
+    			log.setSent(false);
+    			log.setEmailType("Reset");
+    			log.setErrorType(ex.toString() + " :: Status=" + HttpStatus.INTERNAL_SERVER_ERROR.toString());
+    			emailLogRepository.save(log);
+    		}catch(Exception logEx) {
+    			// If the error log fails to log then we're already in a hole (no db access?)
+    		}
             return new ResponseEntity<String>("Error in sending email: "+ex, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
