@@ -45,8 +45,10 @@ public class ResetEmailController {
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public ResetEmailController(ApplicationUserRepository applicationUserRepository,
+    		EmailLogRepository emailLogRepository,
             BCryptPasswordEncoder bCryptPasswordEncoder) {
         this.applicationUserRepository = applicationUserRepository;
+        this.emailLogRepository = emailLogRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
@@ -83,8 +85,10 @@ public class ResetEmailController {
     			log.setEmail(resetEmail.email);
     			log.setSent(true);
     			log.setEmailType("Reset");
+    			System.out.println("Saving?");
     			emailLogRepository.save(log);
     		}catch(Exception ex) {
+//    			System.out.println("Failure?" + ex);
     			// Do nothing
     		}
             return new ResponseEntity<String>("Email sent!", HttpStatus.OK);
@@ -95,8 +99,10 @@ public class ResetEmailController {
     			log.setSent(false);
     			log.setEmailType("Reset");
     			log.setErrorType(ex.toString() + " :: Status=" + HttpStatus.INTERNAL_SERVER_ERROR.toString());
+    			System.out.println("Saving error?");
     			emailLogRepository.save(log);
     		}catch(Exception logEx) {
+//    			System.out.println("Failure?" + logEx);
     			// If the error log fails to log then we're already in a hole (no db access?)
     		}
             return new ResponseEntity<String>("Error in sending email: "+ex, HttpStatus.INTERNAL_SERVER_ERROR);

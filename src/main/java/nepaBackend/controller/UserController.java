@@ -45,8 +45,10 @@ public class UserController {
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public UserController(ApplicationUserRepository applicationUserRepository,
-                          BCryptPasswordEncoder bCryptPasswordEncoder) {
+    						EmailLogRepository emailLogRepository,
+    						BCryptPasswordEncoder bCryptPasswordEncoder) {
         this.applicationUserRepository = applicationUserRepository;
+        this.emailLogRepository = emailLogRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
