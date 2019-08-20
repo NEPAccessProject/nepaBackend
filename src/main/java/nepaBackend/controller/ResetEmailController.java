@@ -91,6 +91,7 @@ public class ResetEmailController {
 //    			System.out.println("Failure?" + ex);
     			// Do nothing
     		}
+    		// TODO: This response happens even if the email can't be sent in local test, needs fixing
             return new ResponseEntity<String>("Email sent!", HttpStatus.OK);
         }catch(Exception ex) {
     		try {
