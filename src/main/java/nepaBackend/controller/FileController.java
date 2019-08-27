@@ -26,9 +26,9 @@ public class FileController {
 	        InputStream in = new BufferedInputStream(new FileInputStream(file));
 
 //	        response.setContentType("application/xlsx");
-	        response.setContentType("txt/plain");
-//	        response.setHeader("Content-Disposition", "attachment; filename="+filename+".txt"); 
-	        response.setHeader("Content-Disposition", "attachment; filename=test.txt"); 
+//	        response.setHeader("Content-Disposition", "attachment; filename="+filename+".txt");
+	        response.addHeader("Content-Disposition", "attachment; filename=test.txt"); 
+	        response.setContentType("txt/plain"); 
 
 
 	        ServletOutputStream out = response.getOutputStream();
