@@ -19,11 +19,12 @@ import org.springframework.web.bind.annotation.RequestMethod;
 public class FileController {
 
 	@CrossOrigin
-	@RequestMapping(value = "/downloadFile", method = RequestMethod.GET)
+	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response) {
 	    try {
 	        String filename = request.getParameter("filename");
-	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/"+filename);
+//	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/"+filename);
+	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/test.txt");
 	        InputStream in = new BufferedInputStream(new FileInputStream(file));
 
 	        response.setContentType("application/xlsx");

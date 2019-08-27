@@ -25,7 +25,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
 
-    // Need to do this to get custom JWT checks through the filter.
+    // Need to do this to get custom JWT (for password reset) checks through the filter.
     @Override
     public void configure(WebSecurity web) throws Exception {
         web.ignoring()
