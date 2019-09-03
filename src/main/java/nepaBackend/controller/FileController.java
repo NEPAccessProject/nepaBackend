@@ -27,6 +27,7 @@ public class FileController {
 //	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/"+filename);
 	        File file = new File("http://mis-jvinaldbl1.catnet.arizona.edu:80/test/test.txt");
 	        InputStream in = new BufferedInputStream(new FileInputStream(file));
+	        // TODO: Try just saving the file "locally" (to backend VM) to make sure it has permission
 
 //	        response.setContentType("application/xlsx");
 //	        response.setHeader("Content-Disposition", "attachment; filename="+filename+".txt");
