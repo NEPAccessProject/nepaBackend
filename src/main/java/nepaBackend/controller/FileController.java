@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -18,11 +19,11 @@ public class FileController {
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
-	public void downloadFile(HttpServletRequest request, HttpServletResponse response) {
+	public ResponseEntity<String> downloadFile(HttpServletRequest request, HttpServletResponse response) {
 	    try {
 	        String filename = request.getParameter("filename");
 //	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/"+filename);
-	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/test.txt");
+	        File file = new File("http://mis-jvinaldbl1.catnet.arizona.edu:80/test/test.txt");
 	        InputStream in = new BufferedInputStream(new FileInputStream(file));
 
 //	        response.setContentType("application/xlsx");
@@ -34,8 +35,9 @@ public class FileController {
 	        ServletOutputStream out = response.getOutputStream();
 	        IOUtils.copy(in, out);
 	        response.flushBuffer();
+	        return new ResponseEntity<String>("Whew", null);
 	    } catch (Exception e) {
-//	        e.printStackTrace();
+	        return new ResponseEntity<String>(e.toString(), null);
 	    }
 	}
 	
