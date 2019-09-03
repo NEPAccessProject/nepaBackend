@@ -4,6 +4,8 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -37,7 +39,11 @@ public class FileController {
 	        response.flushBuffer();
 	        return new ResponseEntity<String>("Whew", null);
 	    } catch (Exception e) {
-	        return new ResponseEntity<String>(e.toString(), null);
+	    	StringWriter sw = new StringWriter();
+	    	PrintWriter pw = new PrintWriter(sw);
+	    	e.printStackTrace(pw);
+	    	String sStackTrace = sw.toString();
+	        return new ResponseEntity<String>(sStackTrace, null);
 	    }
 	}
 	
