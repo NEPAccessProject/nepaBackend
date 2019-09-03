@@ -21,7 +21,7 @@ public class FileController {
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
 	public ResponseEntity<String> downloadFile(HttpServletRequest request, HttpServletResponse response) {
 	    try {
-	        String filename = request.getParameter("filename");
+//	        String filename = request.getParameter("filename");
 //	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/"+filename);
 	        File file = new File("http://mis-jvinaldbl1.catnet.arizona.edu:80/test/test.txt");
 	        InputStream in = new BufferedInputStream(new FileInputStream(file));
