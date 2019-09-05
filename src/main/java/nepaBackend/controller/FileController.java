@@ -32,6 +32,7 @@ import reactor.core.publisher.Flux;
 @RequestMapping("/file")
 public class FileController {
 
+	// TODO: Generalize, import relevant files, test with big files, pick which methodology, etc.
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
