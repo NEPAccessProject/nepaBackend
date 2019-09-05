@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -22,10 +23,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import reactor.core.publisher.Flux;
 
+@RestController
+@RequestMapping("/file")
 public class FileController {
 
 
@@ -33,10 +37,11 @@ public class FileController {
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
 	public ResponseEntity<String> downloadFile(HttpServletRequest request, HttpServletResponse response) {
 	    try {
+	    	System.out.println("Activated");
 //	        String filename = request.getParameter("filename");
 //	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/"+filename);
-	        File file = new File("http://mis-jvinaldbl1.catnet.arizona.edu:80/test/test.txt");
-	        InputStream in = new BufferedInputStream(new FileInputStream(file));
+	        URL fileURL = new URL("http://mis-jvinaldbl1.catnet.arizona.edu:80/test/test.txt");
+	        InputStream in = new BufferedInputStream(fileURL.openStream());
 	        // TODO: Try just saving the file "locally" (to backend VM) to make sure it has permission
 
 //	        response.setContentType("application/xlsx");
@@ -53,6 +58,7 @@ public class FileController {
 	    	StringWriter sw = new StringWriter();
 	    	PrintWriter pw = new PrintWriter(sw);
 	    	e.printStackTrace(pw);
+	    	e.printStackTrace();
 	    	String sStackTrace = sw.toString();
 	        return new ResponseEntity<String>(sStackTrace, null);
 	    }
@@ -61,6 +67,7 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/download", method = RequestMethod.GET)
 	public void download( HttpServletResponse response ) throws IOException {
+    	System.out.println("Activated2");
 
 	    WebClient webClient = WebClient.create();
 
