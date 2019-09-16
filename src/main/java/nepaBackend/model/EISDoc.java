@@ -8,20 +8,20 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 @Entity
-@Table(name="eis-meta") // TODO: Rename table later
+@Table(name="eisdoc") // TODO: Rename table everywhere
 public class EISDoc {
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
     Long id;  // TODO: ID/PK?
 	
-    @Column(name="title")
+    @Column(name="title",columnDefinition="text") // Note: Had to do ALTER TABLE `eis-meta` ADD FULLTEXT(title) for search
     String title;
   
     @Column(name="document_type")
     String documentType;  // TODO: Enum?
   
     @Column(name="comment_date")
-    String commentDate; // mm/dd/yyyy TODO: Reformat + turn into DATE, MySQL stores Date as yyyy/mm/dd
+    String commentDate; // mm/dd/yyyy TODO: turn into DATE, MySQL stores Date as yyyy/mm/dd
   
     @Column(name="register_date")
     String registerDate; // mm/dd/yyyy TODO: same
@@ -32,15 +32,19 @@ public class EISDoc {
     @Column(name="state")
     String state; // TODO: Enum?
   
-    @Column(name="documents")
-    String documents; // name of zip file of EIS PDFs; name of zip file of comment PDFs (both optional)
+    @Column(name="filename")
+    String filename; // name of zip file of EIS PDF(s) (optional)
+
+    @Column(name="comments_filename")
+    String commentsFilename; // name of zip file of comment PDF(s) (optional)
+    
     // String location; // Location for proposed project is desired, but don't have metadata
     // String action; // Type of action is desired, but don't have metadata
 
     public EISDoc() { }
 
 	public EISDoc(Long id, String title, String documentType, String commentDate, String registerDate, String agency, String state,
-			String documents) {
+			String filename, String commentsFilename) {
 		//super();  // TODO: Do we need this for this project?
 		
 		this.id = id;
@@ -50,7 +54,8 @@ public class EISDoc {
 		this.registerDate = registerDate;
 		this.agency = agency;
 		this.state = state;
-		this.documents = documents;
+		this.filename = filename;
+		this.commentsFilename = commentsFilename;
 	}
 	
 	public Long getId() {
@@ -105,12 +110,21 @@ public class EISDoc {
 		this.state = state;
 	}
 	
-	public String getDocuments() {
-		return documents;
+	public String getFilename() {
+		return filename;
 	}
 	
-	public void setDocuments(String documents) {
-		this.documents = documents;
+	public void setFilename(String filename) {
+		this.filename = filename;
 	}
+	
+	public String getCommentsFilename() {
+		return commentsFilename;
+	}
+
+	public void setCommentsFilename(String commentsFilename) {
+		this.commentsFilename = commentsFilename;
+	}
+
 
 }
