@@ -52,10 +52,9 @@ public class EISController {
 			ArrayList<String> whereList = new ArrayList<String>();
 			
 			// Select tables, columns
-			String sQuery = "SELECT * FROM `eis-meta`";
+			String sQuery = "SELECT * FROM eisdoc";
 			
 			// TODO: join lists/logic
-			// TODO: Use a library for table building, drop LIMIT 100
 			
 			// TODO: For the future, load Dates of format yyyy-MM=dd into db.
 			// This will change STR_TO_DATE(register_date, '%m/%d/%Y') >= ?
@@ -88,11 +87,13 @@ public class EISController {
 			// (this will eliminate the need for the _% LIKE logic also)
 			// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
 			if(saneInput(searchInputs.needsComments)) {
-				whereList.add(" (documents LIKE 'CommentLetters-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
+//				whereList.add(" (documents LIKE 'CommentLetters-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
+				whereList.add(" (comments_filename<>'')");
 			}
 
 			if(saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
-				whereList.add(" (documents LIKE 'EisDocuments-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
+//				whereList.add(" (documents LIKE 'EisDocuments-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
+				whereList.add(" (filename<>'')");
 			}
 			
 			if(saneInput(searchInputs.state)) {
@@ -141,7 +142,7 @@ public class EISController {
 				}
 				sQuery += i; // Append conditional
 				
-				addAnd = true; // Raise AND flag
+				addAnd = true; // Raise AND flag for future iterations
 			}
 			
 			// Finalize query
@@ -160,7 +161,8 @@ public class EISController {
 					rs.getString("register_date"), 
 					rs.getString("agency"),
 					rs.getString("state"), 
-					rs.getString("documents")
+					rs.getString("filename"),
+					rs.getString("comments_filename")
 				)
 			);
 			
