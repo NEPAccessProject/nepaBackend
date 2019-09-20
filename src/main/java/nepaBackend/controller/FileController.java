@@ -42,6 +42,7 @@ public class FileController {
 			@RequestParam(value = "filename") String filename) {
 	    
 		try {
+			// TODO: if not .zip try adding .pdf first?
 	    	System.out.println("Activated for: http://mis-jvinaldbl1.catnet.arizona.edu:80/test/" + filename);
 //	        String filename = request.getParameter("filename");
 //	        File file = new File("mis-jvinaldbl1.catnet.arizona.edu/test/"+filename);
@@ -50,8 +51,8 @@ public class FileController {
 	        // TODO: Try just saving the file "locally" (to backend VM) to make sure it has permission
 
 //	        response.setContentType("application/xlsx");
-	        response.addHeader("Content-Disposition", "attachment; filename=" + filename); 
-//	        response.setHeader("Content-Disposition", "attachment; filename="+filename);
+//	        response.addHeader("Content-Disposition", "attachment; filename=" + filename); 
+	        response.setHeader("Content-Disposition", "attachment; filename=" + filename);
 //	        response.setContentType("txt/plain"); 
 
 
@@ -69,33 +70,33 @@ public class FileController {
 	    }
 	}
 
-//	@CrossOrigin
-//	@RequestMapping(path = "/download", method = RequestMethod.GET)
-//	public void download( HttpServletResponse response ) throws IOException {
-//    	System.out.println("Activated2");
-//
-//	    WebClient webClient = WebClient.create();
-//
-//	    URI fileUrl = null;
-//		try {
-//			fileUrl = new URI("http://mis-jvinaldbl1.catnet.arizona.edu:80/test/test.txt");
-//		} catch (URISyntaxException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//		
-//	    // Request service to get file data
-//	    Flux<DataBuffer> fileDataStream = webClient.get()
-//	            .uri( fileUrl )
-//	            .accept( MediaType.APPLICATION_OCTET_STREAM )
-//	            .retrieve()
-//	            .bodyToFlux( DataBuffer.class );
-//
-//	    // Streams the stream from response instead of loading it all in memory
-//	    DataBufferUtils.write( fileDataStream, response.getOutputStream() )
-//	            .map( DataBufferUtils::release )
-//	            .then()
-//	            .block();
-//	}
+	@CrossOrigin
+	@RequestMapping(path = "/download", method = RequestMethod.GET)
+	public void download( HttpServletResponse response, @RequestParam(value = "filename") String filename ) throws IOException {
+    	System.out.println("Activated2");
+
+	    WebClient webClient = WebClient.create();
+
+	    URI fileUrl = null;
+		try {
+			fileUrl = new URI("http://mis-jvinaldbl1.catnet.arizona.edu:80/test/" + filename);
+		} catch (URISyntaxException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	    // Request service to get file data
+	    Flux<DataBuffer> fileDataStream = webClient.get()
+	            .uri( fileUrl )
+	            .accept( MediaType.APPLICATION_OCTET_STREAM )
+	            .retrieve()
+	            .bodyToFlux( DataBuffer.class );
+
+	    // Streams the stream from response instead of loading it all in memory
+	    DataBufferUtils.write( fileDataStream, response.getOutputStream() )
+	            .map( DataBufferUtils::release )
+	            .then()
+	            .block();
+	}
 	
 }
