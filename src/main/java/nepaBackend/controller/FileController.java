@@ -36,6 +36,7 @@ public class FileController {
 		try {
 //	    	System.out.println("Activated for: " + dbURL + filename);
 	    	
+			// TODO: if not .zip try adding .pdf first?
 	        URL fileURL = new URL(dbURL + filename);
 	        InputStream in = new BufferedInputStream(fileURL.openStream());
 	        
