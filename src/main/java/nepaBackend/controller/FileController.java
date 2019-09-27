@@ -30,13 +30,13 @@ public class FileController {
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
-	public ResponseEntity<String> downloadFile(HttpServletRequest request, HttpServletResponse response,
+	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam(value = "filename") String filename) {
 	    
 		try {
-//	    	System.out.println("Activated for: " + dbURL + filename);
-	    	
 			// TODO: if not .zip try adding .pdf first?
+			// TODO: Eventually going to need a lot of logic for exploring folder structures
+			// and capturing multiple files
 	        URL fileURL = new URL(dbURL + filename);
 	        InputStream in = new BufferedInputStream(fileURL.openStream());
 	        
@@ -46,15 +46,15 @@ public class FileController {
 	        IOUtils.copy(in, out);
 	        
 	        response.flushBuffer();
-	        return new ResponseEntity<String>("Whew", HttpStatus.ACCEPTED);
+	        return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
 	    } catch (Exception e) {
-	    	StringWriter sw = new StringWriter();
-	    	PrintWriter pw = new PrintWriter(sw);
-	    	e.printStackTrace(pw);
-	    	e.printStackTrace();
-	    	String sStackTrace = sw.toString();
-	    	// TODO: Probably don't provide stack trace outside testing
-	        return new ResponseEntity<String>(sStackTrace, HttpStatus.NOT_FOUND);
+	    	// TODO: Log missing file errors somewhere
+//	    	StringWriter sw = new StringWriter();
+//	    	PrintWriter pw = new PrintWriter(sw);
+//	    	e.printStackTrace(pw);
+//	    	e.printStackTrace();
+//	    	String sStackTrace = sw.toString();
+	        return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 	    }
 	}
 
