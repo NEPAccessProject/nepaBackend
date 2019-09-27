@@ -24,9 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/file")
 public class FileController {
 	
+	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
+	// Can also have a backup set up for use if primary fails
 	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 
-	// TODO: import relevant files, test deployed
+	// TODO: Test deployed
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
