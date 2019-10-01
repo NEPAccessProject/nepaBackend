@@ -28,8 +28,6 @@ public class FileController {
 	// Can also have a backup set up for use if primary fails
 	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 
-	// TODO: Test deployed
-
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
