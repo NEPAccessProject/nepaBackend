@@ -1,10 +1,13 @@
 package nepaBackend.controller;
 
 import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.net.HttpURLConnection;
+//import java.io.PrintWriter;
+//import java.io.StringWriter;
 import java.net.URL;
+import java.util.Map;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -15,6 +18,7 @@ import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -31,16 +35,17 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
-			@RequestParam(value = "filename") String filename) {
-	    
+			@RequestParam String filename) {
 		try {
 			// TODO: if not .zip try adding .pdf first?
 			// TODO: Eventually going to need a lot of logic for exploring folder structures
 			// and capturing multiple files
 	        URL fileURL = new URL(dbURL + filename);
 	        InputStream in = new BufferedInputStream(fileURL.openStream());
-	        
-	        response.addHeader("Content-Disposition", "attachment; filename=" + filename); 
+	        long length = getFileSize(fileURL); // for Content-Length for progress bar
+
+	        response.addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\""); 
+	        response.addHeader("Content-Length", length + ""); 
 
 	        ServletOutputStream out = response.getOutputStream();
 	        IOUtils.copy(in, out);
@@ -56,6 +61,21 @@ public class FileController {
 //	    	String sStackTrace = sw.toString();
 	        return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 	    }
+	}
+	
+	public long getFileSize(URL url) {
+		HttpURLConnection conn = null;
+		try {
+			conn = (HttpURLConnection) url.openConnection();
+			conn.setRequestMethod("HEAD");
+			return conn.getContentLengthLong();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} finally {
+			if (conn != null) {
+				conn.disconnect();
+			}
+		}
 	}
 
 }
