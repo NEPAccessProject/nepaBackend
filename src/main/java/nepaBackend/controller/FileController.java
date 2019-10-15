@@ -37,7 +37,8 @@ public class FileController {
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String filename) {
 		try {
-			// TODO: if not .zip try adding .pdf first?
+			// TODO: if not .zip try adding .pdf first?  Client will need file type and we need to capture all the files to deliver
+			// potentially in a zip
 			// TODO: Eventually going to need a lot of logic for exploring folder structures
 			// and capturing multiple files
 	        URL fileURL = new URL(dbURL + filename);
