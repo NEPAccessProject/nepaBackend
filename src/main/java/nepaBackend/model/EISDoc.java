@@ -40,6 +40,8 @@ public class EISDoc {
     
     // String location; // Location for proposed project is desired, but don't have metadata
     // String action; // Type of action is desired, but don't have metadata
+    
+    // Long processId; // ID of process with related documents, if there are any, metadata doesn't exist for this yet
 
     public EISDoc() { }
 
