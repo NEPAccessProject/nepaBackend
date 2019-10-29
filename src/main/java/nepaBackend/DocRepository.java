@@ -14,9 +14,9 @@ import nepaBackend.model.EISMatch;
 @Repository
 public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
-	// TODO: Can change to <Object> and then JOIN with eismatch to get everything,
-	// but column names are lost.  Alternative is to try again to set up
-	// relationships between the model entities
+	// Note: Can change to <Object> and then JOIN with eismatch to get everything 
+	// in one list of objects, but column names are lost.  
+	// Alternative is to try again to set up relationships between the model entities
 	/**
 	 * Returns distinct list of EISDocs whose IDs appear in document1/document2 
 	 * column, excluding the EISDoc whose ID is provided as the first parameter.

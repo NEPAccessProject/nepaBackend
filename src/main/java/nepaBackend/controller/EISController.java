@@ -206,7 +206,17 @@ public class EISController {
 			System.out.println(matchParams.id);
 			System.out.println(matchParams.match_percent);
 			
-			List<EISMatch> matches = matchService.getAllBy(matchParams.id, matchParams.match_percent);
+			// Sanity check match percent, force bounds 1-100
+			int match_percent;
+			if(matchParams.match_percent < 1) {
+				match_percent = 1;
+			} else if(matchParams.match_percent > 100) {
+				match_percent = 100;
+			} else {
+				match_percent = matchParams.match_percent;
+			}
+			
+			List<EISMatch> matches = matchService.getAllBy(matchParams.id, match_percent);
 
 			List<Integer> idList1 = matches.stream().map(EISMatch::getDocument1).collect(Collectors.toList());
 			List<Integer> idList2 = matches.stream().map(EISMatch::getDocument2).collect(Collectors.toList());
@@ -216,7 +226,7 @@ public class EISController {
 			System.out.println(matches.get(0).getDocument1());
 			System.out.println(matches.get(0).getDocument2());
 			
-			List<EISDoc> docs = docService.getAllBy(matchParams.id, idList1, idList2);
+			List<EISDoc> docs = docService.getAllDistinctBy(matchParams.id, idList1, idList2);
 			
 			EISMatchData matchData = new EISMatchData(matches, docs);
 

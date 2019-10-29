@@ -13,7 +13,7 @@ public class DocService {
 	@Autowired
 	private DocRepository docRepository;
 	
-	public List<EISDoc> getAllBy(int id, List<Integer> idList1, List<Integer> idList2) {
+	public List<EISDoc> getAllDistinctBy(int id, List<Integer> idList1, List<Integer> idList2) {
 		return docRepository.queryBy(id, idList1, idList2);
 	}
 	
