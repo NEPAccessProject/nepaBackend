@@ -237,6 +237,8 @@ public class EISController {
 			EISMatchData matchData = new EISMatchData(matches, docs);
 
 			return new ResponseEntity<EISMatchData>(matchData, HttpStatus.OK);
+		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
+			return new ResponseEntity<EISMatchData>(HttpStatus.OK);
 		} catch (Exception e) {
 			System.out.println(e);
 			return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
