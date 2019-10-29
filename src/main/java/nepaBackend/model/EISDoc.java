@@ -2,41 +2,47 @@ package nepaBackend.model;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToMany;
+import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 
 @Entity
 @Table(name="eisdoc") // TODO: Rename table everywhere
 public class EISDoc {
     @Id
+    @Column(name="id")
     @GeneratedValue(strategy=GenerationType.AUTO)
-    Long id;  // TODO: ID/PK?
+    private Long id;  // TODO: ID/PK?
 	
     @Column(name="title",columnDefinition="text") // Note: Had to do ALTER TABLE `eis-meta` ADD FULLTEXT(title) for search
-    String title;
+    private String title;
   
     @Column(name="document_type")
-    String documentType;  // TODO: Enum?
+    private String documentType;  // TODO: Enum?
   
     @Column(name="comment_date")
-    String commentDate; // mm/dd/yyyy TODO: turn into DATE, MySQL stores Date as yyyy/mm/dd
+    private String commentDate; // mm/dd/yyyy TODO: turn into DATE, MySQL stores Date as yyyy/mm/dd
   
     @Column(name="register_date")
-    String registerDate; // mm/dd/yyyy TODO: same
+    private String registerDate; // mm/dd/yyyy TODO: same
   
     @Column(name="agency")
-    String agency; // TODO: Enum?
+    private String agency; // TODO: Enum?
   
     @Column(name="state")
-    String state; // TODO: Enum?
+    private String state; // TODO: Enum?
   
     @Column(name="filename")
-    String filename; // name of zip file of EIS PDF(s) (optional)
+    private String filename; // name of zip file of EIS PDF(s) (optional)
 
     @Column(name="comments_filename")
-    String commentsFilename; // name of zip file of comment PDF(s) (optional)
+    private String commentsFilename; // name of zip file of comment PDF(s) (optional)
     
     // String location; // Location for proposed project is desired, but don't have metadata
     // String action; // Type of action is desired, but don't have metadata
