@@ -216,6 +216,12 @@ public class EISController {
 				match_percent = matchParams.match_percent;
 			}
 			
+			// Sanity check id
+			if(matchParams.id < 0) {
+				// No negative IDs possible
+				return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
+			}
+			
 			List<EISMatch> matches = matchService.getAllBy(matchParams.id, match_percent);
 
 			List<Integer> idList1 = matches.stream().map(EISMatch::getDocument1).collect(Collectors.toList());
