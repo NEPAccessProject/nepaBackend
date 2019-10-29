@@ -25,10 +25,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
-import nepaBackend.absurdity.MatchParams;
-import nepaBackend.absurdity.SearchInputs;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
+import nepaBackend.pojo.MatchParams;
+import nepaBackend.pojo.SearchInputs;
 
 @RestController
 @RequestMapping("/test")

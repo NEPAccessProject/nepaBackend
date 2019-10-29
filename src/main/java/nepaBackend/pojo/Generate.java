@@ -1,4 +1,4 @@
-package nepaBackend.absurdity;
+package nepaBackend.pojo;
 
 import nepaBackend.model.ApplicationUser;
 

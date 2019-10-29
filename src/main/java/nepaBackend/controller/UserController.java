@@ -24,10 +24,10 @@ import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.EmailLogRepository;
-import nepaBackend.absurdity.Generate;
-import nepaBackend.absurdity.PasswordChange;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EmailLog;
+import nepaBackend.pojo.Generate;
+import nepaBackend.pojo.PasswordChange;
 import nepaBackend.security.PasswordGenerator;
 import nepaBackend.security.SecurityConstants;
 

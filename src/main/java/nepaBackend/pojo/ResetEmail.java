@@ -1,4 +1,4 @@
-package nepaBackend.absurdity;
+package nepaBackend.pojo;
 
 public class ResetEmail {
 	public String email;

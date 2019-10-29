@@ -25,10 +25,10 @@ import com.auth0.jwt.algorithms.Algorithm;
 
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.EmailLogRepository;
-import nepaBackend.absurdity.ResetEmail;
-import nepaBackend.absurdity.ResetPassword;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EmailLog;
+import nepaBackend.pojo.ResetEmail;
+import nepaBackend.pojo.ResetPassword;
 import nepaBackend.security.SecurityConstants;
  
 // TODO: Email addresses must be unique per account or else reset email will fail
