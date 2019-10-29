@@ -203,8 +203,8 @@ public class EISController {
 	headers = "Accept=application/json")
 	public @ResponseBody ResponseEntity<EISMatchData> match(@RequestBody MatchParams matchParams) {
 		try {
-			System.out.println(matchParams.id);
-			System.out.println(matchParams.match_percent);
+			System.out.println("ID " + matchParams.id);
+			System.out.println("Match % " + matchParams.match_percent);
 			
 			// Sanity check match percent, force bounds 1-100
 			int match_percent;
