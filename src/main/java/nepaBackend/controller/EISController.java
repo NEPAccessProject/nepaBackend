@@ -203,20 +203,20 @@ public class EISController {
 	headers = "Accept=application/json")
 	public @ResponseBody ResponseEntity<EISMatchData> match(@RequestBody MatchParams matchParams) {
 		try {
-			System.out.println("ID " + matchParams.id);
-			System.out.println("Match % " + matchParams.match_percent);
+//			System.out.println("ID " + matchParams.id);
+//			System.out.println("Match % " + matchParams.matchPercent);
 			
 			// Sanity check match percent, force bounds 1-100
 			int match_percent;
-			if(matchParams.match_percent < 1) {
+			if(matchParams.matchPercent < 1) {
 				match_percent = 1;
-			} else if(matchParams.match_percent > 100) {
+			} else if(matchParams.matchPercent > 100) {
 				match_percent = 100;
 			} else {
-				match_percent = matchParams.match_percent;
+				match_percent = matchParams.matchPercent;
 			}
 			
-			// Sanity check id
+			// Sanity check
 			if(matchParams.id < 0) {
 				// No negative IDs possible
 				return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
@@ -227,11 +227,13 @@ public class EISController {
 			List<Integer> idList1 = matches.stream().map(EISMatch::getDocument1).collect(Collectors.toList());
 			List<Integer> idList2 = matches.stream().map(EISMatch::getDocument2).collect(Collectors.toList());
 			
-			idList1.forEach(System.out::println);
-			idList2.forEach(System.out::println);
-			System.out.println(matches.get(0).getDocument1());
-			System.out.println(matches.get(0).getDocument2());
-			
+//			idList1.forEach(System.out::println);
+//			idList2.forEach(System.out::println);
+//			System.out.println(matches.get(0).getDocument1());
+//			System.out.println(matches.get(0).getDocument2());
+			if(idList1.isEmpty() || idList2.isEmpty()) { // No match
+				return new ResponseEntity<EISMatchData>(HttpStatus.OK);
+			}
 			List<EISDoc> docs = docService.getAllDistinctBy(matchParams.id, idList1, idList2);
 			
 			EISMatchData matchData = new EISMatchData(matches, docs);
@@ -240,81 +242,11 @@ public class EISController {
 		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
 			return new ResponseEntity<EISMatchData>(HttpStatus.OK);
 		} catch (Exception e) {
-			System.out.println(e);
+//			System.out.println(e);
 			return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
 		}
-		
-		/**
-		 * 
-		String id = headers.get("id"); // ID of document we want to find matches for
-		int percent;
-		
-		try {
-			percent = Integer.parseInt(headers.get("match_percent")); // % >= to match with
-		} catch (NumberFormatException e) {
-			percent = 0; // default to 0, which isn't allowed by saneInput(int)
-		}
-		
-		try {
-			// Init parameter list
-			ArrayList<String> inputList = new ArrayList<String>();
-			ArrayList<String> whereList = new ArrayList<String>();
-			
-			// Select tables, columns
-			String sQuery = "SELECT * FROM match";
-			
-			// Populate lists
-			if(saneInput(match_percent)) {
-				inputList.add(String.valueOf(match_percent));
-				whereList.add(" ((match_percent) >= ?)");
-			}
-
-			if(saneInput(id)) { 
-				inputList.add(String.valueOf(id));
-				inputList.add(String.valueOf(id));
-				whereList.add(" (document1 = ? OR document2 = ?)");
-			}
-			
-			boolean addAnd = false;
-			for (String i : whereList) {
-				if(addAnd) { // Not first conditional, append AND
-					sQuery += " AND";
-				} else { // First conditional, append WHERE
-					sQuery += " WHERE";
-				}
-				sQuery += i; // Append conditional
-				
-				addAnd = true; // Raise AND flag for future iterations
-			}
-			
-			// Finalize query
-			sQuery += " LIMIT 1000";
-			
-			// Run query
-
-			List<MatchData> records = jdbcTemplate.query
-			(
-				sQuery, 
-				inputList.toArray(new Object[] {}),
-				(rs, rowNum) -> new MatchData(
-					rs.getLong("id"), 
-					rs.getString("title"), 
-					rs.getString("document_type"),
-					rs.getString("comment_date"), 
-					rs.getString("register_date"), 
-					rs.getString("agency"),
-					rs.getString("state"), 
-					rs.getString("filename"),
-					rs.getString("comments_filename"),
-					rs.getLong("match_id"),
-					rs.getDouble("match_percent")
-				)
-			);
-			**/
-
 	}
 	
-	// TODO: Finalize, test, hook up
 	/** Get a list of matches (only data from Match table: ID pair, percentage) */
 	@CrossOrigin
 	@PostMapping(path = "/matchTest", 
@@ -325,7 +257,7 @@ public class EISController {
 			@RequestParam("match_percent") int match_percent) {
 
 		return matchService.getAllBy(match_id, match_percent);
-		// TODO: Validate the two params somewhere?  
+		// TODO: Validate the two params required?  
 		// Don't want to allow match_percent < 1, etc.
 	}
 	
