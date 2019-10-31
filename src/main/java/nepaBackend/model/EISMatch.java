@@ -14,20 +14,20 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 
 @Entity
-@Table(name="eismatch") // TODO: Rename table everywhere
+@Table(name="eismatch") 
 public class EISMatch {
 
-    @Id
-    @GeneratedValue(strategy=GenerationType.AUTO)
+    @Id // PK (not null)
+    @GeneratedValue(strategy=GenerationType.IDENTITY) // AI
     @Column(name = "match_id")
-    Long match_id;  // TODO: Bigint, unsigned, primary key?
+    Long match_id; // bigint(20)
     
     @NotNull
-    @Column(name = "document1", columnDefinition = "int")
-    int document1;
+    @Column(name = "document1")
+    int document1; // int(11)
     
     @NotNull
-    @Column(name = "document2", columnDefinition = "int")
+    @Column(name = "document2")
 	int document2;
     
     @NotNull

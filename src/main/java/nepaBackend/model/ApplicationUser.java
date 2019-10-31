@@ -13,6 +13,7 @@ import javax.persistence.Id;
 public class ApplicationUser { // application_user
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
     private long id;
 
     @Column(name = "username", length=191, unique=true)

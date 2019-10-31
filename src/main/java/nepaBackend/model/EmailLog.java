@@ -15,6 +15,7 @@ public class EmailLog {
 	
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", nullable = false)
     private long id;
 
     @Column(name = "email", length=191)
