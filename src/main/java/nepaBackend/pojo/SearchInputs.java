@@ -15,6 +15,9 @@ public class SearchInputs {
 	public String endComment;
 	public String[] state;
 	public String[] agency;
+	public boolean typeAll;
+	public boolean typeFinal;
+	public boolean typeDraft;
 	public boolean needsComments;
 	public boolean needsDocument;
 	

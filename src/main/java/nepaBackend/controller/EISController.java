@@ -95,6 +95,25 @@ public class EISController {
 				inputList.add(searchInputs.endComment);
 				whereList.add(" ((comment_date) <= ?)");
 			}
+			
+			if(saneInput(searchInputs.typeAll)) { 
+				// do nothing
+			} else {
+				String whereStatement = "";
+				boolean orFlag = false;
+				if(saneInput(searchInputs.typeFinal)) {
+					whereStatement += " (document_type = 'Final')";
+					orFlag = true;
+				}
+
+				if(saneInput(searchInputs.typeDraft)) {
+					if(orFlag) {
+						whereStatement += " OR";
+					}
+					whereStatement += " (document_type = 'Draft')";
+				}
+				whereList.add(whereStatement);
+			}
 
 			// TODO: Temporary logic, filenames should each have their own field in the database later 
 			// and they may also be a different format
@@ -160,7 +179,7 @@ public class EISController {
 			}
 			
 			// Finalize query
-//			sQuery += " LIMIT 1000";
+			sQuery += " LIMIT 1000";
 			
 			// Run query
 			List<EISDoc> records = jdbcTemplate.query
