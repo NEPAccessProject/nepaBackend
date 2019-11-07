@@ -18,6 +18,7 @@ public class SearchInputs {
 	public boolean typeAll;
 	public boolean typeFinal;
 	public boolean typeDraft;
+	public boolean typeOther;
 	public boolean needsComments;
 	public boolean needsDocument;
 	

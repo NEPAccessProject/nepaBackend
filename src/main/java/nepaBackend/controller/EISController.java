@@ -1,6 +1,7 @@
 package nepaBackend.controller;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 //import java.sql.ResultSet;
 //import java.sql.SQLException;
 //import java.sql.PreparedStatement;
@@ -99,20 +100,62 @@ public class EISController {
 			if(saneInput(searchInputs.typeAll)) { 
 				// do nothing
 			} else {
-				String whereStatement = "";
-				boolean orFlag = false;
+				ArrayList<String> typesList = new ArrayList<>();
+				StringBuilder query = new StringBuilder(" document_type IN (");
 				if(saneInput(searchInputs.typeFinal)) {
-					whereStatement += " (document_type = 'Final')";
-					orFlag = true;
+					typesList.add("Final");
 				}
 
 				if(saneInput(searchInputs.typeDraft)) {
-					if(orFlag) {
-						whereStatement += " OR";
-					}
-					whereStatement += " (document_type = 'Draft')";
+					typesList.add("Draft");
 				}
-				whereList.add(whereStatement);
+				
+				if(saneInput(searchInputs.typeOther)) {
+					List<String> typesListOther = Arrays.asList("Draft Supplement",
+							"Final Supplement",
+							"Second Draft Supplemental",
+							"Second Draft",
+							"Adoption",
+							"LF",
+							"Revised Final",
+							"LD",
+							"Third Draft Supplemental",
+							"Second Final",
+							"Second Final Supplemental",
+							"DC",
+							"FC",
+							"RF",
+							"RD",
+							"Third Final Supplemental",
+							"DD",
+							"Revised Draft",
+							"NF",
+							"F2",
+							"D2",
+							"F3",
+							"DE",
+							"FD",
+							"DF",
+							"FE",
+							"A3",
+							"A1");
+					typesList.addAll(typesListOther);
+				}
+				String[] docTypes = typesList.toArray(new String[0]);
+				for (int i = 0; i < docTypes.length; i++) {
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
+				}
+				query.append(")");
+
+				for (int i = 0; i < docTypes.length; i++) {
+					inputList.add(docTypes[i]);
+				}
+				
+				whereList.add(query.toString());
+
 			}
 
 			// TODO: Temporary logic, filenames should each have their own field in the database later 
