@@ -154,7 +154,9 @@ public class EISController {
 					inputList.add(docTypes[i]);
 				}
 				
-				whereList.add(query.toString());
+				if(docTypes.length>0) {
+					whereList.add(query.toString());
+				}
 
 			}
 
