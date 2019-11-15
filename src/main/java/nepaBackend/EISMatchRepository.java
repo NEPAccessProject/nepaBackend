@@ -1,5 +1,6 @@
 package nepaBackend;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,9 +20,11 @@ public interface EISMatchRepository extends JpaRepository<EISMatch, Long>{
 	 */
 	@Query(value = "SELECT match_id, document1, document2, match_percent FROM eismatch WHERE " +
 			"((eismatch.document1 = :id) " +
-			"OR (eismatch.document2 = :id))" +
-			"AND (eismatch.match_percent >= :match_percent)",
+			"OR (eismatch.document2 = :id)) " +
+			"AND (eismatch.match_percent >= :match_percent) "
+			+ "ORDER BY eismatch.match_percent DESC"
+			+ " LIMIT 1000",
 			nativeQuery = true)
 	List<EISMatch> queryBy(@Param("id") int id, 
-							@Param("match_percent") int match_percent);
+							@Param("match_percent") BigDecimal match_percent);
 }

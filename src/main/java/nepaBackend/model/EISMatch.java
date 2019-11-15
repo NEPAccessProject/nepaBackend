@@ -1,5 +1,7 @@
 package nepaBackend.model;
 
+import java.math.BigDecimal;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -31,12 +33,12 @@ public class EISMatch {
 	int document2;
     
     @NotNull
-    @Column(name = "match_percent")
-    int match_percent; // TODO: Don't know exactly what format the % will be
+    @Column(name = "match_percent", columnDefinition="Decimal(19,18)")
+    BigDecimal match_percent;
 
     public EISMatch() { }
     
-    public EISMatch(Long match_id, int document1, int document2, int match_percent) {
+    public EISMatch(Long match_id, int document1, int document2, BigDecimal match_percent) {
 		super();
 		this.match_id = match_id;
 		this.document1 = document1;
@@ -68,11 +70,11 @@ public class EISMatch {
 		this.document2 = document2;
 	}
 
-	public int getMatch_percent() {
+	public BigDecimal getMatch_percent() {
 		return match_percent;
 	}
 
-	public void setMatch_percent(int match_percent) {
+	public void setMatch_percent(BigDecimal match_percent) {
 		this.match_percent = match_percent;
 	}
 }

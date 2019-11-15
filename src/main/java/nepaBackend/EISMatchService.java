@@ -1,5 +1,6 @@
 package nepaBackend;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +13,7 @@ public class EISMatchService {
 	@Autowired
 	private EISMatchRepository matchRepository;
 	
-	public List<EISMatch> getAllBy(int id, int match_percent) {
+	public List<EISMatch> getAllBy(int id, BigDecimal match_percent) {
 		return matchRepository.queryBy(id, match_percent);
 	}
 	

@@ -1,5 +1,6 @@
 package nepaBackend.controller;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 //import java.sql.ResultSet;
@@ -271,11 +272,11 @@ public class EISController {
 //			System.out.println("Match % " + matchParams.matchPercent);
 			
 			// Sanity check match percent, force bounds 1-100
-			int match_percent;
-			if(matchParams.matchPercent < 1) {
-				match_percent = 1;
-			} else if(matchParams.matchPercent > 100) {
-				match_percent = 100;
+			BigDecimal match_percent;
+			if(matchParams.matchPercent.compareTo(new BigDecimal("0.01")) < 0) {
+				match_percent = new BigDecimal("0.01");
+			} else if(matchParams.matchPercent.compareTo(new BigDecimal("1.00")) > 0) {
+				match_percent = new BigDecimal("1.00");
 			} else {
 				match_percent = matchParams.matchPercent;
 			}
@@ -318,7 +319,7 @@ public class EISController {
 	produces = "application/json", 
 	headers = "Accept=application/json")
 	public @ResponseBody List<EISMatch> matchTest(@RequestParam("match_id") int match_id,
-			@RequestParam("match_percent") int match_percent) {
+			@RequestParam("match_percent") BigDecimal match_percent) {
 
 		return matchService.getAllBy(match_id, match_percent);
 		// TODO: Validate the two params required?  

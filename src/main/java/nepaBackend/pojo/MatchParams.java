@@ -1,8 +1,10 @@
 package nepaBackend.pojo;
 
+import java.math.BigDecimal;
+
 public class MatchParams {
 	public int id;
-	public int matchPercent;
+	public BigDecimal matchPercent;
 	
 	public MatchParams() {
 	}
