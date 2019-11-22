@@ -26,9 +26,10 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	 */
 	@Query(value = "SELECT DISTINCT * FROM eisdoc e"
 			+ " WHERE"
+			+ " (e.id != :id)"
+			+ " AND "
 			+ " (e.id IN :idList1"
-			+ " OR e.id IN :idList2)"
-			+ " AND (e.id != :id)",
+			+ " OR e.id IN :idList2)",
 			nativeQuery = true)
 	List<EISDoc> queryBy(@Param("id") int id,
 			@Param("idList1") List<Integer> idList1, 
