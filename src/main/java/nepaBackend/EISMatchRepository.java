@@ -24,7 +24,7 @@ public interface EISMatchRepository extends JpaRepository<EISMatch, Long>{
 			"((eismatch.document1 = :id) " +
 			"OR (eismatch.document2 = :id)) " +
 			"ORDER BY eismatch.match_percent DESC " +
-			"LIMIT 1000",
+			"LIMIT 15000",
 			nativeQuery = true)
 	List<EISMatch> queryBy(@Param("id") int id, 
 							@Param("match_percent") BigDecimal match_percent);

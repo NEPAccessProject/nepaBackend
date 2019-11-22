@@ -225,7 +225,7 @@ public class EISController {
 			}
 			
 			// Finalize query
-			sQuery += " LIMIT 1000";
+			sQuery += " LIMIT 15000"; // Handles 15k easily right now
 			
 			// Run query
 			List<EISDoc> records = jdbcTemplate.query
