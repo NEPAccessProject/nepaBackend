@@ -224,8 +224,16 @@ public class EISController {
 				addAnd = true; // Raise AND flag for future iterations
 			}
 			
+			int limit = 1000; 
 			// Finalize query
-			sQuery += " LIMIT 15000"; // Handles 15k easily right now
+			if(saneInput(searchInputs.limit)) {
+				if(searchInputs.limit > 100000) {
+					limit = 100000; // TODO: Review 100k as upper limit
+				} else {
+					limit = searchInputs.limit;
+				}
+			}
+			sQuery += " LIMIT " + String.valueOf(limit);
 			
 			// Run query
 			List<EISDoc> records = jdbcTemplate.query
@@ -260,7 +268,6 @@ public class EISController {
 		}
 	}
 	
-	// TODO: Hit with postman, hook up, test
 	@CrossOrigin
 	@PostMapping(path = "/match", 
 	consumes = "application/json", 
@@ -353,6 +360,13 @@ public class EISController {
 
 	private boolean saneInput(double iInput) {
 		if(iInput > 0 && iInput <= 100) {
+			return true;
+		}
+		return false;
+	}
+
+	private boolean saneInput(int iInput) {
+		if(iInput > 0 && iInput <= Integer.MAX_VALUE) {
 			return true;
 		}
 		return false;
