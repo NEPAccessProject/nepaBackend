@@ -8,6 +8,7 @@ package nepaBackend.pojo;
  *
  */
 public class SearchInputs {
+	public String searchMode;
 	public String title;
 	public String startPublish;
 	public String endPublish;

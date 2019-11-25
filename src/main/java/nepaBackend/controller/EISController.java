@@ -209,8 +209,13 @@ public class EISController {
 			
 			if(saneInput(searchInputs.title)) { // Good to put this last
 				inputList.add(searchInputs.title);
-				whereList.add(" MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)");
+				if(searchInputs.searchMode.equals("boolean")) {
+					whereList.add(" MATCH(title) AGAINST(? IN BOOLEAN MODE)");
+				} else {
+					whereList.add(" MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)");
+				}
 			}
+			System.out.println(searchInputs.searchMode);
 			
 			boolean addAnd = false;
 			for (String i : whereList) {
@@ -223,9 +228,9 @@ public class EISController {
 				
 				addAnd = true; // Raise AND flag for future iterations
 			}
-			
-			int limit = 1000; 
+
 			// Finalize query
+			int limit = 1000; 
 			if(saneInput(searchInputs.limit)) {
 				if(searchInputs.limit > 100000) {
 					limit = 100000; // TODO: Review 100k as upper limit
