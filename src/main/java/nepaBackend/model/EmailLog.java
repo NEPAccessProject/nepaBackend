@@ -24,7 +24,7 @@ public class EmailLog {
     @Column(name = "username", length=191)
     private String username;
     
-    @Column(name = "sent") // Sent or not
+    @Column(name = "sent", columnDefinition="TINYINT(1)") // Sent or not
     private boolean sent;
 
     @Column(name = "email_type", length=191) // Type of email event (generate/reset...)
