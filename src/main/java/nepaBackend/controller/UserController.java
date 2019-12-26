@@ -75,6 +75,7 @@ public class UserController {
     @PostMapping("/saveSearch")
     private @ResponseBody ResponseEntity<Void> saveSearch(@RequestBody SavedSearch savedSearch) {
     	try {
+    		savedSearch.setSavedTime(LocalDateTime.now());
         	savedSearchRepository.save(savedSearch);
     	} catch(Exception e) {
         	return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); 
@@ -86,6 +87,18 @@ public class UserController {
     private @ResponseBody ResponseEntity<Void> deleteSavedSearchById(@RequestBody Long id) {
     	try {
         	savedSearchRepository.deleteById(id);
+    	} catch(Exception e) {
+        	return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); 
+    	}
+    	return new ResponseEntity<Void>(HttpStatus.OK); 
+    }
+
+    @PostMapping("/deleteSearches")
+    private @ResponseBody ResponseEntity<Void> deleteSavedSearchesByIds(@RequestBody List<Long> ids) {
+    	try {
+    		for (Long id : ids) {
+            	savedSearchRepository.deleteById(id);
+    		}
     	} catch(Exception e) {
         	return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); 
     	}

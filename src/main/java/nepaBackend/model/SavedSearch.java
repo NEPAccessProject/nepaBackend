@@ -70,7 +70,7 @@ public class SavedSearch {
 
 	@Column(name = "saved_time", columnDefinition="TIMESTAMP")
 	private LocalDateTime savedTime;
-    
+
 	public SavedSearch() {}
 	
     public SavedSearch(Long id, Long userId, String searchName, String searchMode, String title, String documentTypes, String startComment,
@@ -231,10 +231,18 @@ public class SavedSearch {
 	public void setHowMany(int howMany) {
 		this.howMany = howMany;
 	}
-
+	
 
 	public Long getId() {
 		return id;
 	}
+
 	
+	public LocalDateTime getSavedTime() {
+		return savedTime;
+	}
+
+	public void setSavedTime(LocalDateTime savedTime) {
+		this.savedTime = savedTime;
+	}
 }
