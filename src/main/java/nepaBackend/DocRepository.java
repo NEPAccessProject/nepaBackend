@@ -34,4 +34,19 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<EISDoc> queryBy(@Param("id") int id,
 			@Param("idList1") List<Integer> idList1, 
 			@Param("idList2") List<Integer> idList2);
+
+//	@Query(value = "SELECT DISTINCT title FROM eisdoc"
+//			+ " ORDER BY title"
+//			+ " LIMIT 1000000",
+//			nativeQuery = true)
+//	List<String> queryAllTitles();
+
+	// TODO: Do a natural language mode search to get top X (5-10?) suggestions
+	// and then plug them into the search box as selectable suggestions
+	@Query(value = "SELECT DISTINCT title FROM eisdoc"
+			+ " WHERE MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)"
+			+ " LIMIT 5",
+			nativeQuery = true)
+	List<String> queryByTitle(@Param("titleInput") String titleInput);
+	
 }

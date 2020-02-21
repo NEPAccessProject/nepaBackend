@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import nepaBackend.model.EISDoc;
-import nepaBackend.model.EISMatch;
 
 @Service
 public class DocService {
@@ -19,5 +18,15 @@ public class DocService {
 	
 	public void saveEISDoc(EISDoc doc) {
 		docRepository.save(doc);
+	}
+	
+//	public List<String> getAllTitles() {
+//		return docRepository.queryAllTitles();
+//	}
+	
+	// TODO: Do a natural language mode search to get top X (5-10?) suggestions
+	// and then plug them into the search box as selectable suggestions
+	public List<String> getByTitle(String title) {
+		return docRepository.queryByTitle(title);
 	}
 }

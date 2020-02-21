@@ -1,6 +1,7 @@
 package nepaBackend.controller;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 //import java.sql.ResultSet;
@@ -27,14 +28,21 @@ import org.springframework.web.bind.annotation.RestController;
 
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
+import nepaBackend.SearchLogRepository;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
+import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.MatchParams;
 import nepaBackend.pojo.SearchInputs;
 
 @RestController
 @RequestMapping("/test")
 public class EISController {
+	private SearchLogRepository searchLogRepository;
+	
+	public EISController(SearchLogRepository searchLogRepository) {
+		this.searchLogRepository = searchLogRepository;
+	}
 
 	@Autowired
 	JdbcTemplate jdbcTemplate;
@@ -42,6 +50,7 @@ public class EISController {
 	EISMatchService matchService;
 	@Autowired
 	DocService docService;
+	
 
 //	@CrossOrigin(origins = "http://localhost:8081")
 //	@GetMapping(path="/search")
@@ -61,6 +70,8 @@ public class EISController {
 	produces = "application/json", 
 	headers = "Accept=application/json")
 	public @ResponseBody ResponseEntity<List<EISDoc>> search(@RequestBody SearchInputs searchInputs) {
+
+		saveSearchLog(searchInputs);
 		
 		try {
 			// Init parameter list
@@ -215,7 +226,6 @@ public class EISController {
 					whereList.add(" MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)");
 				}
 			}
-			System.out.println(searchInputs.searchMode);
 			
 			boolean addAnd = false;
 			for (String i : whereList) {
@@ -259,9 +269,13 @@ public class EISController {
 			);
 			
 			
+			// TODO: If title is blank, or if using boolean mode, order by title.
+			// Otherwise let natural language mode pick the top results
+			
 			// debugging
 			System.out.println(sQuery); 
-//			System.out.println(searchInputs.title);
+			System.out.println(searchInputs.title);
+			
 
 			return new ResponseEntity<List<EISDoc>>(records, HttpStatus.OK);
 		} catch (Exception e) {
@@ -273,6 +287,133 @@ public class EISController {
 		}
 	}
 	
+	private void saveSearchLog(SearchInputs searchInputs) {
+		try {
+			SearchLog searchLog = new SearchLog();
+			
+			// TODO: For the future, load Dates of format yyyy-MM=dd into db.
+			// This will change STR_TO_DATE(register_date, '%m/%d/%Y') >= ?
+			// to just register_date >= ?
+			// Right now the db has Strings of MM/dd/yyyy
+			
+			// Populate lists
+			if(saneInput(searchInputs.startPublish)) {
+				searchLog.setStartPublish(searchInputs.startPublish);
+			}
+			
+			if(saneInput(searchInputs.endPublish)) {
+				searchLog.setEndPublish(searchInputs.endPublish);
+			}
+
+			if(saneInput(searchInputs.startComment)) {
+				searchLog.setStartComment(searchInputs.startComment);
+			}
+			
+			if(saneInput(searchInputs.endComment)) {
+				searchLog.setEndComment(searchInputs.endComment);
+			}
+
+			searchLog.setDocumentTypes("All"); // handles all or blank (equivalent to all)
+			if(saneInput(searchInputs.typeAll)) { 
+				// do nothing
+			} else {
+				ArrayList<String> typesList = new ArrayList<>();
+				if(saneInput(searchInputs.typeFinal)) {
+					typesList.add("Final");
+				}
+
+				if(saneInput(searchInputs.typeDraft)) {
+					typesList.add("Draft");
+				}
+				
+				if(saneInput(searchInputs.typeOther)) {
+					List<String> typesListOther = Arrays.asList("Draft Supplement",
+							"Final Supplement",
+							"Second Draft Supplemental",
+							"Second Draft",
+							"Adoption",
+							"LF",
+							"Revised Final",
+							"LD",
+							"Third Draft Supplemental",
+							"Second Final",
+							"Second Final Supplemental",
+							"DC",
+							"FC",
+							"RF",
+							"RD",
+							"Third Final Supplemental",
+							"DD",
+							"Revised Draft",
+							"NF",
+							"F2",
+							"D2",
+							"F3",
+							"DE",
+							"FD",
+							"DF",
+							"FE",
+							"A3",
+							"A1");
+					typesList.addAll(typesListOther);
+				}
+				if(typesList.size() > 0) {
+					searchLog.setDocumentTypes( String.join(",", typesList) );
+				}
+
+			}
+
+			// TODO: Temporary logic, filenames should each have their own field in the database later 
+			// and they may also be a different format
+			// (this will eliminate the need for the _% LIKE logic also)
+			// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
+			if(saneInput(searchInputs.needsComments)) {
+				searchLog.setNeedsComments(searchInputs.needsComments);
+			}
+
+			if(saneInput(searchInputs.needsDocument)) { 
+				searchLog.setNeedsDocument(searchInputs.needsDocument);
+			}
+			
+			if(saneInput(searchInputs.state)) {
+				searchLog.setState(String.join(",", searchInputs.state));
+			}
+
+			if(saneInput(searchInputs.agency)) {
+				searchLog.setAgency(String.join(",", searchInputs.agency));
+			}
+			
+			if(saneInput(searchInputs.title)) {
+				searchLog.setTitle(searchInputs.title);
+			}
+			
+			if(saneInput(searchInputs.searchMode)) {
+				searchLog.setSearchMode(searchInputs.searchMode);
+			}
+			
+			searchLog.setHowMany(1000); 
+			if(saneInput(searchInputs.limit)) {
+				if(searchInputs.limit > 100000) {
+					searchLog.setHowMany(100000); // TODO: Review 100k as upper limit
+				} else {
+					searchLog.setHowMany(searchInputs.limit);
+				}
+			}
+			
+			searchLog.setUserId(null); // TODO: Non-anonymous user IDs
+    		searchLog.setSavedTime(LocalDateTime.now());
+
+			searchLogRepository.save(searchLog);
+			
+		} catch (Exception e) {
+//	        if (log.isDebugEnabled()) {
+//	            log.debug(e);
+//	        }
+//			System.out.println(e);
+		}
+	
+	}
+
 	@CrossOrigin
 	@PostMapping(path = "/match", 
 	consumes = "application/json", 
@@ -342,7 +483,23 @@ public class EISController {
 	@PostMapping(path = "/check") // to simply verify user has access to /test/**
 	public void check() {
 	}
-
+	
+	/** Get all titles (too heavy to put into a select on frontend) */
+//	@CrossOrigin
+//	@PostMapping(path = "/titles")
+//	public List<String> titles()
+//	{
+//		return docService.getAllTitles();
+//	}
+	
+	/** Get close titles */
+	@CrossOrigin
+	@PostMapping(path = "/titles")
+	public List<String> titles(@RequestParam("title") String title)
+	{
+		return docService.getByTitle(title);
+	}
+	
 	// TODO: Smarter sanity check
 	private boolean saneInput(String sInput) {
 		if(sInput == null) {
