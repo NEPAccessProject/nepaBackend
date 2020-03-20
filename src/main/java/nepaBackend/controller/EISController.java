@@ -218,6 +218,7 @@ public class EISController {
 				whereList.add(query.toString());
 			}
 			
+			boolean no_title = false;
 			if(saneInput(searchInputs.title)) { // Good to put this last
 				inputList.add(searchInputs.title);
 				if(searchInputs.searchMode.equals("boolean")) {
@@ -225,6 +226,8 @@ public class EISController {
 				} else {
 					whereList.add(" MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)");
 				}
+			} else {
+				no_title = true;
 			}
 			
 			boolean addAnd = false;
@@ -241,6 +244,9 @@ public class EISController {
 
 			// Finalize query
 			int limit = 1000; 
+			if(no_title) {
+				sQuery += " ORDER BY title";
+			}
 			if(saneInput(searchInputs.limit)) {
 				if(searchInputs.limit > 100000) {
 					limit = 100000; // TODO: Review 100k as upper limit
