@@ -74,4 +74,22 @@ dependencies {
     // WebClient
     compile 'org.springframework.boot:spring-boot-starter-webflux'
     compile 'org.projectreactor:reactor-spring:1.0.1.RELEASE'
+    
+    // https://mvnrepository.com/artifact/org.hibernate/hibernate-core
+	compile group: 'org.hibernate', name: 'hibernate-core', version: '5.3.0.Final'
+    // https://mvnrepository.com/artifact/org.hibernate/hibernate-search-orm
+	compile group: 'org.hibernate', name: 'hibernate-search-orm', version: '5.9.0.Final'
+    
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-core
+	compile group: 'org.apache.lucene', name: 'lucene-core', version: '5.5.0'
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-queryparser
+	compile group: 'org.apache.lucene', name: 'lucene-queryparser', version: '5.5.0'
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-queries
+	compile group: 'org.apache.lucene', name: 'lucene-queries', version: '5.5.0'
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-analyzers-common
+	compile group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: '5.5.0'
+	
+	
+	
+    
 }
