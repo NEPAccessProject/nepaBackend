@@ -38,4 +38,17 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    // execute search
 	    return jpaQuery.getResultList();
 	  }
+	  
+	  @Override
+	  public boolean sync() {
+			FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+			try {
+				fullTextEntityManager.createIndexer().startAndWait();
+				return true;
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return false;
+			}
+	  }
 }
