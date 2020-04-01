@@ -8,12 +8,20 @@ import javax.persistence.Id;
 import javax.persistence.Table;
 
 import org.hibernate.search.annotations.Field;
-import org.springframework.stereotype.Indexed;
+import org.hibernate.search.annotations.Indexed;
 
-@Entity
 @Table(name="document_text")
+@Entity
 @Indexed
 public class DocumentText {
+	
+	public DocumentText() { }
+
+	public DocumentText(Long id, Long document_id, String plaintext) {
+		this.id = id;
+		this.document_id = document_id;
+		this.plaintext = plaintext;
+	}
 
     @Id
     @Column(name="id")
@@ -25,8 +33,28 @@ public class DocumentText {
 	private Long document_id;
 	
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
-	@Column
+	@Column(name="plaintext",columnDefinition="text")
     @Field
-	private String document_text;
+	private String plaintext;
+
+
+	public Long getId() {
+		return id;
+	}
 	
+	public Long getDocument_id() {
+		return document_id;
+	}
+
+	public void setDocument_id(Long document_id) {
+		this.document_id = document_id;
+	}
+
+	public String getPlaintext() {
+		return plaintext;
+	}
+
+	public void setPlaintext(String plaintext) {
+		this.plaintext = plaintext;
+	}
 }

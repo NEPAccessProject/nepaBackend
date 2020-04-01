@@ -15,16 +15,16 @@ import nepaBackend.model.DocumentText;
 public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	  @PersistenceContext
 	  private EntityManager em;
-	
+	  
 	  @Override
 	  public List<DocumentText> search(String terms, int limit, int offset) {
 	    FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
-	
+
 	    QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
 	        .buildQueryBuilder().forEntity(DocumentText.class).get();
 	    Query luceneQuery = queryBuilder
 	        .keyword()
-	        .onFields("name", "description")
+	        .onFields("plaintext")
 	        .matching(terms)
 	        .createQuery();
 	
