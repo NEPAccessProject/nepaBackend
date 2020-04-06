@@ -44,7 +44,18 @@ public class FulltextController {
 		}
 	}
 	
-	
+
+	/** TODO: test, log search terms? */
+	@CrossOrigin
+	@PostMapping(path = "/context")
+	public List<String> contextSearch(@RequestParam("terms") String terms)
+	{
+		try {
+			return textRepository.searchContext(terms, 1000, 0);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return null;
+		}
+	}
 	
 	
 	
