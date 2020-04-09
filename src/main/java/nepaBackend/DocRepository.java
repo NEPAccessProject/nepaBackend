@@ -49,4 +49,6 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	List<String> queryByTitle(@Param("titleInput") String titleInput);
 	
+	EISDoc getById(long l);
+	
 }

@@ -13,7 +13,6 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.PhraseQuery;
-import org.apache.lucene.search.PhraseQuery.Builder;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.highlight.Fragmenter;
@@ -83,7 +82,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		    List<DocumentText> docList = jpaQuery.getResultList();
 		    List<String> highlightList = new ArrayList<String>();
 		    
-		    // Use either phrase or term query
+		    // Use PhraseQuery or TermQuery to get results for matching records
 		    for (DocumentText doc: docList) {
 		    	try {
 		  		  String[] words = terms.split(" ");
@@ -101,6 +100,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		    return highlightList;
 	  }
 
+	  /** Given multi-word search term and document text, return highlights with context via getHighlightString() */
 	  private static String getHighlightPhrase(String text, String[] keywords) throws IOException {
 	//		Builder queryBuilder = new PhraseQuery.Builder();
 	//		for (String word: words) {
@@ -112,13 +112,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			return getHighlightString(text, scorer);
 	  }
 
+	  /** Given single-word search term and document text, return highlights with context via getHighlightString() */
 	  private static String getHighlightTerm (String text, String keyword) throws IOException {
 		    TermQuery query = new TermQuery(new Term("f", keyword));
-//		    System.out.println(query.toString());
 			QueryScorer scorer = new QueryScorer(query);
 			return getHighlightString(text, scorer);
 	  }
-	 
+
+	  /** Given document text and QueryScorer, return highlights with context */
 	  private static String getHighlightString (String text, QueryScorer scorer) throws IOException {
 			SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 			Highlighter highlighter = new Highlighter(formatter, scorer);
