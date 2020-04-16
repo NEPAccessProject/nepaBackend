@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,7 +17,7 @@ import nepaBackend.SearchLogRepository;
 import nepaBackend.model.DocumentText;
 
 @RestController
-@RequestMapping("/test")
+@RequestMapping("/text")
 public class FulltextController {
 
 	@Autowired
@@ -56,8 +57,6 @@ public class FulltextController {
 			return null;
 		}
 	}
-	
-	
 	
 	// TODO: Temporary dir for testing, will differ for live
 //	private static final String INDEX_DIRECTORY = "C:/lucene";

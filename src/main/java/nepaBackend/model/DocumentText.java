@@ -17,10 +17,11 @@ public class DocumentText {
 	
 	public DocumentText() { }
 
-	public DocumentText(Long id, Long document_id, String plaintext) {
+	public DocumentText(Long id, Long documentId, String plaintext, String filename) {
 		this.id = id;
-		this.document_id = document_id;
+		this.documentId = documentId;
 		this.plaintext = plaintext;
+		this.filename = filename;
 	}
 
     @Id
@@ -30,24 +31,28 @@ public class DocumentText {
 	
 	// Foreign key: EISDoc ID
     @Column(name="document_id")
-	private Long document_id;
+	private Long documentId;
 	
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
 	@Column(name="plaintext",columnDefinition="text")
     @Field
 	private String plaintext;
+	
+	@Column(name="filename",columnDefinition="text")
+    @Field
+	private String filename;
 
 
 	public Long getId() {
 		return id;
 	}
 	
-	public Long getDocument_id() {
-		return document_id;
+	public Long getDocumentId() {
+		return documentId;
 	}
 
-	public void setDocument_id(Long document_id) {
-		this.document_id = document_id;
+	public void setDocumentId(Long documentId) {
+		this.documentId = documentId;
 	}
 
 	public String getPlaintext() {
@@ -57,4 +62,12 @@ public class DocumentText {
 	public void setPlaintext(String plaintext) {
 		this.plaintext = plaintext;
 	}
+	public String getFilename() {
+		return filename;
+	}
+
+	public void setFilename(String filename) {
+		this.filename = filename;
+	}
+
 }

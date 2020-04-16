@@ -51,4 +51,6 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	
 	EISDoc getById(long l);
 	
+	List<EISDoc> findByFilenameNotNull();
+	
 }

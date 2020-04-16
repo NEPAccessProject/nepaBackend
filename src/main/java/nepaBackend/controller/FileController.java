@@ -5,11 +5,12 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+
 import java.net.HttpURLConnection;
-//import java.io.PrintWriter;
-//import java.io.StringWriter;
 import java.net.URL;
+
 import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -19,15 +20,21 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.tika.Tika;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import nepaBackend.DocRepository;
+import nepaBackend.TextRepository;
+import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 
 @RestController
@@ -35,9 +42,12 @@ import nepaBackend.model.EISDoc;
 public class FileController {
 
     private DocRepository docRepository;
+    private TextRepository textRepository;
 
-    public FileController(DocRepository docRepository) {
+    public FileController(DocRepository docRepository,
+    		TextRepository textRepository) {
         this.docRepository = docRepository;
+        this.textRepository = textRepository;
     }
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
@@ -81,72 +91,111 @@ public class FileController {
 	// TODO: Restrict access
 	@CrossOrigin
 	@RequestMapping(path = "/convert", method = RequestMethod.GET)
-	public ResponseEntity<ArrayList<String>> convertRecord(HttpServletRequest request, 
-			@RequestParam String recordId) {
-		// TODO: Add optional pdf/text file filename to the documenttext model
+	public ResponseEntity<Void> convertRecord(@RequestParam String recordId) {
+		long documentId;
+		
+		try {
+			documentId = Long.parseLong(recordId);
+		} catch(Exception e) {
+	        return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
+		}
+		if(documentId < 1) {
+	        return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
+		}
+
 		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
+		// but presumably different filenames with hopefully different conents
 		final int BUFFER = 2048;
 		
-    	// TODO: Remove test result list
-        ArrayList<String> results = new ArrayList<String>();
 		try {
-
 	    	Tika tikaParser = new Tika();
 	    	tikaParser.setMaxStringLength(-1); // disable limit
-	    	
-	        // 1: Download the archive
-			EISDoc eis = docRepository.getById(Long.parseLong(recordId));
+	    
+			EISDoc eis = docRepository.getById(documentId);
+	    	// Check to make sure this record exists.
+			if(eis == null) {
+		        return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+			}
 			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
+			// TODO: Handle folders/multiple files for future (currently only archives)
+			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
+		        return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
+			}
 	        URL fileURL = new URL(testURL + eis.getFilename());
 	        System.out.println("FileURL " + fileURL.toString());
-	        results.add("FileURL " + fileURL.toString());
-
+	    	
+	        // 1: Download the archive
 	        InputStream in = new BufferedInputStream(fileURL.openStream());
 	        ZipInputStream zis = new ZipInputStream(in);
 	        ZipEntry ze;
 	        
 	        while((ze = zis.getNextEntry()) != null) {
-	        	System.out.println("Extracting " + ze);
 	        	int count;
 	        	byte[] data = new byte[BUFFER];
-		        // Can check filename for .pdf extension
 	        	
+		        // TODO: Can check filename for .pdf extension
+		        String filename = ze.getName();
+		        
 	    		// TODO: Check to make sure we don't already have this document in the system.
 	        	// Deduplication: Ignore when filename and document ID combination already exists in EISDoc table.
 	        	
-		        String filename = ze.getName();
-		        results.add("Filename " + filename);
 		        // Handle directory - can ignore them if we're just converting PDFs
 	        	if(!ze.isDirectory()) {
-	        		// 2: Extract data and stream to Tika
-	        		try {
-	        			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	        			while (( count = zis.read(data)) != -1) {
-	        				baos.write(data, 0, count);
-	        			}
-//        				System.out.println(tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray())));
-				        // 3: Convert to text
-	        			String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-		        		results.add(textResult);
-	        		} catch(Exception e){
-	        			e.printStackTrace();
-	        		} finally { // while loop handles getNextEntry()
-	    	        	zis.closeEntry();
-	        		}
+	        		System.out.println(textRepository.existsByDocumentIdAndFilename(documentId, filename));
+	        		if(textRepository.existsByDocumentIdAndFilename(documentId, filename)) {
+		    	        zis.closeEntry();
+		        	} else {
+			        	System.out.println("Extracting " + ze);
+			    		DocumentText docText = new DocumentText();
+				        docText.setDocumentId(documentId);
+				        docText.setFilename(filename);
+				        
+		        		// 2: Extract data and stream to Tika
+		        		try {
+		        			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		        			while (( count = zis.read(data)) != -1) {
+		        				baos.write(data, 0, count);
+		        			}
+		        			
+					        // 3: Convert to text
+		        			String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+			        		docText.setPlaintext(textResult);
+			        		
+			    	        // 4: Add converted text to database for document(EISDoc) ID, filename
+			    	        this.save(docText);
+		        		} catch(Exception e){
+		        			e.printStackTrace();
+		        		} finally { // while loop handles getNextEntry()
+		    	        	zis.closeEntry();
+		        		}
+		        	}
 	        	}
 
 	        }
 	        
-	        // TODO 4: Add converted text to database for record ID (via FulltextController? It's prepared to .save already)
 	        // 5: Cleanup
 	        in.close();
 	        zis.close();
 
-	        return new ResponseEntity<ArrayList<String>>(results, HttpStatus.ACCEPTED);
+	        return new ResponseEntity<Void>(HttpStatus.OK);
 	    } catch (Exception e) {
 	    	e.printStackTrace();
-	        return new ResponseEntity<ArrayList<String>>(results, HttpStatus.NOT_FOUND);
+	    	// could be IO exception getting the file if it doesn't exist
+	        return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 	    }
+	}
+
+	// TODO: Restrict access
+	/** Run convertRecord for all IDs in db.  (Conversion handles empty filenames and deduplication) */
+	@CrossOrigin
+	@RequestMapping(path = "/bulk", method = RequestMethod.GET)
+	public ResponseEntity<ArrayList<String>> bulk() {
+		ArrayList<String> resultList = new ArrayList<String>();
+		List<EISDoc> convertList = docRepository.findByFilenameNotNull();
+		for(EISDoc doc : convertList) {
+			resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId().toString()).getStatusCodeValue());
+		}
+		return new ResponseEntity<ArrayList<String>>(resultList, HttpStatus.I_AM_A_TEAPOT);
 	}
 	
 	public long getFileSize(URL url) {
@@ -162,6 +211,16 @@ public class FileController {
 				conn.disconnect();
 			}
 		}
+	}
+	
+	private boolean save(@RequestBody DocumentText docText) {
+		try {
+			textRepository.save(docText);
+			return true;
+		} catch(Exception e) {
+			return false;
+		}
+		
 	}
 
 }
