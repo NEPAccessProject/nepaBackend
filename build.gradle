@@ -75,13 +75,15 @@ dependencies {
     compile 'org.springframework.boot:spring-boot-starter-webflux'
     compile 'org.projectreactor:reactor-spring:1.0.1.RELEASE'
     
+    /** Lucene basic dependencies 
+    */
     // https://mvnrepository.com/artifact/org.hibernate/hibernate-core
 	compile group: 'org.hibernate', name: 'hibernate-core', version: '5.4.0.Final'
     // https://mvnrepository.com/artifact/org.hibernate/hibernate-search-orm
 	compile group: 'org.hibernate', name: 'hibernate-search-orm', version: '5.11.5.Final'
     
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-core
-	compile group: 'org.apache.lucene', name: 'lucene-core', version: '5.5.0'
+ 	compile group: 'org.apache.lucene', name: 'lucene-core', version: '5.5.0'
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-queryparser
 	compile group: 'org.apache.lucene', name: 'lucene-queryparser', version: '5.5.0'
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-queries
@@ -89,6 +91,23 @@ dependencies {
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-analyzers-common
 	compile group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: '5.5.0'
 	
+    /** Lucene advanced dependencies (highlighter et al)
+    */
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-highlighter
+	compile group: 'org.apache.lucene', name: 'lucene-highlighter', version: '5.5.0'
+	/** Gradle should install these artifact dependencies unless otherwise noted
+	https://mvnrepository.com/artifact/org.apache.lucene/lucene-grouping
+	compile group: 'org.apache.lucene', name: 'lucene-grouping', version: '5.5.0'	
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-memory
+	compile group: 'org.apache.lucene', name: 'lucene-memory', version: '5.5.0'
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-join
+	compile group: 'org.apache.lucene', name: 'lucene-join', version: '5.5.0'
+	*/
+	
+	/** Note: Tika causes a lot of spurious Class-Path manifest attribute runtime warnings that are safe to ignore 
+	*/
+	// https://mvnrepository.com/artifact/org.apache.tika/tika-parsers
+	compile group: 'org.apache.tika', name: 'tika-parsers', version: '1.24'
 	
 	
     

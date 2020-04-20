@@ -8,7 +8,7 @@ import java.io.InputStream;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
-
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -33,9 +33,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import nepaBackend.DocRepository;
+import nepaBackend.FileLogRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.model.FileLog;
 
 @RestController
 @RequestMapping("/file")
@@ -43,15 +45,19 @@ public class FileController {
 
     private DocRepository docRepository;
     private TextRepository textRepository;
+    private FileLogRepository fileLogRepository;
 
     public FileController(DocRepository docRepository,
-    		TextRepository textRepository) {
+    		TextRepository textRepository,
+    		FileLogRepository fileLogRepository) {
         this.docRepository = docRepository;
         this.textRepository = textRepository;
+        this.fileLogRepository = fileLogRepository;
     }
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
+    Boolean testing = true;
 	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
     String testURL = "http://localhost:5000/";
 
@@ -93,9 +99,11 @@ public class FileController {
 	@RequestMapping(path = "/convert", method = RequestMethod.GET)
 	public ResponseEntity<Void> convertRecord(@RequestParam String recordId) {
 		long documentId;
+    	FileLog fileLog = new FileLog();
 		
 		try {
 			documentId = Long.parseLong(recordId);
+			fileLog.setDocumentId(documentId);
 		} catch(Exception e) {
 	        return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
 		}
@@ -121,10 +129,21 @@ public class FileController {
 			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
 		        return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 			}
-	        URL fileURL = new URL(testURL + eis.getFilename());
-	        System.out.println("FileURL " + fileURL.toString());
+			
+			String relevantURL = dbURL;
+			if(testing) {
+		        relevantURL = testURL;
+			}
+	        URL fileURL = new URL(relevantURL + eis.getFilename());
+	        
+	        fileLog.setFilename(eis.getFilename());
+	        
+	        if(testing) {
+		        System.out.println("FileURL " + fileURL.toString());
+	        }
 	    	
 	        // 1: Download the archive
+	        // TODO: Handle non-archive case (easier, but currently we only have archives)
 	        InputStream in = new BufferedInputStream(fileURL.openStream());
 	        ZipInputStream zis = new ZipInputStream(in);
 	        ZipEntry ze;
@@ -136,19 +155,29 @@ public class FileController {
 		        // TODO: Can check filename for .pdf extension
 		        String filename = ze.getName();
 		        
+		        
 	    		// TODO: Check to make sure we don't already have this document in the system.
 	        	// Deduplication: Ignore when filename and document ID combination already exists in EISDoc table.
 	        	
 		        // Handle directory - can ignore them if we're just converting PDFs
 	        	if(!ze.isDirectory()) {
-	        		System.out.println(textRepository.existsByDocumentIdAndFilename(documentId, filename));
+	        		if(testing) {
+		        		System.out.println(textRepository.existsByDocumentIdAndFilename(documentId, filename));
+	        		}
+	        		
 	        		if(textRepository.existsByDocumentIdAndFilename(documentId, filename)) {
 		    	        zis.closeEntry();
 		        	} else {
-			        	System.out.println("Extracting " + ze);
+		        		
+		        		if(testing) {
+				        	System.out.println("Extracting " + ze);
+		        		}
+		        		
 			    		DocumentText docText = new DocumentText();
 				        docText.setDocumentId(documentId);
 				        docText.setFilename(filename);
+
+				        fileLog.setExtractedFilename(filename);
 				        
 		        		// 2: Extract data and stream to Tika
 		        		try {
@@ -164,7 +193,25 @@ public class FileController {
 			    	        // 4: Add converted text to database for document(EISDoc) ID, filename
 			    	        this.save(docText);
 		        		} catch(Exception e){
-		        			e.printStackTrace();
+		        			try {
+			        			
+			        			if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
+			        				fileLog.setImported(false);
+			        			} else {
+			        				fileLog.setImported(true);
+			        			}
+			        			
+			        			// Note:  This step does not index; that's a separate process.  N/A, so null would be fine.
+			        			// But Tinyint is numeric, should default to 0.  Still better than the Boolean type in MySQL
+			        			
+			        			fileLog.setErrorType(e.getLocalizedMessage());
+			        			fileLog.setLogTime(LocalDateTime.now());
+			        			fileLogRepository.save(fileLog);
+		        			} catch (Exception e2) {
+		        				System.out.println("Error logging error...");
+		        				e2.printStackTrace();
+		        			}
+		        			
 		        		} finally { // while loop handles getNextEntry()
 		    	        	zis.closeEntry();
 		        		}
