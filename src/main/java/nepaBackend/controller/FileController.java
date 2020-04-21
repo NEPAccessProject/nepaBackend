@@ -11,6 +11,7 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -27,17 +28,23 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.auth0.jwt.JWT;
+
+import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.TextRepository;
+import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
+import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/file")
@@ -46,13 +53,16 @@ public class FileController {
     private DocRepository docRepository;
     private TextRepository textRepository;
     private FileLogRepository fileLogRepository;
+    private ApplicationUserRepository applicationUserRepository;
 
     public FileController(DocRepository docRepository,
     		TextRepository textRepository,
-    		FileLogRepository fileLogRepository) {
+    		FileLogRepository fileLogRepository,
+    		ApplicationUserRepository applicationUserRepository) {
         this.docRepository = docRepository;
         this.textRepository = textRepository;
         this.fileLogRepository = fileLogRepository;
+        this.applicationUserRepository = applicationUserRepository;
     }
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
@@ -92,12 +102,29 @@ public class FileController {
 	        return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 	    }
 	}
+
+	/** Run convertRecord for all IDs in db.  (Conversion handles empty filenames and deduplication) */
+	@CrossOrigin
+	@RequestMapping(path = "/bulk", method = RequestMethod.GET)
+	public ResponseEntity<ArrayList<String>> bulk(@RequestHeader Map<String, String> headers) {
+		
+    	String token = headers.get("authorization");
+    	if(!isAdmin(token)) {
+    		return new ResponseEntity<ArrayList<String>>(HttpStatus.UNAUTHORIZED);
+    	}
+    	
+		ArrayList<String> resultList = new ArrayList<String>();
+		List<EISDoc> convertList = docRepository.findByFilenameNotNull();
+		for(EISDoc doc : convertList) {
+			resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId().toString()).getStatusCodeValue());
+		}
+		return new ResponseEntity<ArrayList<String>>(resultList, HttpStatus.I_AM_A_TEAPOT);
+	}
 	
 	// TODO: Generalize for entries with folder or multiple files instead of simple filename
-	// TODO: Restrict access
-	@CrossOrigin
 	@RequestMapping(path = "/convert", method = RequestMethod.GET)
-	public ResponseEntity<Void> convertRecord(@RequestParam String recordId) {
+	private ResponseEntity<Void> convertRecord(@RequestParam String recordId) {
+    	
 		long documentId;
     	FileLog fileLog = new FileLog();
 		
@@ -231,19 +258,6 @@ public class FileController {
 	        return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 	    }
 	}
-
-	// TODO: Restrict access
-	/** Run convertRecord for all IDs in db.  (Conversion handles empty filenames and deduplication) */
-	@CrossOrigin
-	@RequestMapping(path = "/bulk", method = RequestMethod.GET)
-	public ResponseEntity<ArrayList<String>> bulk() {
-		ArrayList<String> resultList = new ArrayList<String>();
-		List<EISDoc> convertList = docRepository.findByFilenameNotNull();
-		for(EISDoc doc : convertList) {
-			resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId().toString()).getStatusCodeValue());
-		}
-		return new ResponseEntity<ArrayList<String>>(resultList, HttpStatus.I_AM_A_TEAPOT);
-	}
 	
 	public long getFileSize(URL url) {
 		HttpURLConnection conn = null;
@@ -268,6 +282,35 @@ public class FileController {
 			return false;
 		}
 		
+	}
+	
+	// Return true if admin role
+	@PostMapping(path = "/checkAdmin")
+	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		boolean result = isAdmin(token);
+		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
+		if(result) {
+			returnStatus = HttpStatus.OK;
+		}
+		return new ResponseEntity<Boolean>(result, returnStatus);
+	}
+	
+	// Helper function for checkAdmin and on-demand token admin check
+	private boolean isAdmin(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().contentEquals("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+
 	}
 
 }
