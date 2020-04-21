@@ -109,16 +109,23 @@ public class FileController {
 	public ResponseEntity<ArrayList<String>> bulk(@RequestHeader Map<String, String> headers) {
 		
     	String token = headers.get("authorization");
-    	if(!isAdmin(token)) {
+    	if(!isAdmin(token)) 
+    	{
     		return new ResponseEntity<ArrayList<String>>(HttpStatus.UNAUTHORIZED);
+    	} 
+    	else 
+    	{
+    		ArrayList<String> resultList = new ArrayList<String>();
+    		List<EISDoc> convertList = docRepository.findByFilenameNotNull();
+    		
+    		for(EISDoc doc : convertList) 
+    		{
+    			resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId().toString()).getStatusCodeValue());
+    		}
+    		
+    		return new ResponseEntity<ArrayList<String>>(resultList, HttpStatus.OK);
     	}
     	
-		ArrayList<String> resultList = new ArrayList<String>();
-		List<EISDoc> convertList = docRepository.findByFilenameNotNull();
-		for(EISDoc doc : convertList) {
-			resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId().toString()).getStatusCodeValue());
-		}
-		return new ResponseEntity<ArrayList<String>>(resultList, HttpStatus.I_AM_A_TEAPOT);
 	}
 	
 	// TODO: Generalize for entries with folder or multiple files instead of simple filename
@@ -282,18 +289,6 @@ public class FileController {
 			return false;
 		}
 		
-	}
-	
-	// Return true if admin role
-	@PostMapping(path = "/checkAdmin")
-	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
-		String token = headers.get("authorization");
-		boolean result = isAdmin(token);
-		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
-		if(result) {
-			returnStatus = HttpStatus.OK;
-		}
-		return new ResponseEntity<Boolean>(result, returnStatus);
 	}
 	
 	// Helper function for checkAdmin and on-demand token admin check

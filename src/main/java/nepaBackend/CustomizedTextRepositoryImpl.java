@@ -119,6 +119,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			return getHighlightString(text, scorer);
 	  }
 
+	  // TODO: Re-test
 	  /** Given document text and QueryScorer, return highlights with context */
 	  private static String getHighlightString (String text, QueryScorer scorer) throws IOException {
 			SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
@@ -126,12 +127,15 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			Fragmenter fragmenter = new SimpleFragmenter(50);
 			highlighter.setTextFragmenter(fragmenter);
 			highlighter.setMaxDocCharsToAnalyze(text.length());
-			TokenStream tokenStream = new StandardAnalyzer().tokenStream("f", new StringReader(text));
+			StandardAnalyzer sa = new StandardAnalyzer();
+			TokenStream tokenStream = sa.tokenStream("f", new StringReader(text));
 			String result = "";
 			try {
 				result = highlighter.getBestFragments(tokenStream, text, 30, "...");
 			} catch (InvalidTokenOffsetsException e) {
 				// TODO Auto-generated catch block
+				sa.close();
+				tokenStream.close();
 				e.printStackTrace();
 			}
 		
@@ -147,7 +151,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //			writer.append("</body></html>");
 		
 //			return ( writer.toString() );
-			
+			sa.close();
+			tokenStream.close();
 			return result;
 	   }
 	  
