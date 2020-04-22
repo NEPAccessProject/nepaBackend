@@ -56,13 +56,13 @@ public class EISController {
 //	@GetMapping(path="/search")
 //	public @ResponseBody ResponseEntity<String> search(@RequestParam String title) {
 //
-//	    //URI location = ...;
-//	    //HttpHeaders responseHeaders = new HttpHeaders();
-////	    responseHeaders.setLocation(location);
-////	    responseHeaders.set("MyResponseHeader", "MyValue");
-//	    return new ResponseEntity<String>("Hello World", HttpStatus.OK);
-//	    	
-//	    }
+//	//URI location = ...;
+//	//HttpHeaders responseHeaders = new HttpHeaders();
+////	responseHeaders.setLocation(location);
+////	responseHeaders.set("MyResponseHeader", "MyValue");
+//	return new ResponseEntity<String>("Hello World", HttpStatus.OK);
+//		
+//	}
 
 	@CrossOrigin
 	@PostMapping(path = "/search", 
@@ -189,15 +189,15 @@ public class EISController {
 			if(saneInput(searchInputs.state)) {
 				StringBuilder query = new StringBuilder(" state IN (");
 				for (int i = 0; i < searchInputs.state.length; i++) {
-				  if (i > 0) {
-				    query.append(",");
-				  }
-				  query.append("?");
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
 				}
 				query.append(")");
 
 				for (int i = 0; i < searchInputs.state.length; i++) {
-				  inputList.add(searchInputs.state[i]);
+					inputList.add(searchInputs.state[i]);
 				}
 				whereList.add(query.toString());
 			}
@@ -205,15 +205,15 @@ public class EISController {
 			if(saneInput(searchInputs.agency)) {
 				StringBuilder query = new StringBuilder(" agency IN (");
 				for (int i = 0; i < searchInputs.agency.length; i++) {
-				  if (i > 0) {
-				    query.append(",");
-				  }
-				  query.append("?");
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
 				}
 				query.append(")");
 
 				for (int i = 0; i < searchInputs.agency.length; i++) {
-				  inputList.add(searchInputs.agency[i]);
+					inputList.add(searchInputs.agency[i]);
 				}
 				whereList.add(query.toString());
 			}
@@ -285,9 +285,9 @@ public class EISController {
 
 			return new ResponseEntity<List<EISDoc>>(records, HttpStatus.OK);
 		} catch (Exception e) {
-//	        if (log.isDebugEnabled()) {
-//	            log.debug(e);
-//	        }
+//	if (log.isDebugEnabled()) {
+//		log.debug(e);
+//	}
 			System.out.println(e);
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.NO_CONTENT);
 		}
@@ -407,14 +407,14 @@ public class EISController {
 			}
 			
 			searchLog.setUserId(null); // TODO: Non-anonymous user IDs
-    		searchLog.setSavedTime(LocalDateTime.now());
+			searchLog.setSavedTime(LocalDateTime.now());
 
 			searchLogRepository.save(searchLog);
 			
 		} catch (Exception e) {
-//	        if (log.isDebugEnabled()) {
-//	            log.debug(e);
-//	        }
+//			if (log.isDebugEnabled()) {
+//				log.debug(e);
+//			}
 //			System.out.println(e);
 		}
 	
@@ -481,7 +481,7 @@ public class EISController {
 			@RequestParam("match_percent") BigDecimal match_percent) {
 
 		return matchService.getAllBy(match_id, match_percent);
-		// TODO: Validate the two params required?  
+		// TODO: Validate the two params required?
 		// Don't want to allow match_percent < 1, etc.
 	}
 	

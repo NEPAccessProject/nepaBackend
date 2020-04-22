@@ -229,19 +229,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	 *  searching for "Duwamish-Green" at all and instead search for "duwamish green".  This could change if a different 
 	 *  analyzer is used.  */
 	private String escapeSpecialCharacters(String inputString) {
-		// Lucene
+		// Lucene supports case-sensitiev inpput, but I'm indexing only lowercase words and no punctuation
 		inputString = inputString.toLowerCase();
 		//+ - && || ! ( ) { } [ ] ^ \" ~ * ? : \\ /
 		final String[] metaCharacters = {"+","-","&&","||","!","(",")","{","}","[","]","^","\"","~","*","?",":","/"};
 		
 		for (int i = 0 ; i < metaCharacters.length ; i++){
 			if(inputString.contains(metaCharacters[i])){
-				// Lucene supports special characters, but until we decide how to handle that power just remove them all
+				// Lucene can use special characters, but until we decide how to handle that power just remove them all
 //				inputString = inputString.replace(metaCharacters[i],"\\"+metaCharacters[i]);
 				inputString = inputString.replace(metaCharacters[i]," ");
 			}
 		}
-		System.out.println(inputString);
 		return inputString;
 	}
 }

@@ -31,7 +31,7 @@ public class FulltextController {
 	
 	@Autowired
 	private TextRepository textRepository;
-    private ApplicationUserRepository applicationUserRepository;
+	private ApplicationUserRepository applicationUserRepository;
 	private SearchLogRepository searchLogRepository;
 	
 	public FulltextController(TextRepository textRepository, 
@@ -98,12 +98,12 @@ public class FulltextController {
 	@PostMapping(path = "/sync")
 	public boolean sync(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-    	if(!isAdmin(token)) 
-    	{
-    		return false;
-    	} else {
-    		return textRepository.sync();
-    	}
+		if(!isAdmin(token)) 
+		{
+			return false;
+		} else {
+			return textRepository.sync();
+		}
 	}
 	
 
@@ -112,11 +112,12 @@ public class FulltextController {
 		boolean result = false;
 		// get ID
 		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
+			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+					.getId();
 
 			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id))
 					.get();
+			
 			if(user.getRole().contentEquals("ADMIN")) {
 				result = true;
 			}
