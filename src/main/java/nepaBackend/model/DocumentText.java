@@ -1,10 +1,13 @@
 package nepaBackend.model;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 import org.hibernate.search.annotations.Field;
@@ -17,9 +20,9 @@ public class DocumentText {
 	
 	public DocumentText() { }
 
-	public DocumentText(Long id, Long documentId, String plaintext, String filename) {
+	public DocumentText(Long id, EISDoc eisdoc, String plaintext, String filename) {
 		this.id = id;
-		this.documentId = documentId;
+		this.eisdoc = eisdoc;
 		this.plaintext = plaintext;
 		this.filename = filename;
 	}
@@ -30,9 +33,10 @@ public class DocumentText {
 	private Long id;
 	
 	// Foreign key: EISDoc ID
-    @Column(name="document_id")
-	private Long documentId;
-	
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name="document_id")
+	private EISDoc eisdoc;
+
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
 	@Column(name="plaintext",columnDefinition="text")
     @Field
@@ -46,15 +50,17 @@ public class DocumentText {
 	public Long getId() {
 		return id;
 	}
+
 	
-	public Long getDocumentId() {
-		return documentId;
+	public EISDoc getEisdoc() {
+		return eisdoc;
 	}
 
-	public void setDocumentId(Long documentId) {
-		this.documentId = documentId;
+	public void setEisdoc(EISDoc eisdoc) {
+		this.eisdoc = eisdoc;
 	}
-
+	
+	
 	public String getPlaintext() {
 		return plaintext;
 	}

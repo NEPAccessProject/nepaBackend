@@ -1,6 +1,6 @@
 package nepaBackend.controller;
 
-import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -45,9 +44,10 @@ public class FulltextController {
 	
 
 	/** TODO: Finalize, log search terms? Possibly don't need this functionality; remove? */
+	/** Get DocumentText matches across entire database for fulltext search term(s) */
 	@CrossOrigin
 	@PostMapping(path = "/full")
-	public List<DocumentText> fulltextSearch(@RequestParam("terms") String terms)
+	public List<DocumentText> fullSearch(@RequestParam("terms") String terms)
 	{
 		try {
 			return textRepository.search(terms, 1000, 0);
@@ -59,13 +59,31 @@ public class FulltextController {
 		}
 	}
 
-	/** TODO: test live, log search terms? */
+	/** Get highlights across entire database for fulltext search term(s) */
 	@CrossOrigin
 	@PostMapping(path = "/context")
 	public List<String> contextSearch(@RequestParam("terms") String terms)
 	{
 		try {
 			return textRepository.searchContext(terms, 1000, 0);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return null;
+		} catch(Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/** TODO: test live, log search terms? */
+	/** Get EISDoc with ellipses-separated highlights and context across entire database for fulltext search term(s)*/
+	@CrossOrigin
+	@PostMapping(path = "/fulltext_meta")
+	public List<MetadataWithContext> fulltext_meta(@RequestParam("terms") String terms)
+	{
+		try {
+			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
+					(textRepository.metaContext(terms, 1000, 0)));
+			return highlightsMeta;
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
 		} catch(Exception e) {

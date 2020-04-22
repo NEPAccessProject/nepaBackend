@@ -196,10 +196,10 @@ public class FileController {
 		        // Handle directory - can ignore them if we're just converting PDFs
 	        	if(!ze.isDirectory()) {
 	        		if(testing) {
-		        		System.out.println(textRepository.existsByDocumentIdAndFilename(documentId, filename));
+		        		System.out.println(textRepository.existsByEisdocAndFilename(eis, filename));
 	        		}
 	        		
-	        		if(textRepository.existsByDocumentIdAndFilename(documentId, filename)) {
+	        		if(textRepository.existsByEisdocAndFilename(eis, filename)) {
 		    	        zis.closeEntry();
 		        	} else {
 		        		
@@ -208,7 +208,7 @@ public class FileController {
 		        		}
 		        		
 			    		DocumentText docText = new DocumentText();
-				        docText.setDocumentId(documentId);
+				        docText.setEisdoc(eis);
 				        docText.setFilename(filename);
 
 				        fileLog.setExtractedFilename(filename);

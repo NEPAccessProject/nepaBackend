@@ -3,7 +3,9 @@ package nepaBackend;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -24,6 +26,7 @@ import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
 
+import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.model.DocumentText;
 
 public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
@@ -99,6 +102,52 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		    
 		    return highlightList;
 	  }
+	  
+		  /** Return all highlights with context and document ID for matching terms (term phrase?) */
+		  @SuppressWarnings("unchecked")
+		  @Override
+		  public List<MetadataWithContext> metaContext(String terms, int limit, int offset) {
+
+			    FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+			    QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+			        .buildQueryBuilder().forEntity(DocumentText.class).get();
+			    Query luceneQuery = queryBuilder
+			        .keyword()
+			        .onFields("plaintext")
+			        .matching(terms)
+			        .createQuery();
+			
+			    // wrap Lucene query in a javax.persistence.Query
+			    javax.persistence.Query jpaQuery =
+			        fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
+			
+			    jpaQuery.setMaxResults(limit);
+			    jpaQuery.setFirstResult(offset);
+			
+			    // execute search
+			    List<DocumentText> docList = jpaQuery.getResultList();
+			    List<MetadataWithContext> highlightList = new ArrayList<MetadataWithContext>();
+			    
+			    // Use PhraseQuery or TermQuery to get results for matching records
+			    for (DocumentText doc: docList) {
+			    	try {
+			  		  String[] words = terms.split(" ");
+			  		  String highlight = "";
+					  if(words.length>1) {
+						  highlight = getHighlightPhrase(doc.getPlaintext(), words);
+					  } else {
+						  highlight = getHighlightTerm(doc.getPlaintext(), terms);
+					  }
+					  highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight));
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+			    }
+			    
+			    return highlightList;
+		  }
 
 	  /** Given multi-word search term and document text, return highlights with context via getHighlightString() */
 	  private static String getHighlightPhrase(String text, String[] keywords) throws IOException {
