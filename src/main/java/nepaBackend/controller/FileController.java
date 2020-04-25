@@ -26,7 +26,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -103,7 +102,8 @@ public class FileController {
 		}
 	}
 
-	/** Run convertRecord for all IDs in db.  (Conversion handles empty filenames and deduplication) */
+	/** Run convertRecord for all IDs in db.  (Conversion handles null filenames 
+	 * (of which there are none because they're empty strings by default) and deduplication) */
 	@CrossOrigin
 	@RequestMapping(path = "/bulk", method = RequestMethod.GET)
 	public ResponseEntity<ArrayList<String>> bulk(@RequestHeader Map<String, String> headers) {
@@ -120,7 +120,12 @@ public class FileController {
 			
 			for(EISDoc doc : convertList) 
 			{
-				resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId().toString()).getStatusCodeValue());
+				if(testing) {
+					resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId())
+					.getStatusCodeValue());
+				} else {
+					this.convertRecord(doc.getId());
+				}
 			}
 			
 			return new ResponseEntity<ArrayList<String>>(resultList, HttpStatus.OK);
@@ -130,13 +135,13 @@ public class FileController {
 	
 	// TODO: Generalize for entries with folder or multiple files instead of simple filename
 	@RequestMapping(path = "/convert", method = RequestMethod.GET)
-	private ResponseEntity<Void> convertRecord(@RequestParam String recordId) {
+	private ResponseEntity<Void> convertRecord(@RequestParam Long recordId) {
 		
 		long documentId;
 		FileLog fileLog = new FileLog();
 		
 		try {
-			documentId = Long.parseLong(recordId);
+			documentId = recordId;
 			fileLog.setDocumentId(documentId);
 		} catch(Exception e) {
 			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
@@ -161,7 +166,7 @@ public class FileController {
 			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
 			// TODO: Handle folders/multiple files for future (currently only archives)
 			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
-				return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
+				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
 			}
 			
 			String relevantURL = dbURL;
