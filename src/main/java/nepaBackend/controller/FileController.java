@@ -66,7 +66,7 @@ public class FileController {
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
-	Boolean testing = true;
+	Boolean testing = false;
 	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
 
