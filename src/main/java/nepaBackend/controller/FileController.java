@@ -136,7 +136,7 @@ public class FileController {
 		else 
 		{
 			ArrayList<String> resultList = new ArrayList<String>();
-			List<EISDoc> convertList = docRepository.findAll();
+			List<EISDoc> convertList = docRepository.findByFilenameNotEmpty();
 			
 			for(EISDoc doc : convertList) 
 			{
@@ -293,7 +293,18 @@ public class FileController {
 
 			return new ResponseEntity<Void>(HttpStatus.OK);
 		} catch (Exception e) {
-			e.printStackTrace();
+//			e.printStackTrace();
+			try {
+				fileLog.setImported(false);
+				
+				fileLog.setErrorType(e.getLocalizedMessage());
+				fileLog.setLogTime(LocalDateTime.now());
+				fileLogRepository.save(fileLog);
+			} catch (Exception e2) {
+				System.out.println("Error logging error...");
+				e2.printStackTrace();
+				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+			}
 			// could be IO exception getting the file if it doesn't exist
 			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}

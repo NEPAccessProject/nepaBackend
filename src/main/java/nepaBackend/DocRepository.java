@@ -51,6 +51,10 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	
 	EISDoc getById(long l);
 	
-	List<EISDoc> findByFilenameNotNull();
+
+	@Query(value = "SELECT * FROM eisdoc"
+			+ " WHERE LENGTH(filename) > 0",
+			nativeQuery = true)
+	List<EISDoc> findByFilenameNotEmpty();
 	
 }

@@ -38,7 +38,7 @@ public class DocumentText {
 	private EISDoc eisdoc;
 
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
-	@Column(name="plaintext",columnDefinition="text")
+	@Column(name="plaintext") // Hopefully longtext
     @Field
 	private String plaintext;
 	
