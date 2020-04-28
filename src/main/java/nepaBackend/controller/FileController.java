@@ -101,6 +101,26 @@ public class FileController {
 			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 		}
 	}
+	
+
+
+	/** Return all file logs */
+	@CrossOrigin
+	@RequestMapping(path = "/logs_all", method = RequestMethod.GET)
+	public ResponseEntity<List<FileLog>> getAllLogs(@RequestHeader Map<String, String> headers) {
+		
+		String token = headers.get("authorization");
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<FileLog>>(HttpStatus.UNAUTHORIZED);
+		} 
+		else 
+		{
+			List<FileLog> fileLogList = fileLogRepository.findAll();
+			return new ResponseEntity<List<FileLog>>(fileLogList, HttpStatus.OK);
+		}
+		
+	}
 
 	/** Run convertRecord for all IDs in db.  (Conversion handles null filenames 
 	 * (of which there are none because they're empty strings by default) and deduplication) */
@@ -116,15 +136,26 @@ public class FileController {
 		else 
 		{
 			ArrayList<String> resultList = new ArrayList<String>();
-			List<EISDoc> convertList = docRepository.findByFilenameNotNull();
+			List<EISDoc> convertList = docRepository.findAll();
 			
 			for(EISDoc doc : convertList) 
 			{
-				if(testing) {
-					resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc.getId())
-					.getStatusCodeValue());
-				} else {
-					this.convertRecord(doc.getId());
+				// ignore if no file to convert
+				if(doc.getFilename().length() == 0) 
+				{
+					// skip
+				} 
+				else 
+				{
+					if(testing) 
+					{
+						resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc)
+						.getStatusCodeValue());
+					} 
+					else 
+					{
+						this.convertRecord(doc);
+					}
 				}
 			}
 			
@@ -134,19 +165,21 @@ public class FileController {
 	}
 	
 	// TODO: Generalize for entries with folder or multiple files instead of simple filename
-	@RequestMapping(path = "/convert", method = RequestMethod.GET)
-	private ResponseEntity<Void> convertRecord(@RequestParam Long recordId) {
+	private ResponseEntity<Void> convertRecord(EISDoc eis) {
+
+		// Check to make sure this record exists.
+		if(eis == null) {
+			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+		}
 		
-		long documentId;
 		FileLog fileLog = new FileLog();
 		
 		try {
-			documentId = recordId;
-			fileLog.setDocumentId(documentId);
+			fileLog.setDocumentId(eis.getId());
 		} catch(Exception e) {
 			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
 		}
-		if(documentId < 1) {
+		if(eis.getId() < 1) {
 			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
 		}
 		
@@ -158,11 +191,6 @@ public class FileController {
 			Tika tikaParser = new Tika();
 			tikaParser.setMaxStringLength(-1); // disable limit
 		
-			EISDoc eis = docRepository.getById(documentId);
-			// Check to make sure this record exists.
-			if(eis == null) {
-				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
-			}
 			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
 			// TODO: Handle folders/multiple files for future (currently only archives)
 			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
