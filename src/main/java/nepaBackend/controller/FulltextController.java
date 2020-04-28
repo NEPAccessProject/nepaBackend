@@ -5,11 +5,13 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -95,7 +97,7 @@ public class FulltextController {
 	
 	/** Refresh Lucene index so that searching works (adds MySQL document_text table to Lucene via denormalization) */
 	@CrossOrigin
-	@PostMapping(path = "/sync")
+	@RequestMapping(path = "/sync", method = RequestMethod.GET)
 	public boolean sync(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		if(!isAdmin(token)) 
@@ -107,11 +109,15 @@ public class FulltextController {
 	}
 	
 
-	
+	/** Decode trusted token and then ask database if user is admin */
 	private boolean isAdmin(String token) {
 		boolean result = false;
 		// get ID
 		if(token != null) {
+			/** By necessity token is verified as valid via filter by this point as long as it's going through the 
+			 * public API.  Alternatively you can store admin credentials in the token and hand that to the filter,
+			 * but then if admin access is revoked, that token still has admin access until it expires.
+			 * Therefore this is a slightly more secure flow. */
 			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 					.getId();
 
