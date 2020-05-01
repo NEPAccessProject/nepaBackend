@@ -3,6 +3,7 @@ package nepaBackend.controller;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +20,11 @@ import com.auth0.jwt.JWT;
 
 import nepaBackend.TextRepository;
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.DocRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
+import nepaBackend.model.EISDoc;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -33,13 +36,16 @@ public class FulltextController {
 	
 	@Autowired
 	private TextRepository textRepository;
+	private DocRepository docRepository;
 	private ApplicationUserRepository applicationUserRepository;
 	private SearchLogRepository searchLogRepository;
 	
 	public FulltextController(TextRepository textRepository, 
+								DocRepository docRepository,
 								SearchLogRepository searchLogRepository,
 								ApplicationUserRepository applicationUserRepository) {
 		this.textRepository = textRepository;
+		this.docRepository = docRepository;
 		this.applicationUserRepository = applicationUserRepository;
 		this.searchLogRepository = searchLogRepository;
 	}
@@ -105,6 +111,27 @@ public class FulltextController {
 			return false;
 		} else {
 			return textRepository.sync();
+		}
+	}
+	
+	/** Get a list of DocumentTexts for a given EIS ID (DocumentText.document_id) */
+	@CrossOrigin
+	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
+	public List<DocumentText> getById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		Long lid = Long.parseLong(id);
+		
+		if(!isAdmin(token)) 
+		{
+			return new ArrayList<DocumentText>();
+		} else {
+			try {
+				Optional<EISDoc> eis = docRepository.findById(lid);
+				return textRepository.findAllByEisdoc(eis.get());
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ArrayList<DocumentText>();
+			}
 		}
 	}
 	
