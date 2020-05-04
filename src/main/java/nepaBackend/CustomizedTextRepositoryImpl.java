@@ -185,7 +185,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		String result = "";
 		
 		try {
-			result = highlighter.getBestFragments(tokenStream, text, 30, " ... ");
+			result = highlighter.getBestFragments(tokenStream, text, 5, " ... ");
 		} catch (InvalidTokenOffsetsException e) {
 			// TODO Auto-generated catch block
 			sa.close();

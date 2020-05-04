@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -86,8 +87,9 @@ public class FulltextController {
 	/** Get EISDoc with ellipses-separated highlights and context across entire database for fulltext search term(s)*/
 	@CrossOrigin
 	@PostMapping(path = "/fulltext_meta")
-	public List<MetadataWithContext> fulltext_meta(@RequestParam("terms") String terms)
+	public List<MetadataWithContext> fulltext_meta(@RequestBody String terms)
 	{
+		System.out.println(terms);
 		try {
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.metaContext(terms, 1000, 0)));
