@@ -177,7 +177,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 		Highlighter highlighter = new Highlighter(formatter, scorer);
-		Fragmenter fragmenter = new SimpleFragmenter(50);
+		Fragmenter fragmenter = new SimpleFragmenter(150);
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(text.length());
 		StandardAnalyzer sa = new StandardAnalyzer();
@@ -185,7 +185,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		String result = "";
 		
 		try {
-			result = highlighter.getBestFragments(tokenStream, text, 5, " ... ");
+			// Add ellipses to denote that these are text fragments within the string
+			result = highlighter.getBestFragments(tokenStream, text, 5, " ... <br /> ... ");
+			System.out.println(result);
+			if(result.length()>0) {
+				result = " ... " + (result.replaceAll("\\n+", "")).concat(" ... ");
+				System.out.println(result);
+			}
 		} catch (InvalidTokenOffsetsException e) {
 			// TODO Auto-generated catch block
 			sa.close();
