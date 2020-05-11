@@ -95,9 +95,9 @@ public class FulltextController {
 			// Whitespace can prevent Lucene from finding results
 			terms = terms.trim();
 			
-			try { // Note: Limit to ~100 for fast results, or get a much beefier server
+			try { // Note: Limit matters a lot if RAM is low
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-						(textRepository.metaContext(terms, 100, 0)));
+						(textRepository.metaContext(terms, 1000, 0)));
 				return highlightsMeta;
 			} catch(org.hibernate.search.exception.EmptyQueryException e) {
 				return new ArrayList<MetadataWithContext>();
