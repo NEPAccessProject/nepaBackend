@@ -84,13 +84,16 @@ public class FulltextController {
 	}
 
 	/** TODO: test live, log search terms? */
-	/** Get EISDoc with ellipses-separated highlights and context across entire database for fulltext search term(s)*/
+	/** Get EISDoc with ellipses-separated highlights and context across entire database for fulltext search term(s). 
+	 * Note: Common words aren't indexed and will give no results.  Phrase queries are very slow. */
 	@CrossOrigin
 	@PostMapping(path = "/fulltext_meta")
 	public List<MetadataWithContext> fulltext_meta(@RequestBody String terms)
 	{
 //		System.out.println(terms);
 		if(terms != null) {
+			// Whitespace can prevent Lucene from finding results
+			terms = terms.trim();
 			
 			try { // Note: Limit to ~100 for fast results, or get a much beefier server
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
