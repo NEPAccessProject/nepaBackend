@@ -95,9 +95,9 @@ public class FulltextController {
 			// Whitespace can prevent Lucene from finding results
 			terms = terms.trim();
 			
-			try { // Note: Limit matters a lot if RAM is low
+			try { // Note: Limit matters a lot if RAM is low?  CPU/SSD or not also seems to matter
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-						(textRepository.metaContext(terms, 1000, 0)));
+						(textRepository.metaContext(terms, 100, 0)));
 				return highlightsMeta;
 			} catch(org.hibernate.search.exception.EmptyQueryException e) {
 				return new ArrayList<MetadataWithContext>();
