@@ -78,7 +78,7 @@ dependencies {
     /** Lucene basic dependencies 
     */
     // https://mvnrepository.com/artifact/org.hibernate/hibernate-core
-	compile group: 'org.hibernate', name: 'hibernate-core', version: '5.4.0.Final'
+	compile group: 'org.hibernate', name: 'hibernate-core', version: '5.4.12.Final'
     // https://mvnrepository.com/artifact/org.hibernate/hibernate-search-orm
 	compile group: 'org.hibernate', name: 'hibernate-search-orm', version: '5.11.5.Final'
     
