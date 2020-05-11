@@ -59,7 +59,7 @@ public class FulltextController {
 	public List<DocumentText> fullSearch(@RequestParam("terms") String terms)
 	{
 		try {
-			return textRepository.search(terms, 1000, 0);
+			return textRepository.search(terms, 100, 0);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
 		} catch(Exception e) {
@@ -73,8 +73,8 @@ public class FulltextController {
 	@PostMapping(path = "/context")
 	public List<String> contextSearch(@RequestParam("terms") String terms)
 	{
-		try {
-			return textRepository.searchContext(terms, 1000, 0);
+		try { 
+			return textRepository.searchContext(terms, 100, 0);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
 		} catch(Exception e) {
@@ -92,9 +92,9 @@ public class FulltextController {
 //		System.out.println(terms);
 		if(terms != null) {
 			
-			try {
+			try { // Note: Limit to ~100 for fast results, or get a much beefier server
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-						(textRepository.metaContext(terms, 1000, 0)));
+						(textRepository.metaContext(terms, 100, 0)));
 				return highlightsMeta;
 			} catch(org.hibernate.search.exception.EmptyQueryException e) {
 				return new ArrayList<MetadataWithContext>();
