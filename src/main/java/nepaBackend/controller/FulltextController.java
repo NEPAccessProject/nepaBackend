@@ -89,15 +89,20 @@ public class FulltextController {
 	@PostMapping(path = "/fulltext_meta")
 	public List<MetadataWithContext> fulltext_meta(@RequestBody String terms)
 	{
-		System.out.println(terms);
-		try {
-			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-					(textRepository.metaContext(terms, 1000, 0)));
-			return highlightsMeta;
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return null;
-		} catch(Exception e) {
-			e.printStackTrace();
+//		System.out.println(terms);
+		if(terms != null) {
+			
+			try {
+				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
+						(textRepository.metaContext(terms, 1000, 0)));
+				return highlightsMeta;
+			} catch(org.hibernate.search.exception.EmptyQueryException e) {
+				return new ArrayList<MetadataWithContext>();
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ArrayList<MetadataWithContext>();
+			}
+		} else {
 			return null;
 		}
 	}
