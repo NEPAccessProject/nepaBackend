@@ -59,7 +59,7 @@ public class FulltextController {
 	public List<DocumentText> fullSearch(@RequestBody String terms)
 	{
 		try {
-			return textRepository.search(terms, 100000, 0);
+			return textRepository.search(terms, 1000, 0);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
 		} catch(Exception e) {
