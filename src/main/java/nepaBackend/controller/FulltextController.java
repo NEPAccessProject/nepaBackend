@@ -52,14 +52,14 @@ public class FulltextController {
 	}
 	
 
-	/** TODO: Finalize, log search terms? Possibly don't need this functionality; remove? */
+	/** TODO: Log search terms */
 	/** Get DocumentText matches across entire database for fulltext search term(s) */
 	@CrossOrigin
 	@PostMapping(path = "/full")
-	public List<DocumentText> fullSearch(@RequestParam("terms") String terms)
+	public List<DocumentText> fullSearch(@RequestBody String terms)
 	{
 		try {
-			return textRepository.search(terms, 100, 0);
+			return textRepository.search(terms, 100000, 0);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
 		} catch(Exception e) {
@@ -68,9 +68,8 @@ public class FulltextController {
 		}
 	}
 
+	// Note: Probably unnecessary
 	/** Get highlights across entire database for fulltext search term(s) */
-	@CrossOrigin
-	@PostMapping(path = "/context")
 	public List<String> contextSearch(@RequestParam("terms") String terms)
 	{
 		try { 
@@ -83,7 +82,7 @@ public class FulltextController {
 		}
 	}
 
-	/** TODO: test live, log search terms? */
+	/** TODO: Log search terms */
 	/** Get EISDoc with ellipses-separated highlights and context across entire database for fulltext search term(s). 
 	 * Note: Common words aren't indexed and will give no results.  Phrase queries are very slow. */
 	@CrossOrigin
@@ -95,7 +94,7 @@ public class FulltextController {
 			// Whitespace can prevent Lucene from finding results
 			terms = terms.trim();
 			
-			try { // Note: Limit matters a lot if RAM is low?  CPU/SSD or not also seems to matter
+			try { // Note: Limit matters a lot when getting highlights.  RAM, CPU, lack of SSD probably important
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 						(textRepository.metaContext(terms, 100, 0)));
 				return highlightsMeta;

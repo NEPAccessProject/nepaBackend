@@ -56,7 +56,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return jpaQuery.getResultList();
 	}
 
-	// TODO: Return record IDs (located in docList) as well as text results
+	// Note: Probably unnecessary function
 	/** Return all highlights with context for matching terms (term phrase?) */
 	@SuppressWarnings("unchecked")
 	@Override
@@ -139,7 +139,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				highlight = getHighlightTerm(doc.getPlaintext(), terms);
 			}
 			if(highlight.length() > 0) {
-				highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight));
+				highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
 			}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -187,10 +187,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		try {
 			// Add ellipses to denote that these are text fragments within the string
 			result = highlighter.getBestFragments(tokenStream, text, 3, " ... <br /> ... ");
-			System.out.println(result);
+//			System.out.println(result);
 			if(result.length()>0) {
 				result = " ... " + (result.replaceAll("\\n+", "")).trim().concat(" ... ");
-				System.out.println(result);
+//				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {
 			// TODO Auto-generated catch block
