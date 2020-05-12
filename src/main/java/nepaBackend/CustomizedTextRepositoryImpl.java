@@ -31,7 +31,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@PersistenceContext
 	private EntityManager em;
 
-	/** Return all records matching terms */
+	/** Return all records matching terms (no highlights/context) */
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<DocumentText> search(String terms, int limit, int offset) {
@@ -186,10 +186,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		try {
 			// Add ellipses to denote that these are text fragments within the string
-			result = highlighter.getBestFragments(tokenStream, text, 5, " ... <br /> ... ");
+			result = highlighter.getBestFragments(tokenStream, text, 3, " ... <br /> ... ");
 			System.out.println(result);
 			if(result.length()>0) {
-				result = " ... " + (result.replaceAll("\\n+", "")).concat(" ... ");
+				result = " ... " + (result.replaceAll("\\n+", "")).trim().concat(" ... ");
 				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {
