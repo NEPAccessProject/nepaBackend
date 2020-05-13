@@ -15,5 +15,7 @@ public interface TextRepository extends CrudRepository<DocumentText, Long>, Cust
 	boolean existsByEisdocAndFilename(EISDoc eisdoc, String filename);
 
 	List<DocumentText> findAllByEisdoc(EISDoc eis);
+
+	boolean existsByEisdoc(EISDoc eis);
 	
 }
