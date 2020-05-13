@@ -56,7 +56,7 @@ public class FulltextController {
 	/** Get DocumentText matches across entire database for fulltext search term(s) */
 	@CrossOrigin
 	@PostMapping(path = "/full")
-	public List<DocumentText> fullSearch(@RequestBody String terms)
+	public List<EISDoc> fullSearch(@RequestBody String terms)
 	{
 		try {
 			return textRepository.search(terms, 1000, 0);

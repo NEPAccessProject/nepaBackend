@@ -21,11 +21,13 @@ import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleFragmenter;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
 
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.model.DocumentText;
+import nepaBackend.model.EISDoc;
 
 public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@PersistenceContext
@@ -34,7 +36,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	/** Return all records matching terms (no highlights/context) */
 	@SuppressWarnings("unchecked")
 	@Override
-	public List<DocumentText> search(String terms, int limit, int offset) {
+	public List<EISDoc> search(String terms, int limit, int offset) {
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 			
 		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
@@ -46,14 +48,32 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.createQuery();
 
 		// wrap Lucene query in a javax.persistence.Query
-		javax.persistence.Query jpaQuery =
+		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
+		
+//		jpaQuery.setProjection(ProjectionConstants.ID);
 
-		jpaQuery.setMaxResults(limit);
-		jpaQuery.setFirstResult(offset);
-
+//		jpaQuery.setMaxResults(limit);
+//		jpaQuery.setFirstResult(offset);
+//		
+//		ArrayList<Long> new_ids = new ArrayList<Long>();
+//		List<Object[]> ids = jpaQuery.getResultList();
+//		for(Object[] id : ids) {
+//			new_ids.add((Long) id[0]);
+//		}
+//		javax.persistence.Query query = em.createQuery("FROM EISDoc doc WHERE doc.id IN :ids");
+//		query.setParameter("ids", new_ids);
+//		List<EISDoc> docs = query.getResultList();
+		
+		List<DocumentText> docs = jpaQuery.getResultList();
+		List<EISDoc> eisDocs = new ArrayList<EISDoc>();
+		for(DocumentText doc:docs) {
+			eisDocs.add(doc.getEisdoc());
+		}
+		
 		// execute search
-		return jpaQuery.getResultList();
+		return eisDocs;
 	}
 
 	// Note: Probably unnecessary function
