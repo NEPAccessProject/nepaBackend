@@ -396,6 +396,10 @@ public class FileController {
 		if(eis.getId() < 1) {
 			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
 		}
+		if(textRepository.existsByEisdoc(eis)) 
+		{
+			return new ResponseEntity<Void>(HttpStatus.FOUND);
+		} 
 		
 		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
 		// but presumably different filenames with hopefully different conents
