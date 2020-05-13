@@ -52,28 +52,32 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
 		
-//		jpaQuery.setProjection(ProjectionConstants.ID);
+		jpaQuery.setProjection(ProjectionConstants.ID);
 
-//		jpaQuery.setMaxResults(limit);
-//		jpaQuery.setFirstResult(offset);
-//		
-//		ArrayList<Long> new_ids = new ArrayList<Long>();
-//		List<Object[]> ids = jpaQuery.getResultList();
-//		for(Object[] id : ids) {
-//			new_ids.add((Long) id[0]);
-//		}
-//		javax.persistence.Query query = em.createQuery("FROM EISDoc doc WHERE doc.id IN :ids");
-//		query.setParameter("ids", new_ids);
-//		List<EISDoc> docs = query.getResultList();
+		jpaQuery.setMaxResults(limit);
+		jpaQuery.setFirstResult(offset);
 		
-		List<DocumentText> docs = jpaQuery.getResultList();
-		List<EISDoc> eisDocs = new ArrayList<EISDoc>();
-		for(DocumentText doc:docs) {
-			eisDocs.add(doc.getEisdoc());
+		ArrayList<Long> new_ids = new ArrayList<Long>();
+		
+		List<Object[]> ids = jpaQuery.getResultList();
+		for(Object[] id : ids) {
+			new_ids.add((Long) id[0]);
 		}
 		
+		javax.persistence.Query query = em.createQuery("FROM EISDoc doc WHERE doc.id IN :ids");
+		query.setParameter("ids", new_ids);
+		List<EISDoc> docs = query.getResultList();
+		
+//		List<DocumentText> docs = jpaQuery.getResultList();
+//		List<EISDoc> eisDocs = new ArrayList<EISDoc>();
+//		for(DocumentText doc:docs) {
+//			eisDocs.add(doc.getEisdoc());
+//		}
+		
 		// execute search
-		return eisDocs;
+//		return eisDocs;
+		
+		return docs;
 	}
 
 	// Note: Probably unnecessary function
