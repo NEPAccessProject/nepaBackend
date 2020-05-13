@@ -29,6 +29,7 @@ import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 
+// TODO: Probably want a way to search for many/expanded highlights/context from one archive only
 public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@PersistenceContext
 	private EntityManager em;
@@ -47,11 +48,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.matching(terms)
 				.createQuery();
 
-		// wrap Lucene query in a javax.persistence.Query
-		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery
+		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
 		
+		// project only IDs in order to reduce RAM usage (heap outgrows max memory if we pull the full DocumentText list in)
+		// we can't directly pull the EISDoc field here with projection because it isn't indexed by Lucene
 		jpaQuery.setProjection(ProjectionConstants.ID);
 
 		jpaQuery.setMaxResults(limit);
@@ -64,18 +66,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			new_ids.add((Long) id[0]);
 		}
 		
-		javax.persistence.Query query = em.createQuery("FROM EISDoc doc WHERE doc.id IN :ids");
+		// use the foreign key list from Lucene to make a normal query to get all associated metadata tuples from DocumentText
+		// Note: Need distinct here because multiple files inside of archives are associated with the same metadata tuples
+		// TODO: Can get filenames also, display those on frontend and no longer need DISTINCT (would require a new POJO, different structure than List<EISDoc>)
+		javax.persistence.Query query = em.createQuery("SELECT DISTINCT doc.eisdoc FROM DocumentText doc WHERE doc.id IN :ids");
 		query.setParameter("ids", new_ids);
+
 		List<EISDoc> docs = query.getResultList();
-		
-//		List<DocumentText> docs = jpaQuery.getResultList();
-//		List<EISDoc> eisDocs = new ArrayList<EISDoc>();
-//		for(DocumentText doc:docs) {
-//			eisDocs.add(doc.getEisdoc());
-//		}
-		
-		// execute search
-//		return eisDocs;
 		
 		return docs;
 	}
