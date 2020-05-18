@@ -58,6 +58,6 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	List<EISDoc> findByFilenameNotEmpty();
 
-	Optional<EISDoc> findByTitle(String title);
+	List<EISDoc> findAllByTitle(String title);
 	
 }

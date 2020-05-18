@@ -144,7 +144,7 @@ public class FulltextController {
 		}
 	}
 	
-	/** Get a list of DocumentTexts for a given EIS title (EISDoc.title) */
+	/** Get a list of DocumentTexts for a given EIS title (EISDoc.title) (title is not unique)*/
 	@CrossOrigin
 	@RequestMapping(path = "/get_by_title", method = RequestMethod.GET)
 	public List<DocumentText> getByTitle(@RequestParam String title, @RequestHeader Map<String, String> headers) {
@@ -155,8 +155,12 @@ public class FulltextController {
 			return new ArrayList<DocumentText>();
 		} else {
 			try {
-				Optional<EISDoc> eis = docRepository.findByTitle(title);
-				return textRepository.findAllByEisdoc(eis.get());
+				List<EISDoc> eisList = docRepository.findAllByTitle(title);
+				List<DocumentText> results = new ArrayList<DocumentText>();
+				for(EISDoc eis : eisList) {
+					results.addAll(textRepository.findAllByEisdoc(eis));
+				}
+				return results;
 			} catch(Exception e) {
 				e.printStackTrace();
 				return new ArrayList<DocumentText>();
