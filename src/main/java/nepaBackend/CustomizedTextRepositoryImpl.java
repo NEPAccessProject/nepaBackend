@@ -42,10 +42,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
+
+		// Old code: Only good for single terms, even encapsulated in double quotes.  For multiple terms, it splits them by spaces and will basically OR them together.
+//		Query luceneQuery = queryBuilder
+//				.keyword()
+//				.onField("plaintext")
+//				.matching(terms)
+//				.createQuery();
+		
 		Query luceneQuery = queryBuilder
-				.keyword()
-				.onFields("plaintext")
-				.matching(terms)
+				.phrase()
+				.onField("plaintext")
+				.sentence(terms)
 				.createQuery();
 
 		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
@@ -133,9 +141,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
 		Query luceneQuery = queryBuilder
-				.keyword()
-				.onFields("plaintext")
-				.matching(terms)
+				.phrase()
+				.onField("plaintext")
+				.sentence(terms)
 				.createQuery();
 			
 		// wrap Lucene query in a javax.persistence.Query
