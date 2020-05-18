@@ -1,6 +1,7 @@
 package nepaBackend;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -56,5 +57,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ " WHERE LENGTH(filename) > 0",
 			nativeQuery = true)
 	List<EISDoc> findByFilenameNotEmpty();
+
+	Optional<EISDoc> findByTitle(String title);
 	
 }

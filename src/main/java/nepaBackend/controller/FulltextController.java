@@ -144,6 +144,26 @@ public class FulltextController {
 		}
 	}
 	
+	/** Get a list of DocumentTexts for a given EIS title (EISDoc.title) */
+	@CrossOrigin
+	@RequestMapping(path = "/get_by_title", method = RequestMethod.GET)
+	public List<DocumentText> getByTitle(@RequestParam String title, @RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		
+		if(!isAdmin(token)) 
+		{
+			return new ArrayList<DocumentText>();
+		} else {
+			try {
+				Optional<EISDoc> eis = docRepository.findByTitle(title);
+				return textRepository.findAllByEisdoc(eis.get());
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ArrayList<DocumentText>();
+			}
+		}
+	}
+	
 
 	/** Decode trusted token and then ask database if user is admin */
 	private boolean isAdmin(String token) {
