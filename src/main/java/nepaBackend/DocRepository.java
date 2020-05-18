@@ -59,5 +59,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<EISDoc> findByFilenameNotEmpty();
 
 	List<EISDoc> findAllByTitle(String title);
+
+	Optional<EISDoc> findByFilename(String filename);
 	
 }
