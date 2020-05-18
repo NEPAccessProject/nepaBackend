@@ -142,6 +142,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
 		Query luceneQuery = queryBuilder
 				.phrase()
+					.withSlop(0) // default: 0
 				.onField("plaintext")
 				.sentence(terms)
 				.createQuery();
@@ -206,7 +207,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 		Highlighter highlighter = new Highlighter(formatter, scorer);
-		Fragmenter fragmenter = new SimpleFragmenter(150);
+		Fragmenter fragmenter = new SimpleFragmenter(300);
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(text.length());
 		StandardAnalyzer sa = new StandardAnalyzer();
@@ -215,7 +216,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		try {
 			// Add ellipses to denote that these are text fragments within the string
-			result = highlighter.getBestFragments(tokenStream, text, 3, " ... <br /> ... ");
+			result = highlighter.getBestFragments(tokenStream, text, 1, " ... <br /> ... ");
 //			System.out.println(result);
 			if(result.length()>0) {
 				result = " ... " + (result.replaceAll("\\n+", "")).trim().concat(" ... ");
