@@ -219,7 +219,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			result = highlighter.getBestFragments(tokenStream, text, 1, " ... <br /> ... ");
 //			System.out.println(result);
 			if(result.length()>0) {
-				result = " ... " + (result.replaceAll("\\n+", "")).trim().concat(" ... ");
+				result = " ... " + (result.replaceAll("\\n+", " ")).trim().concat(" ... ");
 //				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {

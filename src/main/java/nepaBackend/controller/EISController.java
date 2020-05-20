@@ -279,8 +279,11 @@ public class EISController {
 			// Otherwise let natural language mode pick the top results
 			
 			// debugging
-			System.out.println(sQuery); 
-			System.out.println(searchInputs.title);
+			Boolean testing = false;
+			if(testing) {
+				System.out.println(sQuery); 
+				System.out.println(searchInputs.title);
+			}
 			
 
 			return new ResponseEntity<List<EISDoc>>(records, HttpStatus.OK);
