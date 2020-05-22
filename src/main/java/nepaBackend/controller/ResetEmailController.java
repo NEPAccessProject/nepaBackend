@@ -5,11 +5,15 @@ import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.Map;
 
+import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailException;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -79,30 +83,17 @@ public class ResetEmailController {
     			}
     		}
     		
-    		sendResetEmail(resetUser);
-    		try {
-    			EmailLog log = new EmailLog();
-    			log.setEmail(resetEmail.email);
-    			log.setSent(true);
-    			log.setEmailType("Reset");
-    			System.out.println("Saving?");
-    			emailLogRepository.save(log);
-    		}catch(Exception ex) {
-//    			System.out.println("Failure?" + ex);
-    			// Do nothing
+    		Boolean sent = sendResetEmail(resetUser);
+    		
+    		if(sent) {
+                return new ResponseEntity<String>("Email sent!", HttpStatus.OK);
+    		} else {
+                return new ResponseEntity<String>("Email was not sent.", HttpStatus.INTERNAL_SERVER_ERROR);
     		}
-    		// TODO: This response happens even if the email can't be sent in local test, needs fixing
-            return new ResponseEntity<String>("Email sent!", HttpStatus.OK);
-        }catch(Exception ex) {
+        }catch(Exception ex) { 
+        	// TODO: Try other arizona email format on failure, if arizona email format
     		try {
-    			EmailLog log = new EmailLog();
-    			log.setEmail(resetEmail.email);
-    			log.setSent(false);
-    			log.setEmailType("Reset");
-    			log.setLogTime(LocalDateTime.now());
-    			log.setErrorType(ex.toString() + " :: Status=" + HttpStatus.INTERNAL_SERVER_ERROR.toString());
-    			System.out.println("Saving error?");
-    			emailLogRepository.save(log);
+    			logEmail(resetEmail.email, ex.toString(), "Reset", false);
     		}catch(Exception logEx) {
 //    			System.out.println("Failure?" + logEx);
     			// If the error log fails to log then we're already in a hole (no db access?)
@@ -111,25 +102,61 @@ public class ResetEmailController {
         }
     }
  
-    private void sendResetEmail(ApplicationUser resetUser) throws Exception{
-        MimeMessage message = sender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message);
-         
-        helper.setTo(resetUser.getEmail());
-        helper.setText("This is an automatically generated email in response to"
-        		+ " a request to reset the password for the account linked"
-        		+ " to this email address."
-        		+ "\n\nClick this link to reset your password: " + getResetLink(resetUser)
-        		+ "\n\nPlease note that anyone with this link can change your password."
-        		+ "  The link will remain valid for 24 hours or until your password is changed.");
-        helper.setSubject("NEPAccess Reset Password Request");
-         
-        sender.send(message);
-        
-        // Save LocalDateTime in database
-        resetUser.setLastReset(LocalDateTime.now());
-        applicationUserRepository.save(resetUser);
-//        System.out.println(message.getContent().toString());
+    private boolean sendResetEmail(ApplicationUser resetUser) throws Exception{
+    	try {
+            MimeMessage message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+             
+            helper.setTo(resetUser.getEmail());
+            helper.setText("This is an automatically generated email in response to"
+            		+ " a request to reset the password for the account linked"
+            		+ " to this email address."
+            		+ "\n\nClick this link to reset your password: " + getResetLink(resetUser)
+            		+ "\n\nPlease note that anyone with this link can change your password."
+            		+ "  The link will remain valid for 24 hours or until your password is changed.");
+            helper.setSubject("NEPAccess Reset Password Request");
+             
+            sender.send(message);
+            
+            // Save LocalDateTime in database
+            resetUser.setLastReset(LocalDateTime.now());
+            applicationUserRepository.save(resetUser);
+//            System.out.println(message.getContent().toString());
+    		
+    	} catch (MailAuthenticationException e) {
+            logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
+
+//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+            
+    		return false;
+    	} catch (MailSendException e) {
+            logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
+
+//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+            
+    		return false;
+    	} catch (MailException e) {
+            logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
+            
+//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+            
+    		return false;
+    	} catch (Exception e) {
+            logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
+            
+//            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+            
+    		return false;
+    	}
+    	
+		try {
+            logEmail(resetUser.getEmail(), "", "Reset", true);
+		}catch(Exception ex) {
+//			System.out.println("Failure?" + ex);
+			// Do nothing
+		}
+		
+        return true;
     }
 
     // Helper method generates a JWT that lasts for 24 hours and return a valid reset link
@@ -228,6 +255,44 @@ public class ResetEmailController {
 //    		System.out.println(ex);
     		return false;
     	}
+    }
+    
+    /**
+     * @param email
+     * @param errorString
+     * @param emailType
+     * @param sent
+     * @return
+     */
+    private boolean logEmail(String email, String errorString, String emailType, Boolean sent) {
+    	try {
+        	EmailLog log = new EmailLog();
+    		log.setEmail(email);
+    		log.setErrorType(errorString);
+    		log.setEmailType(emailType); // ie "Reset"
+    		log.setSent(sent);
+    		log.setLogTime(LocalDateTime.now());
+    		emailLogRepository.save(log);
+    		return true;
+    	} catch (Exception e) {
+    		// do nothing
+    	}
+    	return false;
+    }
+    
+    private void emailAdmin(String email, String errorType, String errorMessage) {
+    	MimeMessage message = sender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message);
+        
+		try {
+			helper.setTo(SecurityConstants.EMAIL_HANDLE);
+			helper.setText("Failure for " + email + " : " + errorMessage);
+        	helper.setSubject("NEPAccess Reset Password Failure: " + errorType);
+		} catch (MessagingException e) {
+//			e.printStackTrace();
+		}
+        
+        sender.send(message);
     }
     
     // TODO: User generation emails with login links like with password reset?
