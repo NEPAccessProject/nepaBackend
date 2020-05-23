@@ -2,7 +2,9 @@ package nepaBackend.controller;
 import static com.auth0.jwt.algorithms.Algorithm.HMAC512;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 
 import javax.mail.MessagingException;
@@ -19,6 +21,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -333,6 +336,43 @@ public class ResetEmailController {
 		}
         
         sender.send(message);
+    }
+    
+    /** Decode trusted token and then ask database if user is admin */
+	private boolean isAdmin(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+					.getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id))
+					.get();
+			
+			if(user.getRole().contentEquals("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+
+	}
+    
+    @CrossOrigin
+    @GetMapping(path = "/email/logs", 
+    		produces = "application/json", 
+    		headers = "Accept=application/json")
+    ResponseEntity<List<EmailLog>> getEmailResetLogs(@RequestHeader Map<String, String> headers) {
+    	String token = headers.get("authorization");
+		
+		boolean admin = isAdmin(token);
+		
+	    if (admin) {
+	    	List<EmailLog> logs = emailLogRepository.findAll();
+	    	return new ResponseEntity<List<EmailLog>>(logs, HttpStatus.OK);
+	    } else {
+	    	return new ResponseEntity<List<EmailLog>>(new ArrayList<EmailLog>(), HttpStatus.UNAUTHORIZED);
+	    }
+    	
     }
     
     // TODO: User generation emails with login links like with password reset?
