@@ -91,7 +91,47 @@ public class ResetEmailController {
                 return new ResponseEntity<String>("Email was not sent.", HttpStatus.INTERNAL_SERVER_ERROR);
     		}
         }catch(Exception ex) { 
-        	// TODO: Try other arizona email format on failure, if arizona email format
+        	
+        	try {
+            	// Emails are typically created with @email.arizona.edu.  The exception could be email address not found
+            	// because it didn't find a user looking for @arizona.edu, which is also valid.
+        		
+        		// If @arizona.edu, try looking for @email.arizona.edu instead and proceed normally if so
+                String emailService = resetEmail.email;
+            	int index = resetEmail.email.indexOf('@');
+            	emailService = emailService.substring(index);
+            	if(emailService.contentEquals("@arizona.edu")) {
+            		ApplicationUser resetUser = 
+            				applicationUserRepository.findByEmail(resetEmail.email.substring(0, index) + "@email.arizona.edu");
+                    
+            		LocalDateTime timeNow = LocalDateTime.now();
+            		
+            		// If there has been a reset (default null column)
+            		if(resetUser.getLastReset() != null) {
+            			// And if 24 hours haven't passed since the last email reset
+            			if((timeNow.minusDays(1)).isBefore(resetUser.getLastReset())) {
+            				// then return a special HttpStatus
+            				return new ResponseEntity<String>("Too soon", HttpStatus.I_AM_A_TEAPOT);
+            			}
+            		}
+            		
+            		Boolean sent = sendResetEmail(resetUser);
+            		
+            		if(sent) {
+                        return new ResponseEntity<String>("Email sent!", HttpStatus.OK);
+            		} else {
+                        return new ResponseEntity<String>("Email was not sent.", HttpStatus.INTERNAL_SERVER_ERROR);
+            		}
+            	}
+        		
+        	} catch (Exception e) {
+        		try {
+        			logEmail(resetEmail.email, e.toString(), "Reset", false);
+        		}catch(Exception logEx) {
+//        			System.out.println("Failure?" + logEx);
+        		}
+        	}
+            
     		try {
     			logEmail(resetEmail.email, ex.toString(), "Reset", false);
     		}catch(Exception logEx) {
