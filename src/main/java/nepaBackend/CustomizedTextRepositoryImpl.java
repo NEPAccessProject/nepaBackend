@@ -224,9 +224,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			}
 		} catch (InvalidTokenOffsetsException e) {
 			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
 			sa.close();
 			tokenStream.close();
-			e.printStackTrace();
+			text = "";
 		}
 	
 //			StringBuilder writer = new StringBuilder("");
@@ -241,8 +243,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //			writer.append("</body></html>");
 	
 //			return ( writer.toString() );
-		sa.close();
-		tokenStream.close();
 		return result;
 	 }
 	
@@ -268,13 +268,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Lucene supports case-sensitiev inpput, but I'm indexing only lowercase words and no punctuation
 		inputString = inputString.toLowerCase();
 		//+ - && || ! ( ) { } [ ] ^ \" ~ * ? : \\ /
-		final String[] metaCharacters = {"+","-","&&","||","!","(",")","{","}","[","]","^","\"","~","*","?",":","/"};
+		final String[] metaCharacters = {"+","-","&&","||","!","(",")","{","}","[","]","^","\"","~","*","?",":","/","  "};
 		
 		for (int i = 0 ; i < metaCharacters.length ; i++){
 			if(inputString.contains(metaCharacters[i])){
 				// Lucene can use special characters, but until we decide how to handle that power just remove them all
 //				inputString = inputString.replace(metaCharacters[i],"\\"+metaCharacters[i]);
-				inputString = inputString.replace(metaCharacters[i]," ");
+				inputString = inputString.replace(metaCharacters[i]," ") // replace special characters with spaces
+						.trim(); // extra spaces may mean no results when looking for an exact phrase
 			}
 		}
 		return inputString;
