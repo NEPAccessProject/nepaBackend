@@ -141,7 +141,8 @@ public class ResetEmailController {
 //    			System.out.println("Failure?" + logEx);
     			// If the error log fails to log then we're already in a hole (no db access?)
     		}
-            return new ResponseEntity<String>("Error in sending email: "+ex, HttpStatus.INTERNAL_SERVER_ERROR);
+    		// Email probably doesn't exist.
+            return new ResponseEntity<String>("Error in sending email: "+ex, HttpStatus.NOT_FOUND);
         }
     }
  
