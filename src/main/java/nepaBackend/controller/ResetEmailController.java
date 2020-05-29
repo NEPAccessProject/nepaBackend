@@ -154,7 +154,7 @@ public class ResetEmailController {
             helper.setText("This is an automatically generated email in response to"
             		+ " a request to reset the password for the account linked"
             		+ " to this email address."
-            		+ "\nYour username is: " + resetUser.getUsername()
+            		+ "\n\nYour username is: " + resetUser.getUsername()
             		+ "\n\nClick this link to reset your password: " + getResetLink(resetUser)
             		+ "\n\nPlease note that anyone with this link can change your password."
             		+ "  The link will remain valid for 24 hours or until your password is changed.");
