@@ -163,7 +163,7 @@ public class UserController {
         		
         		if(user.getUsername().length() < 1) { // No username provided?
         			String[] split = (user.getEmail().split("@"));
-        			if(split[1].equalsIgnoreCase("email.arizona.edu")) {
+        			if(split[1].equalsIgnoreCase("email.arizona.edu") || split[1].equalsIgnoreCase("arizona.edu")) {
         				// Try using NetID if Arizona email (should just be first part)
         				user.setUsername(split[0]);
         			} else { // Or use the email as the username
