@@ -220,7 +220,8 @@ public class UserController {
         	                		+ "and your credentials are:\n"
         	                		+ "\nUsername: " + user.getUsername()
         	                		+ "\nPassword: " + password
-        	                		+ "\n\nYou can change your password after logging in by clicking on the Profile link in the top right.");
+        	                		+ "\n\nYou can change your password after logging in by clicking on the Profile link in the top right corner."
+        	                		+ "\n\nIf you forget your password, you can get a reset link emailed to you by clicking on the Forgot Password? link on the login page.");
         	                helper.setSubject("NEPAccess Account");
         	                sender.send(message);
         		    		try {
