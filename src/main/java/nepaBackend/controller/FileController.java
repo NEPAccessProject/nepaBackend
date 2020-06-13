@@ -5,7 +5,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDateTime;
@@ -19,14 +18,21 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.pdf.PDFParser;
 import org.apache.tika.sax.ToXMLContentHandler;
+import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -37,6 +43,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
@@ -55,7 +62,7 @@ import nepaBackend.security.SecurityConstants;
 @RestController
 @RequestMapping("/file")
 public class FileController {
-
+	
 	private DocRepository docRepository;
 	private TextRepository textRepository;
 	private FileLogRepository fileLogRepository;
@@ -76,6 +83,7 @@ public class FileController {
 	Boolean testing = false;
 	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
+	String expressURL = "http://localhost:3001/test2";
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
@@ -213,8 +221,53 @@ public class FileController {
 		}
 		
 	}
-	
 
+
+	// TODO: test remote deployed with different URL obviously
+	/** TOOD: Send to DBFS, finalize, etc., 
+	 * not sure I have permission to put new items onto that disk in that location
+	 * Will need to make sure it is secured also (test in browser?)
+	 * 
+	 * @param file
+	 * @throws FileUploadException
+	 * @throws IOException
+	 */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadFile2", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private String uploadFile(@RequestParam("file") MultipartFile file) throws IOException { 
+	    System.out.println("Size " + file.getSize());
+	    System.out.println("Name " + file.getOriginalFilename());
+	    
+	    try {
+	    	HttpEntity entity = MultipartEntityBuilder.create()
+	    				.addBinaryBody("test", 
+	    						file.getInputStream(), 
+	    						ContentType.create("application/octet-stream"), 
+	    						file.getOriginalFilename())
+	    				.build();
+
+		    HttpPost request = new HttpPost(expressURL);
+		    request.setEntity(entity);
+
+		    HttpClient client = HttpClientBuilder.create().build();
+		    HttpResponse response = client.execute(request);
+		    System.out.println(response.toString());
+		    return response.toString();
+			
+//				return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
+		} catch (Exception e) {
+			e.printStackTrace();
+//				return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
+		} finally {
+		    file.getInputStream().close();
+		    
+		    System.out.println("Out");
+		}
+	    return "";
+	}
+
+	
+	
 	// Experimental, probably useless (was trying to get document outlines)
 	@CrossOrigin
 	@RequestMapping(path = "/xhtml", method = RequestMethod.GET)
