@@ -62,7 +62,6 @@ import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
-import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
 
@@ -87,7 +86,7 @@ public class FileController {
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
-	Boolean testing = false;
+	Boolean testing = true;
 	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
 	String expressURL = "http://localhost:3001/test2";
@@ -269,10 +268,13 @@ public class FileController {
 	    System.out.println("Size " + file.getSize());
 	    System.out.println("Name " + file.getOriginalFilename());
 	    System.out.println(doc);
+	    
+	    String origFilename = file.getOriginalFilename();
 
-	    boolean[] results = new boolean[2];
+	    boolean[] results = new boolean[3];
 	    results[0] = false;
 	    results[1] = false;
+	    results[2] = false;
 	    
 	    try {
 	    	
@@ -299,8 +301,6 @@ public class FileController {
 		    
 		    // so far so good?
 		    results[0] = (response.getStatusLine().getStatusCode() == 200);
-		    
-		    System.out.println(dto.title);
 
 		    // Only save if file upload succeeded.  We don't want loose files, and we don't want metadata without files.
 		    if(results[0]) {
@@ -312,7 +312,11 @@ public class FileController {
 		    	// TODO: Handle different file formats for download, Tika
 		    	// TODO: Handle multiple files per record here and then need to also redesign downloads to allow it
 		    	saveDoc.setFilename(file.getOriginalFilename());
-		    	saveDoc.setRegisterDate(dto.publishDate.substring(0, 10));
+		    	if(dto.publishDate.length()>9) {
+			    	saveDoc.setRegisterDate(dto.publishDate.substring(0, 10));
+		    	} else {
+			    	saveDoc.setRegisterDate("");
+		    	}
 		    	saveDoc.setState(dto.state);
 		    	saveDoc.setTitle(dto.title.trim());
 		    	
@@ -323,11 +327,19 @@ public class FileController {
 		    	// Save (ID is null at this point, but .save() picks a unique ID thanks to the model so it's good)
 		    	EISDoc savedDoc = docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
 		    	results[1] = true;
-		    	
-		    	// Run Tika on file
-		    	this.convertRecordSmart(savedDoc);
 
-		    	// TODO: Verify Tika converted; verify Lucene indexed (should happen automatically)
+		    	// Run Tika on file, record if 200 or not
+		    	if(origFilename.substring(origFilename.length()-3).equalsIgnoreCase("pdf")) {
+		    		int status = this.convertPDF(savedDoc).getStatusCodeValue();
+			    	results[2] = (status == 200);
+		    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
+			    	int status = this.convertRecordSmart(savedDoc).getStatusCodeValue();
+			    	results[2] = (status == 200);
+			    	// Note: 200 doesn't necessarily mean tika was able to convert anything
+		    	}
+
+		    	// TODO: Test.  Verify Tika converted; verify Lucene indexed (should happen automatically)
+		    	// Then make an Express server on DBFS, change URL, test live
 		    }
 			
 		} catch (Exception e) {
@@ -338,41 +350,40 @@ public class FileController {
 	    
 		return results;
 	}
-	
-private boolean isValid(UploadInputs dto) {
-	boolean valid = true;
-	
-	if(dto.publishDate.length() > 0) { // Have date?
-//		DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
-//		DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-//		if(validator.isValid(dto.publishDate)) { // Validate date
-//			// All good, keep valid = true
-//		} else {
-//			valid = false; // Date has to be valid ISO_DATE_TIME
-//		}
-		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); //enforce pattern
-		DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-		if(validator.isValidFormat(dto.publishDate.substring(0, 10))) { // Validate date, format
-			// All good, keep valid = true
-		} else {
-			System.out.println("Invalid date");
-			valid = false; // Date invalid
+
+
+	private boolean isValid(UploadInputs dto) {
+		boolean valid = true;
+		
+		if(dto.publishDate.length() > 9) { // Have date?
+	//		DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
+	//		DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+	//		if(validator.isValid(dto.publishDate)) { // Validate date
+	//			// All good, keep valid = true
+	//		} else {
+	//			valid = false; // Date has to be valid ISO_DATE_TIME
+	//		}
+			DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); //enforce pattern
+			DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+			if(validator.isValidFormat(dto.publishDate.substring(0, 10))) { // Validate date, format
+				// All good, keep valid = true
+			} else {
+				System.out.println("Invalid date");
+				valid = false; // Date invalid
+			}
 		}
+		
+		if(dto.title.trim().length()==0) {
+			valid = false; // Need title
+		}
+		
+		if(dto.filename.length()>0) {
+			// TODO: Ensure filename matches unique item on imported files list (for CSV and bulk import only if at all, 
+			// otherwise should be empty string anyway for single import)
+		}
+		
+		return valid;
 	}
-	
-	if(dto.title.trim().length()>0) { // Have title?
-		// Any string should be okay
-	} else {
-		valid = false; // Need title
-	}
-	
-	if(dto.filename.length()>0) {
-		// TODO: Ensure filename matches unique item on imported files list (for CSV and bulk import only if at all, 
-		// otherwise should be empty string anyway for single import)
-	}
-	
-	return valid;
-}
 
 
 
@@ -422,6 +433,135 @@ private boolean isValid(UploadInputs dto) {
 			return new ResponseEntity<List<String>>(convertXHTML(docRepository.findById(22)), HttpStatus.OK);
 		}
 		
+	}
+	
+
+	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
+		if(testing) {
+			System.out.println("Converting PDF");
+		}
+		if(eis == null) {
+			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+		}
+		
+		FileLog fileLog = new FileLog();
+		
+		try {
+			fileLog.setDocumentId(eis.getId());
+		} catch(Exception e) {
+			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
+		}
+		if(eis.getId() < 1) {
+			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
+		}
+		
+		// Deduplication: Ignore when document ID already exists in EISDoc table.
+		// Will need different logic to handle multiple files per record
+		if(textRepository.existsByEisdoc(eis)) 
+		{
+			return new ResponseEntity<Void>(HttpStatus.FOUND);
+		} 
+		
+		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
+		// but presumably different filenames with hopefully different conents
+		final int BUFFER = 2048;
+		
+		try {
+			Tika tikaParser = new Tika();
+			tikaParser.setMaxStringLength(-1); // disable limit
+		
+			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
+			// TODO: Handle folders/multiple files for future (currently only archives)
+			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
+				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
+			}
+			String filename = eis.getFilename();
+			
+			String relevantURL = dbURL;
+			if(testing) {
+				relevantURL = testURL;
+			}
+			URL fileURL = new URL(relevantURL + filename);
+		
+			fileLog.setFilename(filename);
+			
+			// 1: Download the archive
+			// Handle non-archive case
+			InputStream in = new BufferedInputStream(fileURL.openStream());
+			
+			int count;
+			byte[] data = new byte[BUFFER];
+			
+			
+			if(textRepository.existsByEisdoc(eis)) 
+			{
+				in.close();
+				return new ResponseEntity<Void>(HttpStatus.ALREADY_REPORTED);
+			} 
+			else 
+			{
+				DocumentText docText = new DocumentText();
+				docText.setEisdoc(eis);
+				docText.setFilename(filename);
+				
+				fileLog.setExtractedFilename(filename);
+				
+				// 2: Extract data and stream to Tika
+				try {
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					while (( count = in.read(data)) != -1) {
+						baos.write(data, 0, count);
+					}
+					
+					// 3: Convert to text
+					String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+					docText.setPlaintext(textResult);
+					
+					// 4: Add converted text to database for document(EISDoc) ID, filename
+					this.save(docText);
+				} catch(Exception e){
+					try {
+
+						if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
+							fileLog.setImported(false);
+						} else {
+							fileLog.setImported(true);
+						}
+						
+						// Note:  This step does not index; that's a separate process.  N/A, so null would be fine.
+						// But Tinyint is numeric, should default to 0.  Still better than the Boolean type in MySQL
+						
+						fileLog.setErrorType(e.getLocalizedMessage());
+						fileLog.setLogTime(LocalDateTime.now());
+						fileLogRepository.save(fileLog);
+						e.printStackTrace();
+					} catch (Exception e2) {
+						System.out.println("Error logging error...");
+						e2.printStackTrace();
+					}
+					
+				} 
+			}
+
+			// 5: Cleanup
+			in.close();
+
+			return new ResponseEntity<Void>(HttpStatus.OK);
+		} catch (Exception e) {
+			e.printStackTrace();
+			try {
+				fileLog.setImported(false);
+				fileLog.setErrorType(e.getLocalizedMessage());
+				fileLog.setLogTime(LocalDateTime.now());
+				fileLogRepository.save(fileLog);
+			} catch (Exception e2) {
+				System.out.println("Error logging error...");
+				e2.printStackTrace();
+				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+			// could be IO exception getting the file if it doesn't exist
+			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 	
 	// TODO: Generalize for entries with folder or multiple files instead of simple filename
@@ -535,8 +675,10 @@ private boolean isValid(UploadInputs dto) {
 								fileLog.setLogTime(LocalDateTime.now());
 								fileLogRepository.save(fileLog);
 							} catch (Exception e2) {
-								System.out.println("Error logging error...");
-								e2.printStackTrace();
+								if(testing) {
+									System.out.println("Error logging error...");
+									e2.printStackTrace();
+								}
 							}
 							
 						} finally { // while loop handles getNextEntry()
@@ -614,6 +756,7 @@ private boolean isValid(UploadInputs dto) {
 			URL fileURL = new URL(relevantURL + eis.getFilename());
 		
 			fileLog.setFilename(eis.getFilename());
+
 			
 			// 1: Download the archive
 			// TODO: Handle non-archive case (easier, but currently we only have archives)
@@ -621,19 +764,23 @@ private boolean isValid(UploadInputs dto) {
 			ZipInputStream zis = new ZipInputStream(in);
 			ZipEntry ze;
 			
+			// Note: If every entry null, equivalent to failing silently
 			while((ze = zis.getNextEntry()) != null) {
+				if(testing) {
+					System.out.println("Processing non null entry " + ze.getName());
+				}
 				int count;
 				byte[] data = new byte[BUFFER];
 				
 				// TODO: Can check filename for .pdf extension
 				String filename = ze.getName();
-				
+
 				
 				// Deduplication: Ignore when document ID already exists in EISDoc table.
 				
 				// Handle directory - can ignore them if we're just converting PDFs
 				if(!ze.isDirectory()) {
-					
+
 					if(textRepository.existsByEisdoc(eis)) 
 					{
 						zis.closeEntry();
@@ -660,6 +807,7 @@ private boolean isValid(UploadInputs dto) {
 							// 4: Add converted text to database for document(EISDoc) ID, filename
 							this.save(docText);
 						} catch(Exception e){
+							e.printStackTrace();
 							try {
 
 								if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
@@ -695,10 +843,9 @@ private boolean isValid(UploadInputs dto) {
 
 			return new ResponseEntity<Void>(HttpStatus.OK);
 		} catch (Exception e) {
-//			e.printStackTrace();
+			e.printStackTrace();
 			try {
 				fileLog.setImported(false);
-				
 				fileLog.setErrorType(e.getLocalizedMessage());
 				fileLog.setLogTime(LocalDateTime.now());
 				fileLogRepository.save(fileLog);
@@ -814,10 +961,21 @@ private boolean isValid(UploadInputs dto) {
 	}
 	
 	private boolean save(@RequestBody DocumentText docText) {
-		try {
-			textRepository.save(docText);
-			return true;
-		} catch(Exception e) {
+		if(docText.getPlaintext().trim().length()>0) {
+			try {
+				textRepository.save(docText);
+				return true;
+			} catch(Exception e) {
+				if(testing) {
+					System.out.println("Error saving");
+					e.printStackTrace();
+				}
+				return false;
+			}
+		} else {
+			if(testing) {
+				System.out.println("No text converted");
+			}
 			return false;
 		}
 		
