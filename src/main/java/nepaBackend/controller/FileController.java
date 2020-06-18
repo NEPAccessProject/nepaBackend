@@ -321,10 +321,13 @@ public class FileController {
 		    	saveDoc.setCommentsFilename("");
 		    	
 		    	// Save (ID is null at this point, but .save() picks a unique ID thanks to the model so it's good)
-		    	docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
+		    	EISDoc savedDoc = docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
 		    	results[1] = true;
+		    	
+		    	// Run Tika on file
+		    	this.convertRecordSmart(savedDoc);
 
-			    // TODO: Run Tika on file
+		    	// TODO: Verify Tika converted; verify Lucene indexed (should happen automatically)
 		    }
 			
 		} catch (Exception e) {
