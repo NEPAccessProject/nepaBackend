@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -42,14 +43,18 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 import com.auth0.jwt.JWT;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.DateValidator;
+import nepaBackend.DateValidatorUsingLocalDate;
 import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.TextRepository;
@@ -57,6 +62,8 @@ import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
+import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -222,50 +229,179 @@ public class FileController {
 		
 	}
 
-
-	// TODO: test remote deployed with different URL obviously
-	/** TOOD: Send to DBFS, finalize, etc., 
+	// TODO:
+	// put in appropriate folder
+	// add all to db, incl. filename (and folder??? or just leave that logic to download/conversion?),
+	// - 
+	// I think just filename is good.  Should add a standardized, standalone method that returns a list of possible
+	// file locations which can be used by both downloads and Tika conversion.  Although to do conversion, it would be
+	// very nice to simply receive the full path in response from the Express.js server, and hand that directly to Tika
+	// -
+	// Another issue: Adding files to existing records with existing file(s).  No multi-file handling yet.  
+	// Lazy solution: Could separate by illegal filename characters.
+	// Could redesign DB with a new table just with foreign keys and filenames.
+	// This would also mean re-figuring out downloads.  Probably have to archive all the files together.
+	// However, could get up to multiple gigabytes.  Maybe better to pop out list of files for download?
+	// -
+	// link together, 
+	// convert to text (whether PDF or archive...), 
+	// ensure indexing worked automatically as it should
+	/** TODO: Multi-record/file upload:  Should require CSV.  Either start to handle loose files, or require uploads are named in CSV.
+	 * Loose files: Add empty records for them just with filename.  Curators could fill in details.
+	 * Should add a UI to see all records missing basic things like title. 
+	 */
+	// TODO: test remote deployed with different server URL obviously, finalize
+	/**
 	 * not sure I have permission to put new items onto that disk in that location
-	 * Will need to make sure it is secured also (test in browser?)
+	 * Will need to make sure it is secured also (test in browser?) */
+	/** Upload single file and/or metadata which is then imported to database, then converted to text and added to db (if applicable)
+	 * and then indexed by Lucene.  Re-POSTS the incoming file to the DBFS via an Express.js server on there so that the
+	 * original file can be downloaded (also needs to be in place for the Tika processing)
 	 * 
 	 * @param file
 	 * @throws FileUploadException
 	 * @throws IOException
 	 */
 	@CrossOrigin
-	@RequestMapping(path = "/uploadFile2", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private String uploadFile(@RequestParam("file") MultipartFile file) throws IOException { 
+	@RequestMapping(path = "/uploadFile", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private boolean[] uploadFile(@RequestPart(name="file", required=false) MultipartFile file, 
+								@RequestPart(name="doc") String doc) throws IOException { 
 	    System.out.println("Size " + file.getSize());
 	    System.out.println("Name " + file.getOriginalFilename());
+	    System.out.println(doc);
+
+	    boolean[] results = new boolean[2];
+	    results[0] = false;
+	    results[1] = false;
 	    
 	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
+		    // Ensure metadata is valid before uploading, given upload should always work.
+			if(!isValid(dto)) {
+				return results;
+			}
+	    	
+			
 	    	HttpEntity entity = MultipartEntityBuilder.create()
 	    				.addBinaryBody("test", 
 	    						file.getInputStream(), 
 	    						ContentType.create("application/octet-stream"), 
 	    						file.getOriginalFilename())
 	    				.build();
-
 		    HttpPost request = new HttpPost(expressURL);
 		    request.setEntity(entity);
 
 		    HttpClient client = HttpClientBuilder.create().build();
 		    HttpResponse response = client.execute(request);
 		    System.out.println(response.toString());
-		    return response.toString();
+		    
+		    // so far so good?
+		    results[0] = (response.getStatusLine().getStatusCode() == 200);
+		    
+		    System.out.println(dto.title);
+
+		    // Only save if file upload succeeded.  We don't want loose files, and we don't want metadata without files.
+		    if(results[0]) {
+			    // Since metadata is already validated, this should always work.
+		    	EISDoc saveDoc = new EISDoc();
+		    	saveDoc.setAgency(dto.agency);
+		    	saveDoc.setDocumentType(dto.type);
+			    // TODO: Get file paths from Express.js server and link up metadata beyond just filename
+		    	// TODO: Handle different file formats for download, Tika
+		    	// TODO: Handle multiple files per record here and then need to also redesign downloads to allow it
+		    	saveDoc.setFilename(file.getOriginalFilename());
+		    	saveDoc.setRegisterDate(dto.publishDate.substring(0, 10));
+		    	saveDoc.setState(dto.state);
+		    	saveDoc.setTitle(dto.title.trim());
+		    	
+		    	saveDoc.setCommentDate(""); // Useless field now?
+		    	// TODO: May need to retool this if adding comments files becomes a thing
+		    	saveDoc.setCommentsFilename("");
+		    	
+		    	// Save (ID is null at this point, but .save() picks a unique ID thanks to the model so it's good)
+		    	docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
+		    	results[1] = true;
+
+			    // TODO: Run Tika on file
+		    }
 			
-//				return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
 		} catch (Exception e) {
 			e.printStackTrace();
-//				return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 		} finally {
 		    file.getInputStream().close();
-		    
+		}
+	    
+		return results;
+	}
+	
+private boolean isValid(UploadInputs dto) {
+	boolean valid = true;
+	
+	if(dto.publishDate.length() > 0) { // Have date?
+//		DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
+//		DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+//		if(validator.isValid(dto.publishDate)) { // Validate date
+//			// All good, keep valid = true
+//		} else {
+//			valid = false; // Date has to be valid ISO_DATE_TIME
+//		}
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); //enforce pattern
+		DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+		if(validator.isValidFormat(dto.publishDate.substring(0, 10))) { // Validate date, format
+			// All good, keep valid = true
+		} else {
+			System.out.println("Invalid date");
+			valid = false; // Date invalid
+		}
+	}
+	
+	if(dto.title.trim().length()>0) { // Have title?
+		// Any string should be okay
+	} else {
+		valid = false; // Need title
+	}
+	
+	if(dto.filename.length()>0) {
+		// TODO: Ensure filename matches unique item on imported files list (for CSV and bulk import only if at all, 
+		// otherwise should be empty string anyway for single import)
+	}
+	
+	return valid;
+}
+
+
+
+//	@CrossOrigin
+//	@RequestMapping(path = "/uploadMeta", method = RequestMethod.POST, consumes = "multipart/form-data")
+//	private ResponseEntity<Void> uploadFile(@RequestParam("meta") EISDoc doc) throws IOException { 
+//	    
+//	    try {
+//	    	docRepository.save(doc);
+//			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+//		} finally {
+//		    System.out.println("Out");
+//		}
+//	}
+
+	// TODO
+	@CrossOrigin
+	@RequestMapping(path = "/uploadMetaCsv", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<Void> uploadFile(@RequestParam("csv") String csv) throws IOException { 
+	    
+	    try {
+			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+		} finally {
 		    System.out.println("Out");
 		}
-	    return "";
 	}
-
 	
 	
 	// Experimental, probably useless (was trying to get document outlines)
