@@ -29,7 +29,7 @@ public class DocumentText {
 
     @Id
     @Column(name="id")
-    @GeneratedValue(strategy=GenerationType.AUTO)
+    @GeneratedValue(strategy=GenerationType.IDENTITY)
 	private Long id;
 	
 	// Foreign key: EISDoc ID
