@@ -10,6 +10,7 @@ import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
@@ -263,9 +264,13 @@ public class FileController {
 	 */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFile", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<boolean[]> uploadFile(@RequestPart(name="file", required=false) MultipartFile file, 
+	private ResponseEntity<boolean[]> uploadFile(@RequestPart(name="file") MultipartFile file, 
 								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
+		if(testing) {
+			System.out.println(doc);
+			return new ResponseEntity<boolean[]>(HttpStatus.OK);
+		}
 	    boolean[] results = new boolean[3];
 		String token = headers.get("authorization");
 		if(!isCurator(token) && !isAdmin(token)) 
@@ -362,7 +367,7 @@ public class FileController {
 	private boolean isValid(UploadInputs dto) {
 		boolean valid = true;
 		
-		if(dto.publishDate.length() > 9) { // Have date?
+		if(dto.publishDate != null && dto.publishDate.length() > 9) { // Have date?
 	//		DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
 	//		DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
 	//		if(validator.isValid(dto.publishDate)) { // Validate date
@@ -392,36 +397,55 @@ public class FileController {
 		return valid;
 	}
 
-
-
-//	@CrossOrigin
-//	@RequestMapping(path = "/uploadMeta", method = RequestMethod.POST, consumes = "multipart/form-data")
-//	private ResponseEntity<Void> uploadFile(@RequestParam("meta") EISDoc doc) throws IOException { 
-//	    
-//	    try {
-//	    	docRepository.save(doc);
-//			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-//		} finally {
-//		    System.out.println("Out");
-//		}
-//	}
-
 	// TODO
 	@CrossOrigin
-	@RequestMapping(path = "/uploadMetaCsv", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<Void> uploadFile(@RequestParam("csv") String csv) throws IOException { 
+	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<boolean[]> uploadCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+//		System.out.println(csv);
+		
+		String token = headers.get("authorization");
+		
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<boolean[]>(HttpStatus.UNAUTHORIZED);
+		} 
+		boolean[] results = null;
+
 	    
 	    try {
-			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+		    results = new boolean[dto.length];
+		    // Ensure metadata is valid
+			int count = 0;
+			for (UploadInputs itr : dto) { 
+				if(count>10 && testing) {
+					return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
+				}
+				results[count] = isValid(itr);
+				if(testing) {
+					System.out.println("Valid: " + isValid(itr));
+				    System.out.println("Title: " + itr.title);
+				}
+			    if(isValid(itr)) {
+			    	// TODO: Handle deduplication even if valid, or else it'll copy everything
+//				    	saveDto(itr); // TODO: Save record, and set results[count] to true/false accordingly
+			    } else {
+					return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
+			    }
+			    count++;
+			}
+	    	// TODO: Run Tika on new files later, record results
+			
 		} catch (Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		} finally {
-		    System.out.println("Out");
 		}
+
+		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
 	}
 	
 	

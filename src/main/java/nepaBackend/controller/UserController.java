@@ -408,16 +408,16 @@ public class UserController {
 	}
 	
 	// Return true if admin or curator role
-		@PostMapping(path = "/checkCurator")
-		public ResponseEntity<Boolean> checkCurator(@RequestHeader Map<String, String> headers) {
-			String token = headers.get("authorization");
-			boolean result = isAdmin(token) || isCurator(token);
-			HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
-			if(result) {
-				returnStatus = HttpStatus.OK;
-			}
-			return new ResponseEntity<Boolean>(result, returnStatus);
+	@PostMapping(path = "/checkCurator")
+	public ResponseEntity<Boolean> checkCurator(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		boolean result = isAdmin(token) || isCurator(token);
+		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
+		if(result) {
+			returnStatus = HttpStatus.OK;
 		}
+		return new ResponseEntity<Boolean>(result, returnStatus);
+	}
 	
 	// Helper function for checkAdmin
 	private boolean isAdmin(String token) {
@@ -437,21 +437,21 @@ public class UserController {
 	}
 	
 	// Helper function for checkCurator
-		private boolean isCurator(String token) {
-			boolean result = false;
-			// get ID
-			if(token != null) {
-		        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-		                .getId();
+	private boolean isCurator(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
 
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-				if(user.getRole().contentEquals("CURATOR")) {
-					result = true;
-				}
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().contentEquals("CURATOR")) {
+				result = true;
 			}
-			return result;
-
 		}
+		return result;
+
+	}
 
     // TODO: Route and tool to add/change/remove any user, for admin use only
 

@@ -1,5 +1,7 @@
 package nepaBackend.pojo;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 /** Can add:
  * 
  * Include drafts; include finals?
@@ -7,6 +9,7 @@ package nepaBackend.pojo;
  * 
  *
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UploadInputs {
 	public String title;
 	public String publishDate;
