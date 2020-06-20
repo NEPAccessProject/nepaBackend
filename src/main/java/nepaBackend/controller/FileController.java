@@ -263,15 +263,22 @@ public class FileController {
 	 */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFile", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private boolean[] uploadFile(@RequestPart(name="file", required=false) MultipartFile file, 
-								@RequestPart(name="doc") String doc) throws IOException { 
+	private ResponseEntity<boolean[]> uploadFile(@RequestPart(name="file", required=false) MultipartFile file, 
+								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+	    boolean[] results = new boolean[3];
+		String token = headers.get("authorization");
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<boolean[]>(results, HttpStatus.UNAUTHORIZED);
+		} 
+		
 	    System.out.println("Size " + file.getSize());
 	    System.out.println("Name " + file.getOriginalFilename());
 	    System.out.println(doc);
 	    
 	    String origFilename = file.getOriginalFilename();
 
-	    boolean[] results = new boolean[3];
 	    results[0] = false;
 	    results[1] = false;
 	    results[2] = false;
@@ -282,7 +289,7 @@ public class FileController {
 		    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
 		    // Ensure metadata is valid before uploading, given upload should always work.
 			if(!isValid(dto)) {
-				return results;
+				return new ResponseEntity<boolean[]>(results, HttpStatus.BAD_REQUEST);
 			}
 	    	
 			
@@ -347,8 +354,8 @@ public class FileController {
 		} finally {
 		    file.getInputStream().close();
 		}
-	    
-		return results;
+
+		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
 	}
 
 
@@ -991,6 +998,21 @@ public class FileController {
 
 			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
 			if(user.getRole().contentEquals("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+	}
+	
+	private boolean isCurator(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+			.getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().contentEquals("CURATOR")) {
 				result = true;
 			}
 		}
