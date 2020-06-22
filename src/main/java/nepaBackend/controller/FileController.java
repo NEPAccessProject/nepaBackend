@@ -292,8 +292,9 @@ public class FileController {
 	    	
 	    	ObjectMapper mapper = new ObjectMapper();
 		    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
-		    // Ensure metadata is valid before uploading, given upload should always work.
-			if(!isValid(dto)) {
+		    // Ensure metadata is valid and doesn't exist before uploading, given upload should always work.
+		    // For the valid but exists case, will add separate function to add files and/or update existing metadata.
+			if(!isValid(dto) || recordExists(dto.title, dto.type)) {
 				return new ResponseEntity<boolean[]>(results, HttpStatus.BAD_REQUEST);
 			}
 	    	
@@ -400,7 +401,7 @@ public class FileController {
 	// TODO
 	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<boolean[]> uploadCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+	private ResponseEntity<List<String>> uploadCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
 //		System.out.println(csv);
 		
@@ -408,9 +409,9 @@ public class FileController {
 		
 		if(!isCurator(token) && !isAdmin(token)) 
 		{
-			return new ResponseEntity<boolean[]>(HttpStatus.UNAUTHORIZED);
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
-		boolean[] results = null;
+		List<String> results = new ArrayList<String>();
 
 	    
 	    try {
@@ -418,37 +419,64 @@ public class FileController {
 	    	ObjectMapper mapper = new ObjectMapper();
 		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
 
-		    results = new boolean[dto.length];
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) { 
 				if(count>10 && testing) {
-					return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
+					return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 				}
-				results[count] = isValid(itr);
 				if(testing) {
 					System.out.println("Valid: " + isValid(itr));
 				    System.out.println("Title: " + itr.title);
 				}
+			    // TODO: Do we need to validate CSV entries?
 			    if(isValid(itr)) {
-			    	// TODO: Handle deduplication even if valid, or else it'll copy everything
-//				    	saveDto(itr); // TODO: Save record, and set results[count] to true/false accordingly
+			    	int status = 200;
+			    	if(!recordExists(itr.title, itr.type)) { // Deduplication
+					    status = saveDto(itr); // TODO: Save record, and set results[count] to true/false accordingly
+				    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
+				    	if(status==500) {
+							results.add("Row " + count + ": Error saving: " + itr.title);
+				    	} else {
+				    		if(testing) {
+					    		results.add("Row " + count + ": OK: " + itr.title);
+				    		}
+				    	}
+			    	} else {
+						results.add("Row " + count + ": Duplicate: " + itr.title);
+			    	}
 			    } else {
-					return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
+					results.add("Row " + count + ": Invalid (all fields required)");
 			    }
 			    count++;
 			}
-	    	// TODO: Run Tika on new files later, record results
+	    	// TODO: Run Tika on new files later, record results?  Probably leave that to bulk file import function
 			
 		} catch (Exception e) {
 			e.printStackTrace();
-		} finally {
 		}
 
-		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
 	
 	
+	private int saveDto(UploadInputs itr) {
+		EISDoc newRecord = new EISDoc();
+		newRecord.setAgency(itr.agency);
+		newRecord.setDocumentType(itr.type);
+		newRecord.setFilename(itr.filename);
+		newRecord.setRegisterDate(itr.publishDate);
+		newRecord.setState(itr.state);
+		newRecord.setTitle(itr.title);
+		if(docRepository.save(newRecord) != null) {
+			return 200;
+		} else {
+			return 500;
+		}
+	}
+
+
+
 	// Experimental, probably useless (was trying to get document outlines)
 	@CrossOrigin
 	@RequestMapping(path = "/xhtml", method = RequestMethod.GET)
@@ -888,6 +916,12 @@ public class FileController {
 			// could be IO exception getting the file if it doesn't exist
 			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+	}
+
+	@CrossOrigin
+	@RequestMapping(path = "/existsTitleType", method = RequestMethod.GET)
+	private boolean recordExists(@RequestParam String title, @RequestParam String type) {
+		return docRepository.findByTitleAndDocumentTypeIn(title, type).isPresent();
 	}
 	
 	// Probably useless

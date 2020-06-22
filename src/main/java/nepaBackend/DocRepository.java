@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISDocMatchJoin;
 import nepaBackend.model.EISMatch;
@@ -61,5 +62,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<EISDoc> findAllByTitle(String title);
 
 	Optional<EISDoc> findByFilename(String filename);
+
+	Optional<EISDoc> findByTitleAndDocumentTypeIn(String title, String documentType);
 	
 }
