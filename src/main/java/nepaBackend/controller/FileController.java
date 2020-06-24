@@ -287,6 +287,7 @@ public class FileController {
 	    results[0] = false;
 	    results[1] = false;
 	    results[2] = false;
+    	FileLog uploadLog = new FileLog();
 	    
 	    try {
 	    	
@@ -317,10 +318,17 @@ public class FileController {
 
 		    // Only save if file upload succeeded.  We don't want loose files, and we don't want metadata without files.
 		    if(results[0]) {
+		    	// Log
+			    uploadLog.setFilename(file.getOriginalFilename());
+			    uploadLog.setUser(getUser(token));
+			    uploadLog.setLogTime(LocalDateTime.now());
+			    uploadLog.setErrorType("Uploaded");
+			    
 			    // Since metadata is already validated, this should always work.
 		    	EISDoc saveDoc = new EISDoc();
 		    	saveDoc.setAgency(dto.agency);
 		    	saveDoc.setDocumentType(dto.type);
+		    	
 			    // TODO: Get file paths from Express.js server and link up metadata beyond just filename
 		    	// TODO: Handle different file formats for download, Tika
 		    	// TODO: Handle multiple files per record here and then need to also redesign downloads to allow it
@@ -341,6 +349,8 @@ public class FileController {
 		    	EISDoc savedDoc = docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
 		    	results[1] = true;
 
+			    uploadLog.setDocumentId(savedDoc.getId());
+			    
 		    	// Run Tika on file, record if 200 or not
 		    	if(origFilename.substring(origFilename.length()-3).equalsIgnoreCase("pdf")) {
 		    		int status = this.convertPDF(savedDoc).getStatusCodeValue();
@@ -350,6 +360,11 @@ public class FileController {
 			    	results[2] = (status == 200);
 			    	// Note: 200 doesn't necessarily mean tika was able to convert anything
 		    	}
+		    	
+		    	if(results[2]) {
+				    uploadLog.setImported(true);
+		    	}
+
 
 		    	// TODO: Test.  Verify Tika converted; verify Lucene indexed (should happen automatically)
 		    	// Then make an Express server on DBFS, change URL, test live
@@ -359,6 +374,9 @@ public class FileController {
 			e.printStackTrace();
 		} finally {
 		    file.getInputStream().close();
+		    if(uploadLog.getUser() != null) { // if we have a user then it was at least uploaded
+		    	fileLogRepository.save(uploadLog);
+		    }
 		}
 
 		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
@@ -421,26 +439,31 @@ public class FileController {
 
 		    // Ensure metadata is valid
 			int count = 0;
-			for (UploadInputs itr : dto) { 
-				if(count>10 && testing) {
-					return new ResponseEntity<List<String>>(results, HttpStatus.OK);
-				}
+			for (UploadInputs itr : dto) {
 				if(testing) {
 					System.out.println("Valid: " + isValid(itr));
 				    System.out.println("Title: " + itr.title);
 				}
 			    // TODO: Do we need to validate CSV entries?
 			    if(isValid(itr)) {
-			    	int status = 200;
 			    	if(!recordExists(itr.title, itr.type)) { // Deduplication
-					    status = saveDto(itr); // TODO: Save record, and set results[count] to true/false accordingly
+					    ResponseEntity<Long> status = saveDto(itr);
 				    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
-				    	if(status==500) {
+				    	if(status.getStatusCodeValue() == 500) { // Error
 							results.add("Row " + count + ": Error saving: " + itr.title);
 				    	} else {
 				    		if(testing) {
 					    		results.add("Row " + count + ": OK: " + itr.title);
 				    		}
+
+				    		// Log successful record import (need accountability for new metadata)
+							FileLog recordLog = new FileLog();
+				    		recordLog.setDocumentId(status.getBody());
+				    		recordLog.setFilename(itr.filename);
+				    		recordLog.setImported(false);
+				    		recordLog.setLogTime(LocalDateTime.now());
+				    		recordLog.setUser(getUser(token));
+				    		fileLogRepository.save(recordLog);
 				    	}
 			    	} else {
 						results.add("Row " + count + ": Duplicate: " + itr.title);
@@ -450,7 +473,7 @@ public class FileController {
 			    }
 			    count++;
 			}
-	    	// TODO: Run Tika on new files later, record results?  Probably leave that to bulk file import function
+	    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -460,7 +483,7 @@ public class FileController {
 	}
 	
 	
-	private int saveDto(UploadInputs itr) {
+	private ResponseEntity<Long> saveDto(UploadInputs itr) {
 		EISDoc newRecord = new EISDoc();
 		newRecord.setAgency(itr.agency);
 		newRecord.setDocumentType(itr.type);
@@ -468,10 +491,11 @@ public class FileController {
 		newRecord.setRegisterDate(itr.publishDate);
 		newRecord.setState(itr.state);
 		newRecord.setTitle(itr.title);
-		if(docRepository.save(newRecord) != null) {
-			return 200;
+		EISDoc savedRecord = docRepository.save(newRecord);
+		if(savedRecord != null) {
+			return new ResponseEntity<Long>(savedRecord.getId(), HttpStatus.OK);
 		} else {
-			return 500;
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -504,12 +528,13 @@ public class FileController {
 		}
 		
 		FileLog fileLog = new FileLog();
-		
 		try {
 			fileLog.setDocumentId(eis.getId());
 		} catch(Exception e) {
 			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
 		}
+		
+		
 		if(eis.getId() < 1) {
 			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
 		}
@@ -541,8 +566,6 @@ public class FileController {
 				relevantURL = testURL;
 			}
 			URL fileURL = new URL(relevantURL + filename);
-		
-			fileLog.setFilename(filename);
 			
 			// 1: Download the archive
 			// Handle non-archive case
@@ -562,8 +585,6 @@ public class FileController {
 				DocumentText docText = new DocumentText();
 				docText.setEisdoc(eis);
 				docText.setFilename(filename);
-				
-				fileLog.setExtractedFilename(filename);
 				
 				// 2: Extract data and stream to Tika
 				try {
@@ -1049,12 +1070,9 @@ public class FileController {
 	// Helper function for checkAdmin and on-demand token admin check
 	private boolean isAdmin(String token) {
 		boolean result = false;
-		// get ID
-		if(token != null) {
-			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-			.getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
 			if(user.getRole().contentEquals("ADMIN")) {
 				result = true;
 			}
@@ -1064,17 +1082,31 @@ public class FileController {
 	
 	private boolean isCurator(String token) {
 		boolean result = false;
-		// get ID
-		if(token != null) {
-			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-			.getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
 			if(user.getRole().contentEquals("CURATOR")) {
 				result = true;
 			}
 		}
 		return result;
+	}
+	
+	private ApplicationUser getUser(String token) {
+		if(token != null) {
+			// get ID
+			try {
+				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+					.getId();
+
+				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+				return user;
+			} catch (Exception e) {
+				return null;
+			}
+		} else {
+			return null;
+		}
 	}
 
 	// Probably useless

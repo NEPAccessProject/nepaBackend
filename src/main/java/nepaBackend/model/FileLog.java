@@ -2,11 +2,14 @@ package nepaBackend.model;
 
 import java.time.LocalDateTime;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 @Entity
@@ -26,12 +29,14 @@ public class FileLog {
 
 	@Column(name = "extracted_filename") // Optional filename if extracted from archive
 	private String extractedFilename;
+	
+	// Optional Foreign key: User ID
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name="user_id")
+	private ApplicationUser user;
     
-    @Column(name = "imported", columnDefinition="TINYINT(1)") // Text imported to database or not
+    @Column(name = "imported", columnDefinition="TINYINT(1) default 0") // Text imported to database (converted)
     private boolean imported;
-
-	@Column(name = "indexed", columnDefinition="TINYINT(1)") // Indexed or not
-    private boolean indexed;
 
 	@Column(name = "error_type", columnDefinition = "TEXT") // Optional field to describe the nature of an error if one occurred
     private String errorType;
@@ -42,11 +47,12 @@ public class FileLog {
 
 	public FileLog() { }
 
-	public FileLog(long id, String filename, boolean indexed, String errorType, LocalDateTime logTime) {
+	public FileLog(long id, String filename, ApplicationUser user, boolean imported, String errorType, LocalDateTime logTime) {
 		super();
 		this.id = id;
 		this.filename = filename;
-		this.indexed = indexed;
+		this.imported = imported;
+		this.user = user;
 		this.errorType = errorType;
 		this.logTime = logTime;
 	}
@@ -60,7 +66,6 @@ public class FileLog {
 		this.documentId = documentId;
 	}
 	
-	
 	public String getFilename() {
 		return filename;
 	}
@@ -68,7 +73,14 @@ public class FileLog {
 	public void setFilename(String filename) {
 		this.filename = filename;
 	}
-	
+
+	public ApplicationUser getUser() {
+		return user;
+	}
+
+	public void setUser(ApplicationUser user) {
+		this.user = user;
+	}
 
 	public String getExtractedFilename() {
 		return extractedFilename;
@@ -86,17 +98,6 @@ public class FileLog {
 	public void setImported(boolean imported) {
 		this.imported = imported;
 	}
-	
-
-	public boolean isIndexed() {
-		return indexed;
-	}
-
-
-	public void setIndexed(boolean indexed) {
-		this.indexed = indexed;
-	}
-
 
 	public String getErrorType() {
 		return errorType;
