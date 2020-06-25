@@ -458,14 +458,14 @@ public class FileController {
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) {
-				if(testing) {
-					System.out.println("Valid: " + isValid(itr));
-				    System.out.println("Title: " + itr.title);
-				    System.out.println("Type: " + itr.document_type);
-				    System.out.println("Date: " + itr.register_date);
-				    System.out.println("Filename: " + itr.filename);
-				    System.out.println("Agency: " + itr.agency);
-				}
+//				if(testing) {
+//					System.out.println("Valid: " + isValid(itr));
+//				    System.out.println("Title: " + itr.title);
+//				    System.out.println("Type: " + itr.document_type);
+//				    System.out.println("Date: " + itr.register_date);
+//				    System.out.println("Filename: " + itr.filename);
+//				    System.out.println("Agency: " + itr.agency);
+//				}
 			    // TODO: Do we need to validate CSV entries?
 			    if(isValid(itr)) {
 
@@ -473,9 +473,7 @@ public class FileController {
 					try {
 						LocalDate parsedDate = parseImportDate(itr.register_date);
 						itr.register_date = parsedDate.toString();
-						System.out.println("Parsed: " + parsedDate.toString());
 					} catch (IllegalArgumentException e) {
-						System.out.println(e.getMessage());
 						results.add("Row " + count + ": " + e.getMessage());
 						error = true;
 					} catch (Exception e) {
@@ -483,7 +481,7 @@ public class FileController {
 						error = true;
 					}
 					if(!error) {
-						if(!recordExists(itr.title.trim(), itr.document_type.trim(), itr.register_date.trim())) { // Deduplication
+						if(!recordExists(itr.title, itr.document_type, itr.register_date)) { // Deduplication
 						    ResponseEntity<Long> status = saveDto(itr);
 					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
 					    	if(status.getStatusCodeValue() == 500) { // Error
@@ -526,7 +524,8 @@ public class FileController {
 		newRecord.setAgency(itr.agency.trim());
 		newRecord.setDocumentType(itr.document_type.trim());
 		newRecord.setFilename(itr.filename.trim());
-		newRecord.setRegisterDate(LocalDate.parse(itr.register_date.trim()));
+		newRecord.setCommentsFilename(itr.comments_filename);
+		newRecord.setRegisterDate(LocalDate.parse(itr.register_date));
 		newRecord.setState(itr.state.trim());
 		newRecord.setTitle(itr.title.trim());
 		EISDoc savedRecord = docRepository.save(newRecord);
@@ -978,12 +977,9 @@ public class FileController {
 	}
 
 	@CrossOrigin
-	@RequestMapping(path = "/existsTitleType", method = RequestMethod.GET)
+	@RequestMapping(path = "/existsTitleTypeDate", method = RequestMethod.GET)
 	private boolean recordExists(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
-//		if(title == null || type == null || date == null) {
-//			return false;
-//		}
-		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title, type, LocalDate.parse(date)).isPresent();
+		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date)).isPresent();
 	}
 	
 	// Probably useless
