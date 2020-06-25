@@ -1,5 +1,7 @@
 package nepaBackend.model;
 
+import java.time.LocalDate;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -27,10 +29,10 @@ public class EISDoc {
     private String documentType;  // TODO: Enum?
   
     @Column(name="comment_date")
-    private String commentDate; // mm/dd/yyyy TODO: turn into DATE, MySQL stores Date as yyyy/mm/dd
+    private LocalDate commentDate; // TODO: turn into DATE, MySQL stores Date as yyyy-mm-dd
   
     @Column(name="register_date")
-    private String registerDate; // mm/dd/yyyy TODO: same
+    private LocalDate registerDate; 
   
     @Column(name="agency")
     private String agency; // TODO: Enum?
@@ -51,7 +53,7 @@ public class EISDoc {
 
     public EISDoc() { }
 
-	public EISDoc(Long id, String title, String documentType, String commentDate, String registerDate, String agency, String state,
+	public EISDoc(Long id, String title, String documentType, LocalDate commentDate, LocalDate registerDate, String agency, String state,
 			String filename, String commentsFilename) {
 		//super();  // TODO: Do we need this for this project?
 		
@@ -86,19 +88,19 @@ public class EISDoc {
 		this.documentType = documentType;
 	}
 	
-	public String getCommentDate() {
+	public LocalDate getCommentDate() {
 		return commentDate;
 	}
 	
-	public void setCommentDate(String commentDate) {
+	public void setCommentDate(LocalDate commentDate) {
 		this.commentDate = commentDate;
 	}
 	
-	public String getRegisterDate() {
+	public LocalDate getRegisterDate() {
 		return registerDate;
 	}
 	
-	public void setRegisterDate(String registerDate) {
+	public void setRegisterDate(LocalDate registerDate) {
 		this.registerDate = registerDate;
 	}
 	

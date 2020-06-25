@@ -12,11 +12,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UploadInputs {
 	public String title;
-	public String publishDate;
+	public String register_date;
 	public String state;
 	public String agency;
-	public String type;
-	public String commentsFilename;
+	public String document_type;
+	public String comments_filename;
 	public String filename;
 	
 	public UploadInputs() {

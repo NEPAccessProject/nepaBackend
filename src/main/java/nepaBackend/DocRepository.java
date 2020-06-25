@@ -1,5 +1,6 @@
 package nepaBackend;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -61,8 +62,10 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	List<EISDoc> findAllByTitle(String title);
 
-	Optional<EISDoc> findByFilename(String filename);
+	Optional<EISDoc> findTopByFilename(String filename);
 
-	Optional<EISDoc> findByTitleAndDocumentTypeIn(String title, String documentType);
+	Optional<EISDoc> findTopByTitleAndDocumentTypeIn(String title, String documentType);
+
+	Optional<EISDoc> findTopByTitleAndDocumentTypeAndRegisterDateIn(String title, String type, LocalDate registerDate);
 	
 }

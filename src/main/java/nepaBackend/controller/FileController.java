@@ -7,12 +7,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -74,6 +77,14 @@ public class FileController {
 	private TextRepository textRepository;
 	private FileLogRepository fileLogRepository;
 	private ApplicationUserRepository applicationUserRepository;
+	
+	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
+			"yyyy/MM/dd", "MM/dd/yyyy", 
+			"M/dd/yyyy", "yyyy/M/dd", "M-dd-yyyy", "yyyy-M-dd",
+			"MM/d/yyyy", "yyyy/MM/d", "MM-d-yyyy", "yyyy-MM-d",
+			"M/d/yyyy", "yyyy/M/d", "M-d-yyyy", "yyyy-M-d")
+			.map(DateTimeFormatter::ofPattern)
+			.toArray(DateTimeFormatter[]::new);
 
 	public FileController(DocRepository docRepository,
 				TextRepository textRepository,
@@ -293,9 +304,10 @@ public class FileController {
 	    	
 	    	ObjectMapper mapper = new ObjectMapper();
 		    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
+		    dto.filename = origFilename;
 		    // Ensure metadata is valid and doesn't exist before uploading, given upload should always work.
 		    // For the valid but exists case, will add separate function to add files and/or update existing metadata.
-			if(!isValid(dto) || recordExists(dto.title, dto.type)) {
+			if(!isValid(dto) || recordExists(dto.title, dto.document_type, dto.register_date)) {
 				return new ResponseEntity<boolean[]>(results, HttpStatus.BAD_REQUEST);
 			}
 	    	
@@ -326,22 +338,22 @@ public class FileController {
 			    
 			    // Since metadata is already validated, this should always work.
 		    	EISDoc saveDoc = new EISDoc();
-		    	saveDoc.setAgency(dto.agency);
-		    	saveDoc.setDocumentType(dto.type);
+		    	saveDoc.setAgency(dto.agency.trim());
+		    	saveDoc.setDocumentType(dto.document_type.trim());
 		    	
 			    // TODO: Get file paths from Express.js server and link up metadata beyond just filename
 		    	// TODO: Handle different file formats for download, Tika
 		    	// TODO: Handle multiple files per record here and then need to also redesign downloads to allow it
 		    	saveDoc.setFilename(file.getOriginalFilename());
-		    	if(dto.publishDate.length()>9) {
-			    	saveDoc.setRegisterDate(dto.publishDate.substring(0, 10));
+		    	if(dto.register_date.length()>9) {
+			    	saveDoc.setRegisterDate(LocalDate.parse(dto.register_date));
 		    	} else {
-			    	saveDoc.setRegisterDate("");
+			    	saveDoc.setRegisterDate(null);
 		    	}
 		    	saveDoc.setState(dto.state);
 		    	saveDoc.setTitle(dto.title.trim());
 		    	
-		    	saveDoc.setCommentDate(""); // Useless field now?
+		    	saveDoc.setCommentDate(null); // Useless field now?
 		    	// TODO: May need to retool this if adding comments files becomes a thing
 		    	saveDoc.setCommentsFilename("");
 		    	
@@ -385,36 +397,42 @@ public class FileController {
 
 	private boolean isValid(UploadInputs dto) {
 		boolean valid = true;
-		
-		if(dto.publishDate != null && dto.publishDate.length() > 9) { // Have date?
-	//		DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
-	//		DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-	//		if(validator.isValid(dto.publishDate)) { // Validate date
-	//			// All good, keep valid = true
-	//		} else {
-	//			valid = false; // Date has to be valid ISO_DATE_TIME
-	//		}
-			DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); //enforce pattern
-			DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-			if(validator.isValidFormat(dto.publishDate.substring(0, 10))) { // Validate date, format
-				// All good, keep valid = true
-			} else {
-				System.out.println("Invalid date");
-				valid = false; // Date invalid
-			}
+		// TODO: Agency is required also?
+		if(dto.register_date == null || dto.title == null || dto.document_type == null || dto.filename == null) {
+			System.out.println("One or more required values is null");
+			valid = false;
+			return valid; // Just stop here and don't have to worry about validating null values
 		}
 		
 		if(dto.title.trim().length()==0) {
 			valid = false; // Need title
 		}
+
+		if(dto.document_type.trim().length()==0) {
+			valid = false; // Need type
+		}
 		
-		if(dto.filename.length()>0) {
-			// TODO: Ensure filename matches unique item on imported files list (for CSV and bulk import only if at all, 
-			// otherwise should be empty string anyway for single import)
+		if(dto.filename.trim().length()>0) {
+			// TODO: Ensure filename matches unique item on imported files list
+		} else {
+			valid = false;
 		}
 		
 		return valid;
 	}
+
+	private LocalDate parseImportDate(String date) {
+		for (DateTimeFormatter formatter : parseFormatters) {
+			try {
+				return LocalDate.parse(date, formatter);
+			} catch (DateTimeParseException dtpe) {
+				// ignore, try next
+			}
+		}
+		throw new IllegalArgumentException("Couldn't parse " + date);
+	}
+
+
 
 	// TODO
 	@CrossOrigin
@@ -443,31 +461,51 @@ public class FileController {
 				if(testing) {
 					System.out.println("Valid: " + isValid(itr));
 				    System.out.println("Title: " + itr.title);
+				    System.out.println("Type: " + itr.document_type);
+				    System.out.println("Date: " + itr.register_date);
+				    System.out.println("Filename: " + itr.filename);
+				    System.out.println("Agency: " + itr.agency);
 				}
 			    // TODO: Do we need to validate CSV entries?
 			    if(isValid(itr)) {
-			    	if(!recordExists(itr.title, itr.type)) { // Deduplication
-					    ResponseEntity<Long> status = saveDto(itr);
-				    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
-				    	if(status.getStatusCodeValue() == 500) { // Error
-							results.add("Row " + count + ": Error saving: " + itr.title);
-				    	} else {
-				    		if(testing) {
-					    		results.add("Row " + count + ": OK: " + itr.title);
-				    		}
 
-				    		// Log successful record import (need accountability for new metadata)
-							FileLog recordLog = new FileLog();
-				    		recordLog.setDocumentId(status.getBody());
-				    		recordLog.setFilename(itr.filename);
-				    		recordLog.setImported(false);
-				    		recordLog.setLogTime(LocalDateTime.now());
-				    		recordLog.setUser(getUser(token));
-				    		fileLogRepository.save(recordLog);
+			    	boolean error = false;
+					try {
+						LocalDate parsedDate = parseImportDate(itr.register_date);
+						itr.register_date = parsedDate.toString();
+						System.out.println("Parsed: " + parsedDate.toString());
+					} catch (IllegalArgumentException e) {
+						System.out.println(e.getMessage());
+						results.add("Row " + count + ": " + e.getMessage());
+						error = true;
+					} catch (Exception e) {
+						results.add("Row " + count + ": Error " + e.getMessage());
+						error = true;
+					}
+					if(!error) {
+						if(!recordExists(itr.title.trim(), itr.document_type.trim(), itr.register_date.trim())) { // Deduplication
+						    ResponseEntity<Long> status = saveDto(itr);
+					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
+					    	if(status.getStatusCodeValue() == 500) { // Error
+								results.add("Row " + count + ": Error saving: " + itr.title);
+					    	} else {
+					    		if(testing) {
+						    		results.add("Row " + count + ": OK: " + itr.title);
+					    		}
+
+					    		// Log successful record import (need accountability for new metadata)
+								FileLog recordLog = new FileLog();
+					    		recordLog.setDocumentId(status.getBody());
+					    		recordLog.setFilename(itr.filename);
+					    		recordLog.setImported(false);
+					    		recordLog.setLogTime(LocalDateTime.now());
+					    		recordLog.setUser(getUser(token));
+					    		fileLogRepository.save(recordLog);
+					    	}
+				    	} else {
+							results.add("Row " + count + ": Duplicate: " + itr.title);
 				    	}
-			    	} else {
-						results.add("Row " + count + ": Duplicate: " + itr.title);
-			    	}
+					}
 			    } else {
 					results.add("Row " + count + ": Invalid (all fields required)");
 			    }
@@ -485,12 +523,12 @@ public class FileController {
 	
 	private ResponseEntity<Long> saveDto(UploadInputs itr) {
 		EISDoc newRecord = new EISDoc();
-		newRecord.setAgency(itr.agency);
-		newRecord.setDocumentType(itr.type);
-		newRecord.setFilename(itr.filename);
-		newRecord.setRegisterDate(itr.publishDate);
-		newRecord.setState(itr.state);
-		newRecord.setTitle(itr.title);
+		newRecord.setAgency(itr.agency.trim());
+		newRecord.setDocumentType(itr.document_type.trim());
+		newRecord.setFilename(itr.filename.trim());
+		newRecord.setRegisterDate(LocalDate.parse(itr.register_date.trim()));
+		newRecord.setState(itr.state.trim());
+		newRecord.setTitle(itr.title.trim());
 		EISDoc savedRecord = docRepository.save(newRecord);
 		if(savedRecord != null) {
 			return new ResponseEntity<Long>(savedRecord.getId(), HttpStatus.OK);
@@ -941,8 +979,11 @@ public class FileController {
 
 	@CrossOrigin
 	@RequestMapping(path = "/existsTitleType", method = RequestMethod.GET)
-	private boolean recordExists(@RequestParam String title, @RequestParam String type) {
-		return docRepository.findByTitleAndDocumentTypeIn(title, type).isPresent();
+	private boolean recordExists(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
+//		if(title == null || type == null || date == null) {
+//			return false;
+//		}
+		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title, type, LocalDate.parse(date)).isPresent();
 	}
 	
 	// Probably useless
