@@ -2,6 +2,8 @@ package nepaBackend.controller;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 //import java.sql.ResultSet;
@@ -26,6 +28,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import nepaBackend.DateValidator;
+import nepaBackend.DateValidatorUsingLocalDate;
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.SearchLogRepository;
@@ -265,8 +269,8 @@ public class EISController {
 					rs.getLong("id"), 
 					rs.getString("title"), 
 					rs.getString("document_type"),
-					rs.getString("comment_date"), 
-					rs.getString("register_date"), 
+					rs.getObject("comment_date", LocalDate.class), 
+					rs.getObject("register_date", LocalDate.class), 
 					rs.getString("agency"),
 					rs.getString("state"), 
 					rs.getString("filename"),
@@ -281,7 +285,11 @@ public class EISController {
 			// debugging
 			Boolean testing = false;
 			if(testing) {
+				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
+				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+				System.out.println(validator.isValid(searchInputs.endPublish));
 				System.out.println(sQuery); 
+				System.out.println(searchInputs.endPublish);
 				System.out.println(searchInputs.title);
 			}
 			
@@ -291,7 +299,7 @@ public class EISController {
 //	if (log.isDebugEnabled()) {
 //		log.debug(e);
 //	}
-			System.out.println(e);
+			e.printStackTrace();
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.NO_CONTENT);
 		}
 	}
