@@ -57,8 +57,6 @@ import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import nepaBackend.ApplicationUserRepository;
-import nepaBackend.DateValidator;
-import nepaBackend.DateValidatorUsingLocalDate;
 import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.TextRepository;
@@ -82,7 +80,8 @@ public class FileController {
 			"yyyy/MM/dd", "MM/dd/yyyy", 
 			"M/dd/yyyy", "yyyy/M/dd", "M-dd-yyyy", "yyyy-M-dd",
 			"MM/d/yyyy", "yyyy/MM/d", "MM-d-yyyy", "yyyy-MM-d",
-			"M/d/yyyy", "yyyy/M/d", "M-d-yyyy", "yyyy-M-d")
+			"M/d/yyyy", "yyyy/M/d", "M-d-yyyy", "yyyy-M-d",
+			"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
 			.map(DateTimeFormatter::ofPattern)
 			.toArray(DateTimeFormatter[]::new);
 
@@ -98,7 +97,7 @@ public class FileController {
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
-	Boolean testing = true;
+	Boolean testing = false;
 	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
 	String expressURL = "http://localhost:3001/test2";
@@ -113,6 +112,9 @@ public class FileController {
 			// TODO: Eventually going to need a lot of logic for exploring folder structures
 			// and capturing multiple files
 			URL fileURL = new URL(dbURL + filename);
+//			if(testing) {
+//				fileURL = new URL(testURL + filename);
+//			}
 			InputStream in = new BufferedInputStream(fileURL.openStream());
 			long length = getFileSize(fileURL); // for Content-Length for progress bar
 			
@@ -278,10 +280,10 @@ public class FileController {
 	private ResponseEntity<boolean[]> uploadFile(@RequestPart(name="file") MultipartFile file, 
 								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
-		if(testing) {
-			System.out.println(doc);
-			return new ResponseEntity<boolean[]>(HttpStatus.OK);
-		}
+//		if(testing) {
+//			System.out.println(doc);
+//			return new ResponseEntity<boolean[]>(HttpStatus.OK);
+//		}
 	    boolean[] results = new boolean[3];
 		String token = headers.get("authorization");
 		if(!isCurator(token) && !isAdmin(token)) 
@@ -289,9 +291,9 @@ public class FileController {
 			return new ResponseEntity<boolean[]>(results, HttpStatus.UNAUTHORIZED);
 		} 
 		
-	    System.out.println("Size " + file.getSize());
-	    System.out.println("Name " + file.getOriginalFilename());
-	    System.out.println(doc);
+//	    System.out.println("Size " + file.getSize());
+//	    System.out.println("Name " + file.getOriginalFilename());
+//	    System.out.println(doc);
 	    
 	    String origFilename = file.getOriginalFilename();
 
@@ -304,6 +306,10 @@ public class FileController {
 	    	
 	    	ObjectMapper mapper = new ObjectMapper();
 		    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
+//		    System.out.println(dto.document_type);
+//		    System.out.println(dto.register_date);
+		    LocalDate parsedDate = parseDate(dto.register_date);
+			dto.register_date = parsedDate.toString();
 		    dto.filename = origFilename;
 		    // Ensure metadata is valid and doesn't exist before uploading, given upload should always work.
 		    // For the valid but exists case, will add separate function to add files and/or update existing metadata.
