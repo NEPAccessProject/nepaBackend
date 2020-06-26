@@ -342,7 +342,7 @@ public class FileController {
 		    	saveDoc.setDocumentType(dto.document_type.trim());
 		    	
 			    // TODO: Get file paths from Express.js server and link up metadata beyond just filename
-		    	// TODO: Handle different file formats for download, Tika
+		    	// TODO: Handle different file formats for download (PDF; multiple files)
 		    	// TODO: Handle multiple files per record here and then need to also redesign downloads to allow it
 		    	saveDoc.setFilename(file.getOriginalFilename());
 		    	if(dto.register_date.length()>9) {
@@ -378,7 +378,7 @@ public class FileController {
 		    	}
 
 
-		    	// TODO: Test.  Verify Tika converted; verify Lucene indexed (should happen automatically)
+		    	// TODO: Verify Tika converted; verify Lucene indexed (should happen automatically)
 		    	// Then make an Express server on DBFS, change URL, test live
 		    }
 			
@@ -394,16 +394,17 @@ public class FileController {
 		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
 	}
 
-
+	/** Check that required fields exist (doesn't verify document type from a list of acceptable types) */
 	private boolean isValid(UploadInputs dto) {
 		boolean valid = true;
-		// TODO: Agency is required also?
+		// Choice: Agency/state required also?
+		// Check for null
 		if(dto.register_date == null || dto.title == null || dto.document_type == null || dto.filename == null) {
-			System.out.println("One or more required values is null");
 			valid = false;
 			return valid; // Just stop here and don't have to worry about validating null values
 		}
 		
+		// Check for empty
 		if(dto.title.trim().length()==0) {
 			valid = false; // Need title
 		}
@@ -421,7 +422,13 @@ public class FileController {
 		return valid;
 	}
 
-	private LocalDate parseImportDate(String date) {
+	/**
+	 * Attempts to return valid parsed LocalDate from String argument, based on formats specified in  
+	 * DateTimeFormatter[] parseFormatters
+	 * @param date
+	 * @throws IllegalArgumentException
+	 */
+	private LocalDate parseDate(String date) {
 		for (DateTimeFormatter formatter : parseFormatters) {
 			try {
 				return LocalDate.parse(date, formatter);
@@ -429,12 +436,18 @@ public class FileController {
 				// ignore, try next
 			}
 		}
-		throw new IllegalArgumentException("Couldn't parse " + date);
+		throw new IllegalArgumentException("Couldn't parse date (preferred format is yyyy-MM-dd): " + date);
 	}
 
-
-
-	// TODO
+	/** 
+	 * Takes .csv file with required headers: title/register_date/filename/document_type and imports each valid,
+	 * non-duplicate record.  
+	 * 
+	 * Valid records: Must have title/register_date/filename/document_type, register_date must conform to one of
+	 * the formats in parseFormatters[]
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
+	 * and potentially more details */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> uploadCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
@@ -458,26 +471,18 @@ public class FileController {
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) {
-//				if(testing) {
-//					System.out.println("Valid: " + isValid(itr));
-//				    System.out.println("Title: " + itr.title);
-//				    System.out.println("Type: " + itr.document_type);
-//				    System.out.println("Date: " + itr.register_date);
-//				    System.out.println("Filename: " + itr.filename);
-//				    System.out.println("Agency: " + itr.agency);
-//				}
-			    // TODO: Do we need to validate CSV entries?
+			    // Choice: Do we want to validate CSV entries at all?
 			    if(isValid(itr)) {
 
 			    	boolean error = false;
 					try {
-						LocalDate parsedDate = parseImportDate(itr.register_date);
+						LocalDate parsedDate = parseDate(itr.register_date);
 						itr.register_date = parsedDate.toString();
 					} catch (IllegalArgumentException e) {
-						results.add("Row " + count + ": " + e.getMessage());
+						results.add("Item " + count + ": " + e.getMessage());
 						error = true;
 					} catch (Exception e) {
-						results.add("Row " + count + ": Error " + e.getMessage());
+						results.add("Item " + count + ": Error " + e.getMessage());
 						error = true;
 					}
 					if(!error) {
@@ -485,10 +490,10 @@ public class FileController {
 						    ResponseEntity<Long> status = saveDto(itr);
 					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
 					    	if(status.getStatusCodeValue() == 500) { // Error
-								results.add("Row " + count + ": Error saving: " + itr.title);
+								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
 					    		if(testing) {
-						    		results.add("Row " + count + ": OK: " + itr.title);
+						    		results.add("Item " + count + ": OK: " + itr.title);
 					    		}
 
 					    		// Log successful record import (need accountability for new metadata)
@@ -501,11 +506,11 @@ public class FileController {
 					    		fileLogRepository.save(recordLog);
 					    	}
 				    	} else {
-							results.add("Row " + count + ": Duplicate: " + itr.title);
+							results.add("Item " + count + ": Duplicate");
 				    	}
 					}
 			    } else {
-					results.add("Row " + count + ": Invalid (all fields required)");
+					results.add("Item " + count + ": Missing one or more fields: register_date/document_type/filename/title");
 			    }
 			    count++;
 			}
@@ -518,44 +523,6 @@ public class FileController {
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
 	
-	
-	private ResponseEntity<Long> saveDto(UploadInputs itr) {
-		EISDoc newRecord = new EISDoc();
-		newRecord.setAgency(itr.agency.trim());
-		newRecord.setDocumentType(itr.document_type.trim());
-		newRecord.setFilename(itr.filename.trim());
-		newRecord.setCommentsFilename(itr.comments_filename);
-		newRecord.setRegisterDate(LocalDate.parse(itr.register_date));
-		newRecord.setState(itr.state.trim());
-		newRecord.setTitle(itr.title.trim());
-		EISDoc savedRecord = docRepository.save(newRecord);
-		if(savedRecord != null) {
-			return new ResponseEntity<Long>(savedRecord.getId(), HttpStatus.OK);
-		} else {
-			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-	}
-
-
-
-	// Experimental, probably useless (was trying to get document outlines)
-	@CrossOrigin
-	@RequestMapping(path = "/xhtml", method = RequestMethod.GET)
-	public ResponseEntity<List<String>> xhtml(@RequestHeader Map<String, String> headers) {
-		
-		String token = headers.get("authorization");
-		if(!isAdmin(token)) 
-		{
-			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
-		} 
-		else 
-		{
-			return new ResponseEntity<List<String>>(convertXHTML(docRepository.findById(22)), HttpStatus.OK);
-		}
-		
-	}
-	
-
 	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
 		if(testing) {
 			System.out.println("Converting PDF");
@@ -727,7 +694,6 @@ public class FileController {
 			}
 			
 			// 1: Download the archive
-			// TODO: Handle non-archive case (easier, but currently we only have archives)
 			InputStream in = new BufferedInputStream(fileURL.openStream());
 			ZipInputStream zis = new ZipInputStream(in);
 			ZipEntry ze;
@@ -736,7 +702,6 @@ public class FileController {
 				int count;
 				byte[] data = new byte[BUFFER];
 				
-				// TODO: Can check filename for .pdf extension
 				String filename = ze.getName();
 				
 				
@@ -861,7 +826,7 @@ public class FileController {
 			tikaParser.setMaxStringLength(-1); // disable limit
 		
 			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
-			// TODO: Handle folders/multiple files for future (currently only archives)
+			// TODO: Handle folders/multiple files for future (currently only archives/PDFs)
 			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
 				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
 			}
@@ -876,7 +841,6 @@ public class FileController {
 
 			
 			// 1: Download the archive
-			// TODO: Handle non-archive case (easier, but currently we only have archives)
 			InputStream in = new BufferedInputStream(fileURL.openStream());
 			ZipInputStream zis = new ZipInputStream(in);
 			ZipEntry ze;
@@ -889,7 +853,7 @@ public class FileController {
 				int count;
 				byte[] data = new byte[BUFFER];
 				
-				// TODO: Can check filename for .pdf extension
+				// TODO: Can check filename for .pdf extension to determine if we should try to parse it?
 				String filename = ze.getName();
 
 				
@@ -976,12 +940,32 @@ public class FileController {
 		}
 	}
 
+	/** Returns if database contains at least one instance of a title/type/date combination */
 	@CrossOrigin
 	@RequestMapping(path = "/existsTitleTypeDate", method = RequestMethod.GET)
 	private boolean recordExists(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
 		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date)).isPresent();
 	}
 	
+	// Experimental, probably useless (was trying to get document outlines)
+	@CrossOrigin
+	@RequestMapping(path = "/xhtml", method = RequestMethod.GET)
+	public ResponseEntity<List<String>> xhtml(@RequestHeader Map<String, String> headers) {
+		
+		String token = headers.get("authorization");
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		else 
+		{
+			return new ResponseEntity<List<String>>(convertXHTML(docRepository.findById(22)), HttpStatus.OK);
+		}
+		
+	}
+
+
+
 	// Probably useless
 	private List<String> convertXHTML(EISDoc eis) {
 
@@ -1006,7 +990,6 @@ public class FileController {
 			}
 			
 			// 1: Download the archive
-			// TODO: Handle non-archive case (easier, but currently we only have archives)
 			InputStream in = new BufferedInputStream(fileURL.openStream());
 			ZipInputStream zis = new ZipInputStream(in);
 			ZipEntry ze;
@@ -1015,12 +998,7 @@ public class FileController {
 				int count;
 				byte[] data = new byte[BUFFER];
 				
-				// TODO: Can check filename for .pdf extension
 				String filename = ze.getName();
-				
-				
-				// TODO: Check to make sure we don't already have this document in the system.
-				// Deduplication: Ignore when filename and document ID combination already exists in EISDoc table.
 				
 				// Handle directory - can ignore them if we're just converting PDFs
 				if(!ze.isDirectory()) {
@@ -1083,6 +1061,26 @@ public class FileController {
 		}
 	}
 	
+	/** Turns UploadInputs into valid EISDoc and saves to database, returns new ID and 200 (OK) or null and 500 (error) */
+	private ResponseEntity<Long> saveDto(UploadInputs itr) {
+		EISDoc newRecord = new EISDoc();
+		newRecord.setAgency(itr.agency.trim());
+		newRecord.setDocumentType(itr.document_type.trim());
+		newRecord.setFilename(itr.filename.trim());
+		newRecord.setCommentsFilename(itr.comments_filename);
+		newRecord.setRegisterDate(LocalDate.parse(itr.register_date));
+		newRecord.setState(itr.state.trim());
+		newRecord.setTitle(itr.title.trim());
+		EISDoc savedRecord = docRepository.save(newRecord);
+		if(savedRecord != null) {
+			return new ResponseEntity<Long>(savedRecord.getId(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+
+
 	private boolean save(@RequestBody DocumentText docText) {
 		if(docText.getPlaintext().trim().length()>0) {
 			try {
@@ -1103,8 +1101,8 @@ public class FileController {
 		}
 		
 	}
-	
-	// Helper function for checkAdmin and on-demand token admin check
+
+	/** Return whether JWT is from Admin role */
 	private boolean isAdmin(String token) {
 		boolean result = false;
 		ApplicationUser user = getUser(token);
@@ -1116,7 +1114,8 @@ public class FileController {
 		}
 		return result;
 	}
-	
+
+	/** Return whether JWT is from Curator role */
 	private boolean isCurator(String token) {
 		boolean result = false;
 		ApplicationUser user = getUser(token);
@@ -1129,14 +1128,17 @@ public class FileController {
 		return result;
 	}
 	
+	/** Return ApplicationUser given JWT String */
 	private ApplicationUser getUser(String token) {
 		if(token != null) {
 			// get ID
 			try {
 				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 					.getId();
+				System.out.println("ID: " + id);
 
 				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+				System.out.println("User ID: " + user.getId());
 				return user;
 			} catch (Exception e) {
 				return null;
