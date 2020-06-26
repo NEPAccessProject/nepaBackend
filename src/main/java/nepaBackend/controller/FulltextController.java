@@ -180,7 +180,7 @@ public class FulltextController {
 			return new ArrayList<DocumentText>();
 		} else {
 			try {
-				Optional<EISDoc> eis = docRepository.findByFilename(filename);
+				Optional<EISDoc> eis = docRepository.findTopByFilename(filename);
 				return textRepository.findAllByEisdoc(eis.get());
 			} catch(Exception e) {
 				e.printStackTrace();
