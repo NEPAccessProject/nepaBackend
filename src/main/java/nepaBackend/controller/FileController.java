@@ -101,7 +101,7 @@ public class FileController {
 	static String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
 	String uploadTestURL = "http://localhost:3001/test2";
-	static String uploadURL = "http://mis-jvinaldbl1.catnet.arizona.edu:81/upload";
+	static String uploadURL = "http://mis-jvinaldbl1.catnet.arizona.edu:5309/upload";
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
