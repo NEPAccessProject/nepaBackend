@@ -98,9 +98,10 @@ public class FileController {
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
 	Boolean testing = false;
-	String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
+	static String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
-	String expressURL = "http://localhost:3001/test2";
+	String uploadTestURL = "http://localhost:3001/test2";
+	static String uploadURL = "http://mis-jvinaldbl1.catnet.arizona.edu:81/upload";
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
@@ -112,9 +113,9 @@ public class FileController {
 			// TODO: Eventually going to need a lot of logic for exploring folder structures
 			// and capturing multiple files
 			URL fileURL = new URL(dbURL + filename);
-//			if(testing) {
-//				fileURL = new URL(testURL + filename);
-//			}
+			if(testing) {
+				fileURL = new URL(testURL + filename);
+			}
 			InputStream in = new BufferedInputStream(fileURL.openStream());
 			long length = getFileSize(fileURL); // for Content-Length for progress bar
 			
@@ -324,7 +325,8 @@ public class FileController {
 	    						ContentType.create("application/octet-stream"), 
 	    						file.getOriginalFilename())
 	    				.build();
-		    HttpPost request = new HttpPost(expressURL);
+		    HttpPost request = new HttpPost(uploadURL);
+		    if(testing) { request = new HttpPost(uploadTestURL); }
 		    request.setEntity(entity);
 
 		    HttpClient client = HttpClientBuilder.create().build();
@@ -527,6 +529,47 @@ public class FileController {
 		}
 
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+	
+	/** Minimal upload test to make sure uploading works (saves nothing to db, does save file to disk) */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadTest", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<String> uploadTest(@RequestPart(name="file") MultipartFile file, 
+			@RequestHeader Map<String, String> headers) 
+					throws IOException { 
+	    String result = "Started";
+	    
+		String token = headers.get("authorization");
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<String>(result, HttpStatus.UNAUTHORIZED);
+		}
+
+	    try {
+			
+	    	HttpEntity entity = MultipartEntityBuilder.create()
+	    				.addBinaryBody("test", 
+	    						file.getInputStream(), 
+	    						ContentType.create("application/octet-stream"), 
+	    						file.getOriginalFilename())
+	    				.build();
+		    HttpPost request = new HttpPost(uploadURL);
+		    if(testing) { request = new HttpPost(uploadTestURL); }
+		    request.setEntity(entity);
+
+		    HttpClient client = HttpClientBuilder.create().build();
+		    HttpResponse response = client.execute(request);
+		    
+		    // so far so good?
+		    result = response.toString();
+			
+		} catch (Exception e) {
+			result += " *** Error: " + e.toString();
+		} finally {
+		    file.getInputStream().close();
+		}
+
+		return new ResponseEntity<String>(result, HttpStatus.OK);
 	}
 	
 	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
