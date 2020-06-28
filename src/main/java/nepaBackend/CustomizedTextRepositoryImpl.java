@@ -142,7 +142,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
 		Query luceneQuery = queryBuilder
 				.phrase()
-					.withSlop(0) // default: 0
+					.withSlop(0) // default: 0 (note: doesn't work as expected)
 				.onField("plaintext")
 				.sentence(terms)
 				.createQuery();

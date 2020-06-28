@@ -3,7 +3,6 @@ package nepaBackend.pojo;
 /** Can add:
  * 
  * Include drafts; include finals?
- * Comment date?
  * 
  *
  */

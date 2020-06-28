@@ -1,8 +1,8 @@
 package nepaBackend.controller;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,19 +10,15 @@ import java.util.Arrays;
 //import java.sql.SQLException;
 //import java.sql.PreparedStatement;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -442,16 +438,9 @@ public class EISController {
 //			System.out.println("Match % " + matchParams.matchPercent);
 			
 			// Sanity check match percent, force bounds 1-100
-			BigDecimal match_percent;
-			if(matchParams.matchPercent.compareTo(new BigDecimal("0.01")) < 0) {
-				match_percent = new BigDecimal("0.01");
-			} else if(matchParams.matchPercent.compareTo(new BigDecimal("1.00")) > 0) {
-				match_percent = new BigDecimal("1.00");
-			} else {
-				match_percent = matchParams.matchPercent;
-			}
+			BigDecimal match_percent = validateInput(matchParams.matchPercent);
 			
-			// Sanity check
+			// Sanity check ID
 			if(matchParams.id < 0) {
 				// No negative IDs possible
 				return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
@@ -517,6 +506,20 @@ public class EISController {
 		return docService.getByTitle(title);
 	}
 	
+	// TODO: Validation for everything, like Dates
+	
+	private BigDecimal validateInput(BigDecimal decInput) {
+		BigDecimal match_percent;
+		if(decInput.compareTo(new BigDecimal("0.01")) < 0) {
+			match_percent = new BigDecimal("0.01");
+		} else if(decInput.compareTo(new BigDecimal("1.00")) > 0) {
+			match_percent = new BigDecimal("1.00");
+		} else {
+			match_percent = decInput;
+		}
+		return match_percent;
+	}
+
 	// TODO: Smarter sanity check
 	private boolean saneInput(String sInput) {
 		if(sInput == null) {
@@ -536,13 +539,6 @@ public class EISController {
 		return bInput;
 	}
 	// TODO: Validation for everything, like Dates
-
-	private boolean saneInput(double iInput) {
-		if(iInput > 0 && iInput <= 100) {
-			return true;
-		}
-		return false;
-	}
 
 	private boolean saneInput(int iInput) {
 		if(iInput > 0 && iInput <= Integer.MAX_VALUE) {
