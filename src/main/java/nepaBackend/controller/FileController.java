@@ -97,7 +97,7 @@ public class FileController {
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
-	Boolean testing = false;
+	Boolean testing = true;
 	static String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
 	String uploadTestURL = "http://localhost:3001/test2";
@@ -401,6 +401,35 @@ public class FileController {
 
 		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
 	}
+	
+	@CrossOrigin
+	@RequestMapping(path = "/uploadFiles", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private void uploadFiles(@RequestPart(name="files") MultipartFile[] files, 
+								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
+										{ 
+		System.out.println(files.length);
+		System.out.println(files[0].getOriginalFilename());
+		/** TODO: Same logic as uploadFile except: 
+		 * - multiple Files
+		 * - each File's .getOriginalFilename() should include a relative path thanks to the frontend javascript logic
+		 * - save base /folder name in the folder column, if it comes with a folder
+		 * - express service will need to parse each /folder, ensure they exist, create if not, then put the /filename.ext 
+		 * in the deepest folder
+		 * - if no folder, express will have to make the path based on the new ID from saving the metadata doc, 
+		 * type, and agency, so will need to send those values also...  but it also has to ensure no collisions,
+		 * so it needs to actually make sure the identifying directory does NOT exist already and iterate until it finds
+		 * one that doesn't exist, then express has to return the unique name it came up with, then this controller has to
+		 * save that folder name to the record
+		 * - next, download logic needs to change to expect structure of agency/doc.folder name/type, and multiple files
+		 * - Finally, for bulk upload with or without CSV, can use same dropzone, same path as filename logic, different route
+		 */
+	}
+	
+	
+	
+	
+	
+	
 
 	/** Check that required fields exist (doesn't verify document type from a list of acceptable types) */
 	private boolean isValid(UploadInputs dto) {

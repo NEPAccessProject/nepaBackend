@@ -270,7 +270,8 @@ public class EISController {
 					rs.getString("agency"),
 					rs.getString("state"), 
 					rs.getString("filename"),
-					rs.getString("comments_filename")
+					rs.getString("comments_filename"),
+					rs.getString("folder")
 				)
 			);
 			

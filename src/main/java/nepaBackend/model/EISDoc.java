@@ -45,6 +45,9 @@ public class EISDoc {
 
     @Column(name="comments_filename")
     private String commentsFilename; // name of zip file of comment PDF(s) (optional)
+
+    @Column(name="folder")
+    private String folder; // path to multiple associated files (optional)
     
     // String location; // Location for proposed project is desired, but don't have metadata
     // String action; // Type of action is desired, but don't have metadata
@@ -54,7 +57,7 @@ public class EISDoc {
     public EISDoc() { }
 
 	public EISDoc(Long id, String title, String documentType, LocalDate commentDate, LocalDate registerDate, String agency, String state,
-			String filename, String commentsFilename) {
+			String filename, String commentsFilename, String folder) {
 		//super();  // TODO: Do we need this for this project?
 		
 		this.id = id;
@@ -66,8 +69,9 @@ public class EISDoc {
 		this.state = state;
 		this.filename = filename;
 		this.commentsFilename = commentsFilename;
+		this.folder = folder;
 	}
-	
+
 	public Long getId() {
 		return id;
 	}
@@ -136,5 +140,13 @@ public class EISDoc {
 		this.commentsFilename = commentsFilename;
 	}
 
+	public String getFolder() {
+		return folder;
+	}
+
+	public void setFolder(String folder) {
+		this.folder = folder;
+	}
+	
 
 }
