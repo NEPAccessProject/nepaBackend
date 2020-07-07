@@ -59,11 +59,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
+import nepaBackend.NEPAFileRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
+import nepaBackend.model.NEPAFile;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
 
@@ -75,6 +77,7 @@ public class FileController {
 	private TextRepository textRepository;
 	private FileLogRepository fileLogRepository;
 	private ApplicationUserRepository applicationUserRepository;
+	private NEPAFileRepository nepaFileRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
 			"yyyy/MM/dd", "MM/dd/yyyy", 
@@ -88,11 +91,13 @@ public class FileController {
 	public FileController(DocRepository docRepository,
 				TextRepository textRepository,
 				FileLogRepository fileLogRepository,
-				ApplicationUserRepository applicationUserRepository) {
+				ApplicationUserRepository applicationUserRepository,
+				NEPAFileRepository nepaFileRepository) {
 		this.docRepository = docRepository;
 		this.textRepository = textRepository;
 		this.fileLogRepository = fileLogRepository;
 		this.applicationUserRepository = applicationUserRepository;
+		this.nepaFileRepository = nepaFileRepository;
 	}
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
@@ -100,7 +105,7 @@ public class FileController {
 	Boolean testing = true;
 	static String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
-	String uploadTestURL = "http://localhost:3001/test2";
+	String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 	static String uploadURL = "http://mis-jvinaldbl1.catnet.arizona.edu:5309/upload";
 
 	@CrossOrigin
@@ -320,7 +325,7 @@ public class FileController {
 	    	
 			
 	    	HttpEntity entity = MultipartEntityBuilder.create()
-	    				.addBinaryBody("test", 
+	    				.addBinaryBody("test", // TODO: This should probably be "upload" and not "test" but need to verify
 	    						file.getInputStream(), 
 	    						ContentType.create("application/octet-stream"), 
 	    						file.getOriginalFilename())
@@ -345,34 +350,15 @@ public class FileController {
 			    uploadLog.setErrorType("Uploaded");
 			    
 			    // Since metadata is already validated, this should always work.
-		    	EISDoc saveDoc = new EISDoc();
-		    	saveDoc.setAgency(dto.agency.trim());
-		    	saveDoc.setDocumentType(dto.document_type.trim());
-		    	
-			    // TODO: Get file paths from Express.js server and link up metadata beyond just filename
-		    	// TODO: Handle different file formats for download (PDF; multiple files)
-		    	// TODO: Handle multiple files per record here and then need to also redesign downloads to allow it
-		    	saveDoc.setFilename(file.getOriginalFilename());
-		    	if(dto.register_date.length()>9) {
-			    	saveDoc.setRegisterDate(LocalDate.parse(dto.register_date));
-		    	} else {
-			    	saveDoc.setRegisterDate(null);
-		    	}
-		    	saveDoc.setState(dto.state);
-		    	saveDoc.setTitle(dto.title.trim());
-		    	
-		    	saveDoc.setCommentDate(null); // Useless field now?
-		    	// TODO: May need to retool this if adding comments files becomes a thing
-		    	saveDoc.setCommentsFilename("");
-		    	
-		    	// Save (ID is null at this point, but .save() picks a unique ID thanks to the model so it's good)
-		    	EISDoc savedDoc = docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
+		    	EISDoc savedDoc = saveMetadata(dto); // note: JPA .save() is safe from sql injection
 		    	results[1] = true;
 
 			    uploadLog.setDocumentId(savedDoc.getId());
 			    
 		    	// Run Tika on file, record if 200 or not
-		    	if(origFilename.substring(origFilename.length()-3).equalsIgnoreCase("pdf")) {
+			    if(origFilename.length() > 4
+		    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
+			    {
 		    		int status = this.convertPDF(savedDoc).getStatusCodeValue();
 			    	results[2] = (status == 200);
 		    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
@@ -384,10 +370,6 @@ public class FileController {
 		    	if(results[2]) {
 				    uploadLog.setImported(true);
 		    	}
-
-
-		    	// TODO: Verify Tika converted; verify Lucene indexed (should happen automatically)
-		    	// Then make an Express server on DBFS, change URL, test live
 		    }
 			
 		} catch (Exception e) {
@@ -402,27 +384,254 @@ public class FileController {
 		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
 	}
 	
+	/** 
+	 * Upload a record with more than one file or directory associated with it
+	 * For each file, assumes a base folder that ends in a number (identifying folder)
+	 * If that doesn't exist, NEPAFile folder field instead uses the new ID from saving the metadata EISDoc
+	 * */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFiles", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private void uploadFiles(@RequestPart(name="files") MultipartFile[] files, 
+	private ResponseEntity<String> uploadFiles(@RequestPart(name="files") MultipartFile[] files, 
 								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
-										{ 
-		System.out.println(files.length);
-		System.out.println(files[0].getOriginalFilename());
+										throws IOException 
+	{ 
+		if(testing) {
+			System.out.println(files.length);
+			for(int i = 0; i < files.length; i++) {
+				System.out.println(files[i].getOriginalFilename());
+				System.out.println(files[i].getBytes());
+			}
+		}
+		
+		
+		
+		/** Validation: Files; auth; record; record shouldn't exist */
+		
+		if(files == null || files.length == 0) { // 400
+			return new ResponseEntity<String>(HttpStatus.BAD_REQUEST);
+		}
+		
+		String token = headers.get("authorization");
+		if(!isCurator(token) && !isAdmin(token)) // 401
+		{
+			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+		} 
+	    
+    	ObjectMapper mapper = new ObjectMapper();
+	    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
+	    LocalDate parsedDate = parseDate(dto.register_date);
+		dto.register_date = parsedDate.toString();
+		dto.filename = "";
+
+		if(!isValid(dto) || recordExists(dto.title, dto.document_type, dto.register_date)) {
+			return new ResponseEntity<String>(HttpStatus.BAD_REQUEST);
+		}
+		
+		
+		
+		/** Save metadata or else return error */
+		
+		EISDoc savedDoc = null;
+		try {
+			// In order to associate and save files with doc, need the ID, which means we need to first save it.
+	    	savedDoc = saveMetadata(dto);
+	    	if(savedDoc == null) {
+				return new ResponseEntity<String>(HttpStatus.INTERNAL_SERVER_ERROR);
+	    	}
+		} catch(Exception e) {
+			// Couldn't save
+			return new ResponseEntity<String>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		
+		/** Finally, upload files, save to files table and log */
+		
+		for(int i = 0; i < files.length; i++) {
+			
+	    	FileLog uploadLog = new FileLog();
+	    	
+		    try {
+
+		    	// In this case, we don't want relative paths.  So, strip those out.
+			    String origFilename = files[i].getOriginalFilename();
+			    if(testing) {
+			    	System.out.println(origFilename);
+			    }
+			    
+			    String savePath = "";
+			    if(getUniqueFolderName(origFilename, savedDoc).equalsIgnoreCase(savedDoc.toString())) { // If we generated the folder ourselves
+			    	savePath = "/" + getUniqueFolderName(origFilename, savedDoc) + "/"; // Assume saved to /{ID}/
+		    	} else { // Otherwise use provided path
+		    		savePath = getPathOnly(origFilename);
+		    	}
+			    
+			    // Upload file
+			    // Note: NOT leaving logic to Express server to create directory based on ID/Type, if no unique foldername
+		    	HttpEntity entity = MultipartEntityBuilder.create()
+	    					.addTextBody("filepath",
+	    							savePath) // Feed Express path to use
+		    				.addBinaryBody("file", //fieldname
+		    						files[i].getInputStream(), 
+		    						ContentType.create("application/octet-stream"), 
+		    						origFilename)
+		    				.build();
+			    HttpPost request = new HttpPost(uploadURL);
+			    if(testing) { request = new HttpPost(uploadTestURL); }
+			    request.setEntity(entity);
+	
+			    HttpClient client = HttpClientBuilder.create().build();
+			    HttpResponse response = client.execute(request);
+			    
+			    if(testing) {
+				    System.out.println(response.toString());
+			    }
+			    
+			    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
+			    boolean converted = false;
+
+			    // If file uploaded, proceed to saving to table and logging
+			    if(uploaded) {
+			    	// Save NEPAFile
+			    	handleNEPAFileSave(origFilename, savedDoc, dto.document_type);
+			    	
+			    	// Save FileLog
+				    uploadLog.setFilename(savePath);
+				    uploadLog.setUser(getUser(token));
+				    uploadLog.setLogTime(LocalDateTime.now());
+				    uploadLog.setErrorType("Uploaded");
+				    uploadLog.setDocumentId(savedDoc.getId());
+				    
+			    	// Run Tika on file, record if 200 or not
+			    	if(origFilename.length() > 4
+			    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
+			    	{
+			    		converted = (this.convertPDF(savedDoc).getStatusCodeValue() == 200);
+			    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
+			    		converted = (this.convertRecordSmart(savedDoc).getStatusCodeValue() == 200);
+				    	// Note: 200 doesn't necessarily mean tika was able to convert anything
+			    	}
+			    	
+			    	if(converted) {
+					    uploadLog.setImported(true);
+			    	}
+			    }
+
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+			    files[i].getInputStream().close();
+			    if(uploadLog.getUser() != null) { 
+			    	fileLogRepository.save(uploadLog);
+			    }
+			}
+		}
+		
+		return new ResponseEntity<String>("OK", HttpStatus.ACCEPTED);
+		
+		
+		// TODO: Can save CSV data before NEPAFiles, and vice versa.  Therefore EISDoc needs a Folder, and 
+		// NEPAFiles might have null for the foreign key.  The connection has to be enforced after we have both.
+		
+		// Choice so far: Overwrite everything that already exists when uploading, separate update function should be
+		// the way to add/remove files with an existing record with existing files
+		
 		/** TODO: Same logic as uploadFile except: 
 		 * - multiple Files
 		 * - each File's .getOriginalFilename() should include a relative path thanks to the frontend javascript logic
+		 * 
 		 * - save base /folder name in the folder column, if it comes with a folder
 		 * - express service will need to parse each /folder, ensure they exist, create if not, then put the /filename.ext 
 		 * in the deepest folder
+		 * 
+		 * - handle disparate directories case: in order to associate files properly, will probably need a Docs table
+		 * containing Type, foreign key to EISDoc, filename, and relative path
+		 * 
+		 * - express server needs to return path where everything was saved
+		 * 
+		 * - need to handle no relative path case (no folder)
 		 * - if no folder, express will have to make the path based on the new ID from saving the metadata doc, 
 		 * type, and agency, so will need to send those values also...  but it also has to ensure no collisions,
 		 * so it needs to actually make sure the identifying directory does NOT exist already and iterate until it finds
 		 * one that doesn't exist, then express has to return the unique name it came up with, then this controller has to
 		 * save that folder name to the record
+		 * 
 		 * - next, download logic needs to change to expect structure of agency/doc.folder name/type, and multiple files
 		 * - Finally, for bulk upload with or without CSV, can use same dropzone, same path as filename logic, different route
 		 */
+	}
+	
+
+
+
+	private void handleNEPAFileSave(String origFilename, EISDoc savedDoc, String document_type) {
+    	NEPAFile fileToSave = new NEPAFile();
+    	fileToSave.setEisdoc(savedDoc);
+    	fileToSave.setFilename(getFilenameWithoutPath(origFilename));
+    	fileToSave.setFolder(getUniqueFolderName(origFilename, savedDoc));
+    	/** TODO: Temporary logic until we get the path back from Express to guarantee consistency
+    	/* if we get the path wrong the system will fail to find the files 
+    	/* even when the NEPAFile has a correct foreign key */
+    	if(fileToSave.getFolder().equalsIgnoreCase(savedDoc.toString())) { // If we generated the folder ourselves
+    		fileToSave.setRelativePath("/" + fileToSave.getFolder() + "/"); // Assume saved to /{ID}/
+    	} else { // Otherwise use provided path
+        	fileToSave.setRelativePath(getPathOnly(origFilename)); // TODO: Get this from Express
+    	}
+    	fileToSave.setDocumentType(document_type);
+    	nepaFileRepository.save(fileToSave);
+	}
+
+	// Either pull the EIS identifier from the string, or define a new unique folder based on the ID
+	private String getUniqueFolderName(String origFilename, EISDoc eisdoc) {
+		// Should be base foldername if given, but not if it's a type folder like Final or ROD
+		// Basically, find the first folder that at least ends in #### and if we find one and it's wrong, the user
+		// has errored greatly
+		// expect min. 1 number at end
+		
+		String[] sections = origFilename.split("/");
+		for(int i = 0; i < sections.length; i++) {
+			if(sections[i].length() > 0
+					&& Character.isDigit(sections[i].charAt(sections[i].length()-1))) { // if ends in number, should be it
+				return sections[i];
+			}
+		}
+		
+		// if we get here we need to come up with a folder name ourselves: the provided UID serves
+		return eisdoc.getId().toString();
+	}
+
+	/** e.g. C:/ex/test.pdf --> C:/ex/ */
+	private String getPathOnly(String pathWithFilename) {
+		int idx = pathWithFilename.replaceAll("\\\\", "/").lastIndexOf("/");
+		return idx >= 0 ? pathWithFilename.substring(0, idx + 1) : pathWithFilename;
+	}
+	
+	/** e.g. C:/ex/test.pdf --> test.pdf */
+	private String getFilenameWithoutPath(String origFilename) {
+		int idx = origFilename.replaceAll("\\\\", "/").lastIndexOf("/");
+		return idx >= 0 ? origFilename.substring(idx + 1) : origFilename;
+	}
+
+	/** Saves pre-validated metadata record to database and returns the EISDoc with new ID */
+	private EISDoc saveMetadata(UploadInputs dto) throws org.springframework.orm.jpa.JpaSystemException{
+    	EISDoc saveDoc = new EISDoc();
+    	saveDoc.setAgency(dto.agency.trim());
+    	saveDoc.setDocumentType(dto.document_type.trim());
+    	
+    	if(dto.register_date.length()>9) {
+	    	saveDoc.setRegisterDate(LocalDate.parse(dto.register_date));
+    	} else {
+	    	saveDoc.setRegisterDate(null);
+    	}
+    	saveDoc.setState(dto.state);
+    	saveDoc.setTitle(dto.title.trim());
+    	
+    	saveDoc.setCommentDate(null);
+    	saveDoc.setFilename(dto.filename);
+    	saveDoc.setCommentsFilename("");
+    	
+    	// Save (ID is null at this point, but .save() picks a unique ID thanks to the model so it's good)
+    	EISDoc savedDoc = docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
+    	
+    	return savedDoc;
 	}
 	
 	
@@ -448,12 +657,6 @@ public class FileController {
 
 		if(dto.document_type.trim().length()==0) {
 			valid = false; // Need type
-		}
-		
-		if(dto.filename.trim().length()>0) {
-			// TODO: Ensure filename matches unique item on imported files list
-		} else {
-			valid = false;
 		}
 		
 		return valid;
@@ -499,7 +702,11 @@ public class FileController {
 		} 
 		List<String> results = new ArrayList<String>();
 
-	    
+
+	    // TODO: Expect these headers:
+	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
+	    // Translate these into a standard before proceeding?
+		
 	    try {
 	    	
 	    	ObjectMapper mapper = new ObjectMapper();
@@ -508,7 +715,7 @@ public class FileController {
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) {
-			    // Choice: Do we want to validate CSV entries at all?
+			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
 
 			    	boolean error = false;
@@ -523,6 +730,9 @@ public class FileController {
 						error = true;
 					}
 					if(!error) {
+						// TODO: If duplicate, try updating instead of skipping
+						// TODO: Add foreign key to NEPAFile by foldername, if that exists, otherwise
+						// create NEPAFile with filename value missing to be filled in during bulk file upload
 						if(!recordExists(itr.title, itr.document_type, itr.register_date)) { // Deduplication
 						    ResponseEntity<Long> status = saveDto(itr);
 					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?

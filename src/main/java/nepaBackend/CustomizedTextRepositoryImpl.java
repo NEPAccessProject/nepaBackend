@@ -11,6 +11,7 @@ import javax.persistence.PersistenceContext;
 import org.hibernate.search.query.dsl.QueryBuilder;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
@@ -21,6 +22,7 @@ import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleFragmenter;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.hibernate.search.MassIndexer;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
@@ -259,6 +261,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			return false;
 		}
 	}
+	
+
+//	public boolean delete(Long id) {
+//		return true;
+//	}
 	
 	/** Escape what Lucene defines as special characters to prevent things like unintentionally excluding the word "green" 
 	 * 	when searching for "Duwamish-Green".  At the same time, Lucene does not index characters like "-", so prevent
