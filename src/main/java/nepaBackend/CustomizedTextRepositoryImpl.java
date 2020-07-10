@@ -36,11 +36,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@PersistenceContext
 	private EntityManager em;
 
+	private static int numberOfFragmentsMax = 5;
+	private static int fragmentSize = 250;
+
 	/** Return all records matching terms (no highlights/context) */
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<EISDoc> search(String terms, int limit, int offset) {
-		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
 			
 		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
@@ -83,6 +86,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		query.setParameter("ids", new_ids);
 
 		List<EISDoc> docs = query.getResultList();
+
+		fullTextEntityManager.close(); // Because this is created on demand, close it when we're done
 		
 		return docs;
 	}
@@ -126,6 +131,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+			} finally {
+				fullTextEntityManager.close();
 			}
 		}
 		
@@ -163,19 +170,21 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Use PhraseQuery or TermQuery to get results for matching records
 		for (DocumentText doc: docList) {
 			try {
-			String[] words = terms.split(" ");
-			String highlight = "";
-			if(words.length>1) {
-				highlight = getHighlightPhrase(doc.getPlaintext(), words);
-			} else {
-				highlight = getHighlightTerm(doc.getPlaintext(), terms);
-			}
-			if(highlight.length() > 0) {
-				highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
-			}
+				String[] words = terms.split(" ");
+				String highlight = "";
+				if(words.length > 1) {
+					highlight = getHighlightPhrase(doc.getPlaintext(), words);
+				} else {
+					highlight = getHighlightTerm(doc.getPlaintext(), terms);
+				}
+				if(highlight.length() > 0) {
+					highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
+				}
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+			} finally {
+				fullTextEntityManager.close();
 			}
 		}
 		
@@ -209,26 +218,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 		Highlighter highlighter = new Highlighter(formatter, scorer);
-		Fragmenter fragmenter = new SimpleFragmenter(300);
+		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(text.length());
-		StandardAnalyzer sa = new StandardAnalyzer();
-		TokenStream tokenStream = sa.tokenStream("f", new StringReader(text));
+		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
+		TokenStream tokenStream = stndrdAnalyzer.tokenStream("f", new StringReader(text));
 		String result = "";
 		
 		try {
 			// Add ellipses to denote that these are text fragments within the string
-			result = highlighter.getBestFragments(tokenStream, text, 1, " ... <br /> ... ");
+			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
 //			System.out.println(result);
 			if(result.length()>0) {
-				result = " ... " + (result.replaceAll("\\n+", " ")).trim().concat(" ... ");
+				result = "<span class=\"fragment\">... " + (result.replaceAll("\\n+", " ")).trim().concat(" ...</span>");
 //				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} finally {
-			sa.close();
+			stndrdAnalyzer.close();
 			tokenStream.close();
 			text = "";
 		}
@@ -262,7 +271,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 	}
 	
-
+// As long as we use the ORM to delete DocumentText records, Lucene will know about it and delete them from its index
 //	public boolean delete(Long id) {
 //		return true;
 //	}
