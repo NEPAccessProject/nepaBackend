@@ -102,7 +102,7 @@ public class FileController {
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
-	Boolean testing = true;
+	Boolean testing = false;
 	static String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
 	String uploadTestURL = "http://localhost:5309/uploadFilesTest";
@@ -561,25 +561,30 @@ public class FileController {
 	
 
 
-
-	private void handleNEPAFileSave(String origFilename, EISDoc savedDoc, String document_type) {
+	/** Given path, new EISDoc and document_type, save new NEPAFile.  
+	 *  Uses getFilenameWithoutPath() to set filename and getUniqueFolderName() to set folder, uses identical logic 
+	 *  for giving Express service the relative path to use (thus ensuring the download path is consistent for
+	 *  both database and file directory on DBFS). */
+	private void handleNEPAFileSave(String relativePath, EISDoc savedDoc, String document_type) {
     	NEPAFile fileToSave = new NEPAFile();
     	fileToSave.setEisdoc(savedDoc);
-    	fileToSave.setFilename(getFilenameWithoutPath(origFilename));
-    	fileToSave.setFolder(getUniqueFolderName(origFilename, savedDoc));
+    	fileToSave.setFilename(getFilenameWithoutPath(relativePath));
+    	fileToSave.setFolder(getUniqueFolderName(relativePath, savedDoc));
     	/** TODO: Temporary logic until we get the path back from Express to guarantee consistency
     	/* if we get the path wrong the system will fail to find the files 
     	/* even when the NEPAFile has a correct foreign key */
     	if(fileToSave.getFolder().equalsIgnoreCase(savedDoc.toString())) { // If we generated the folder ourselves
     		fileToSave.setRelativePath("/" + fileToSave.getFolder() + "/"); // Assume saved to /{ID}/
     	} else { // Otherwise use provided path
-        	fileToSave.setRelativePath(getPathOnly(origFilename)); // TODO: Get this from Express
+        	fileToSave.setRelativePath(getPathOnly(relativePath)); 
     	}
     	fileToSave.setDocumentType(document_type);
     	nepaFileRepository.save(fileToSave);
 	}
 
-	// Either pull the EIS identifier from the string, or define a new unique folder based on the ID
+	/** Pulls the EIS identifier from the string if it exists (shallowest folder ending in 4 numbers
+	 *  - there shouldn't be any other folders ending in numbers, that's an important rule for users uploading like this),
+	 *  or define a new unique folder based on the ID if it doesn't exist */
 	private String getUniqueFolderName(String origFilename, EISDoc eisdoc) {
 		// Should be base foldername if given, but not if it's a type folder like Final or ROD
 		// Basically, find the first folder that at least ends in #### and if we find one and it's wrong, the user
@@ -598,16 +603,16 @@ public class FileController {
 		return eisdoc.getId().toString();
 	}
 
-	/** e.g. C:/ex/test.pdf --> C:/ex/ */
+	/** e.g. C:/ex/etc/test.pdf --> C:/ex/etc/ */
 	private String getPathOnly(String pathWithFilename) {
 		int idx = pathWithFilename.replaceAll("\\\\", "/").lastIndexOf("/");
 		return idx >= 0 ? pathWithFilename.substring(0, idx + 1) : pathWithFilename;
 	}
 	
-	/** e.g. C:/ex/test.pdf --> test.pdf */
-	private String getFilenameWithoutPath(String origFilename) {
-		int idx = origFilename.replaceAll("\\\\", "/").lastIndexOf("/");
-		return idx >= 0 ? origFilename.substring(idx + 1) : origFilename;
+	/** e.g. C:/ex/etc/test.pdf --> test.pdf */
+	private String getFilenameWithoutPath(String pathWithFilename) {
+		int idx = pathWithFilename.replaceAll("\\\\", "/").lastIndexOf("/");
+		return idx >= 0 ? pathWithFilename.substring(idx + 1) : pathWithFilename;
 	}
 
 	/** Saves pre-validated metadata record to database and returns the EISDoc with new ID */
