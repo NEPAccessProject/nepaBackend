@@ -384,6 +384,31 @@ public class FileController {
 		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
 	}
 	
+	
+	
+
+	/** TODO: 
+	 * - express service given path, ensure exists, creates dir if not, then puts file in the deepest folder
+	 * 
+	 * - handle disparate directories case: in order to associate files properly, will probably need a Docs table
+	 * containing Type, foreign key to EISDoc, filename, and relative path
+	 * 
+	 * - express server needs to return path where everything was saved
+	 * 
+	 * - need to handle no relative path case (no folder)
+	 * - if no folder, express will have to make the path based on the new ID from saving the metadata doc, 
+	 * type, and agency, so will need to send those values also...  but it also has to ensure no collisions,
+	 * so it needs to actually make sure the identifying directory does NOT exist already and iterate until it finds
+	 * one that doesn't exist, then express has to return the unique name it came up with, then this controller has to
+	 * save that folder name to the record
+	 * 
+	 * - next, download logic needs to change to expect structure of agency/doc.folder name/type, and multiple files
+	 * - Finally, for bulk upload with or without CSV, can use same dropzone, same path as filename logic, different route
+	 */
+	
+	
+	
+	
 	/** 
 	 * Upload a record with more than one file or directory associated with it
 	 * For each file, assumes a base folder that ends in a number (identifying folder)
@@ -561,6 +586,207 @@ public class FileController {
 	
 
 
+	/** 
+	 * Upload more than one directory already associated with a CSV (or will be in the future and has a unique foldername)
+	 * For each file, assumes a base folder that ends in a number (identifying folder)
+	 * If that doesn't exist, rejects that file because it can't ever be automatically connected to a record 
+	 * (would be forever unlinked/orphaned)
+	 * */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadFilesBulk", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<String> uploadFilesBulk(@RequestPart(name="files") MultipartFile[] files, 
+								@RequestHeader Map<String, String> headers) 
+										throws IOException 
+	{ 
+		/** Validation: Files; auth  */
+		
+		if(files == null || files.length == 0) { // 400
+			return new ResponseEntity<String>(HttpStatus.BAD_REQUEST);
+		}
+		
+		String token = headers.get("authorization");
+		if(!isCurator(token) && !isAdmin(token)) // 401
+		{
+			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+		} 
+		
+		
+		
+		/** If valid: Upload files, save to files table, add to existing records if possible, and log */
+		
+		for(int i = 0; i < files.length; i++) {
+			
+	    	FileLog uploadLog = new FileLog();
+
+		    try {
+
+			    String origFilename = files[i].getOriginalFilename();
+			    String folderName = getUniqueFolderNameOrEmpty(origFilename);
+			    
+			    if(folderName.length() == 0) { // If no folder name
+			    	// Do nothing (reject file: no upload, no log)
+			    } else {
+		    	
+				    String savePath = getPathOnly(origFilename);
+				    
+				    // Upload file
+				    // Note: NOT leaving logic to Express server to create directory based on ID/Type, if no unique foldername
+			    	HttpEntity entity = MultipartEntityBuilder.create()
+		    					.addTextBody("filepath",
+		    							savePath) // Feed Express path to use
+			    				.addBinaryBody("file", //fieldname
+			    						files[i].getInputStream(), 
+			    						ContentType.create("application/octet-stream"), 
+			    						origFilename)
+			    				.build();
+				    HttpPost request = new HttpPost(uploadURL);
+				    if(testing) { request = new HttpPost(uploadTestURL); }
+				    request.setEntity(entity);
+		
+				    HttpClient client = HttpClientBuilder.create().build();
+				    HttpResponse response = client.execute(request);
+				    
+				    if(testing) {
+					    System.out.println(response.toString());
+				    }
+				    
+				    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
+				    boolean converted = false;
+		
+				    // If file uploaded, see if we can link it, then proceed to saving to table and logging
+				    List<EISDoc> existingDocs = docRepository.findAllByFolder(folderName);
+				    if(uploaded) {
+				    	// Save NEPAFile
+				    	// TODO:
+				    	// 1. Existing file could be null, if so we can't set up the link yet (expecting CSV import)
+				    	// 2. Type would be the directory after the unique folder name, use that if it exists.
+				    	// 3. If no directory after that, use existingDoc's (if existingDoc exists).  
+				    	// Otherwise leave type empty
+				    	// 4. While folder should be unique if non-empty ideally, it's not fully enforced
+				    	// (hopefully never actually happens or else someone messed up)
+				    	// If it does happen, log and save to the first in the list found by JPA
+				    	// NOTE: Because everything is cleaner if the CSV comes first, it might be better (and easier)
+				    	// to reject before upload if we can't link them up.
+				    	handleNEPAFileSave(origFilename, existingDocs);
+				    	
+				    	// Save FileLog
+					    uploadLog.setFilename(savePath);
+					    uploadLog.setUser(getUser(token));
+					    uploadLog.setLogTime(LocalDateTime.now());
+					    uploadLog.setErrorType("Uploaded");
+					    if(existingDocs.size() > 0) { // If we have a linked document:
+					    	// Log if size() > 1 (anomaly)
+					    	if(existingDocs.size() > 1) {
+							    uploadLog.setErrorType("Uploaded to 2 or more documents");
+					    	}
+						    uploadLog.setDocumentId(existingDocs.get(0).getId());
+					    
+					    	// Run Tika on folder, record if 200 or not
+					    	if(origFilename.length() > 4
+					    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
+					    	{
+					    		converted = (this.convertPDF(existingDocs.get(0)).getStatusCodeValue() == 200);
+					    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
+					    		converted = (this.convertRecordSmart(existingDocs.get(0)).getStatusCodeValue() == 200);
+						    	// Note: 200 doesn't necessarily mean tika was able to convert anything
+					    	}
+					    	
+					    	if(converted) {
+							    uploadLog.setImported(true);
+					    	}
+					    }
+					    // Otherwise wait for CSV import to run on linked document
+				    }
+			    }
+	
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+			    files[i].getInputStream().close();
+			    if(uploadLog.getUser() != null) { 
+			    	fileLogRepository.save(uploadLog);
+			    }
+			}
+		}
+		
+		return new ResponseEntity<String>("OK", HttpStatus.ACCEPTED);
+	}
+		
+		
+	// TODO: Can save CSV data before NEPAFiles, and vice versa.  (Note: Probably changing to forcing CSV first soon.)
+	// Therefore EISDoc needs a Folder, and 
+	// NEPAFiles might have null for the foreign key.  The connection has to be enforced after we have both.
+	
+	// Choice so far: Overwrite everything that already exists when uploading, separate update function should be
+	// the way to add/remove files with an existing record with existing files
+	
+	/** Given relative path and possibly one or more EISDocs (use first EISDoc if exists), 
+	 *  saves NEPAFile with or without EISDoc link.  Prefers to set document type from directory if available,
+	 *  rather than from EISDoc.  Should be used after we verify a unique folder name exists
+	 *  because without that field a link shouldn't be possible yet */
+	private void handleNEPAFileSave(String relativePath, List<EISDoc> existingDocs) {
+    	NEPAFile fileToSave = new NEPAFile();
+    	fileToSave.setFilename(getFilenameWithoutPath(relativePath));
+    	fileToSave.setFolder(getUniqueFolderNameOrEmpty(relativePath));
+        fileToSave.setRelativePath(getPathOnly(relativePath)); 
+		if(existingDocs.size()>0) {
+	    	fileToSave.setEisdoc(existingDocs.get(0));
+	    	
+	    	// prefer to use directory document type, if exists
+	    	String docType = getDocumentTypeOrEmpty(relativePath);
+	    	if(docType.length() == 0) {
+		    	fileToSave.setDocumentType(existingDocs.get(0).getDocumentType());
+	    	} else {
+	    		fileToSave.setDocumentType(docType);
+	    	}
+	    	
+	    	nepaFileRepository.save(fileToSave);
+		}
+	}
+
+
+	/** Returns name of document type derived from relative path if possible, else returns empty string */
+	private String getDocumentTypeOrEmpty(String relativePath) {
+		// Split and get index of unique folder name, if the next index is not the last index (filename e.g. 
+		// /folderIndex/file.ext then use second to last index for type
+		// e.g. /folderIndex/typeIndexToUse/fileIndex.ext
+		// else return empty string
+
+		String[] sections = relativePath.split("/");
+		for(int i = 0; i < sections.length; i++) {
+			if(sections[i].length() > 0
+					&& Character.isDigit(sections[i].charAt(sections[i].length()-1))) { // if ends in number, should be it
+				if(i >= (sections.length - 2)) {
+					// No Type folder found: identifying folder is either the final item or 
+					// the second to last item.  Will return ""
+				} else {
+					// Return second to last item (deepest folder containing the file, which is the last item)
+					return sections[sections.length - 2]; 
+				}
+			}
+		}
+		
+		// if we get here return empty string
+		return "";
+	}
+
+
+
+	private String getUniqueFolderNameOrEmpty(String origFilename) {
+		String[] sections = origFilename.split("/");
+		for(int i = 0; i < sections.length; i++) {
+			if(sections[i].length() > 0
+					&& Character.isDigit(sections[i].charAt(sections[i].length()-1))) { // if ends in number, should be it
+				return sections[i];
+			}
+		}
+		
+		// if we get here return empty string
+		return "";
+	}
+
+
+
 	/** Given path, new EISDoc and document_type, save new NEPAFile.  
 	 *  Uses getFilenameWithoutPath() to set filename and getUniqueFolderName() to set folder, uses identical logic 
 	 *  for giving Express service the relative path to use (thus ensuring the download path is consistent for
@@ -735,7 +961,7 @@ public class FileController {
 						error = true;
 					}
 					if(!error) {
-						// TODO: If duplicate, try updating instead of skipping
+						// TODO: If duplicate, try updating instead of skipping?
 						// TODO: Add foreign key to NEPAFile by foldername, if that exists, otherwise
 						// create NEPAFile with filename value missing to be filled in during bulk file upload
 						if(!recordExists(itr.title, itr.document_type, itr.register_date)) { // Deduplication
