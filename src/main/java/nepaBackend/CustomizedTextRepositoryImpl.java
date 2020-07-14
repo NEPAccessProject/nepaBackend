@@ -11,18 +11,15 @@ import javax.persistence.PersistenceContext;
 import org.hibernate.search.query.dsl.QueryBuilder;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.PhraseQuery;
+import org.apache.lucene.queries.TermsQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.highlight.Fragmenter;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleFragmenter;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
-import org.hibernate.search.MassIndexer;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
@@ -171,16 +168,23 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		
 		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
-		QueryScorer scorer = null;
 
 		String[] words = terms.split(" ");
-		if(words.length > 1) {
-			PhraseQuery query = new PhraseQuery("f", words);
-			scorer = new QueryScorer(query);
-		} else {
-			TermQuery query = new TermQuery(new Term("f", terms));
-			scorer = new QueryScorer(query);
+		// Logic for exact phrase and logic for single word only
+//		QueryScorer scorer = null;
+//		if(words.length > 1) {
+//			PhraseQuery query = new PhraseQuery("f", words);
+//			scorer = new QueryScorer(query);
+//		} else {
+//			TermQuery query = new TermQuery(new Term("f", terms));
+//			scorer = new QueryScorer(query);
+//		}
+		List<Term> termWords = new ArrayList<Term>();
+		for (String word: words) {
+			termWords.add(new Term("f", word));
 		}
+		TermsQuery query = new TermsQuery(termWords);
+		QueryScorer scorer = new QueryScorer(query);
 
 		Highlighter highlighter = new Highlighter(formatter, scorer);
 		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
@@ -192,7 +196,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Use PhraseQuery or TermQuery to get results for matching records
 		for (DocumentText doc: docList) {
 			try {
-				String highlight = getHighlightStringTest(doc.getPlaintext(), highlighter);
+				String highlight = getHighlightString(doc.getPlaintext(), highlighter);
 				if(highlight.length() > 0) { // Length 0 shouldn't be possible since we are working on matching results already
 					highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
 				}
@@ -209,73 +213,73 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		
 	/** Given multi-word search term and document text, return highlights with context via getHighlightString() */
-	private static String getHighlightPhrase(String text, String[] keywords, Highlighter highlighter) throws IOException {
-	//		Builder queryBuilder = new PhraseQuery.Builder();
-	//		for (String word: words) {
-	//			queryBuilder.add(new Term("f",word));
-	//		}
-		PhraseQuery query = new PhraseQuery("f", keywords);
-		QueryScorer scorer = new QueryScorer(query);
-		
-		return getHighlightString(text, scorer);
-	}
+//	private static String getHighlightPhrase(String text, String[] keywords, Highlighter highlighter) throws IOException {
+//	//		Builder queryBuilder = new PhraseQuery.Builder();
+//	//		for (String word: words) {
+//	//			queryBuilder.add(new Term("f",word));
+//	//		}
+//		PhraseQuery query = new PhraseQuery("f", keywords);
+//		QueryScorer scorer = new QueryScorer(query);
+//		
+//		return getHighlightString(text, scorer);
+//	}
 
 	/** Given single-word search term and document text, return highlights with context via getHighlightString() */
-	private static String getHighlightTerm (String text, String keyword, Highlighter highlighter) throws IOException {
-		TermQuery query = new TermQuery(new Term("f", keyword));
-		QueryScorer scorer = new QueryScorer(query);
-
-
-		return getHighlightString(text, scorer);
-	}
+//	private static String getHighlightTerm (String text, String keyword, Highlighter highlighter) throws IOException {
+//		TermQuery query = new TermQuery(new Term("f", keyword));
+//		QueryScorer scorer = new QueryScorer(query);
+//
+//
+//		return getHighlightString(text, scorer);
+//	}
 
 
 	/** Given document text and QueryScorer, return highlights with context */
-	private static String getHighlightString (String text, QueryScorer scorer) throws IOException {
-		
-		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
-		Highlighter highlighter = new Highlighter(formatter, scorer);
-		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
-		highlighter.setTextFragmenter(fragmenter);
-		highlighter.setMaxDocCharsToAnalyze(text.length());
-		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
-		TokenStream tokenStream = stndrdAnalyzer.tokenStream("f", new StringReader(text));
-		String result = "";
-		
-		try {
-			// Add ellipses to denote that these are text fragments within the string
-			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
-//			System.out.println(result);
-			if(result.length()>0) {
-				result = "<span class=\"fragment\">... " + (result.replaceAll("\\n+", " ")).trim().concat(" ...</span>");
-//				System.out.println(result);
-			}
-		} catch (InvalidTokenOffsetsException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {
-			stndrdAnalyzer.close();
-			tokenStream.close();
-			text = "";
-		}
+//	private static String getHighlightString (String text, QueryScorer scorer) throws IOException {
+//		
+//		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
+//		Highlighter highlighter = new Highlighter(formatter, scorer);
+//		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
+//		highlighter.setTextFragmenter(fragmenter);
+//		highlighter.setMaxDocCharsToAnalyze(text.length());
+//		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
+//		TokenStream tokenStream = stndrdAnalyzer.tokenStream("f", new StringReader(text));
+//		String result = "";
+//		
+//		try {
+//			// Add ellipses to denote that these are text fragments within the string
+//			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
+////			System.out.println(result);
+//			if(result.length()>0) {
+//				result = "<span class=\"fragment\">... " + (result.replaceAll("\\n+", " ")).trim().concat(" ...</span>");
+////				System.out.println(result);
+//			}
+//		} catch (InvalidTokenOffsetsException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} finally {
+//			stndrdAnalyzer.close();
+//			tokenStream.close();
+//			text = "";
+//		}
+//	
+////			StringBuilder writer = new StringBuilder("");
+////			writer.append("<html>");
+////			writer.append("<style>\n" +
+////				".highlight {\n" +
+////				" background: yellow;\n" +
+////				"}\n" +
+////				"</style>");
+////			writer.append("<body>");
+////			writer.append("");
+////			writer.append("</body></html>");
+//	
+////			return ( writer.toString() );
+//		return result;
+//	 }
 	
-//			StringBuilder writer = new StringBuilder("");
-//			writer.append("<html>");
-//			writer.append("<style>\n" +
-//				".highlight {\n" +
-//				" background: yellow;\n" +
-//				"}\n" +
-//				"</style>");
-//			writer.append("<body>");
-//			writer.append("");
-//			writer.append("</body></html>");
-	
-//			return ( writer.toString() );
-		return result;
-	 }
-	
-	// TODO: Test impact of passing instead of creating highlighter
-	private static String getHighlightStringTest (String text, Highlighter highlighter) throws IOException {
+	// Given text and highlighter, return highlights (fragments) for text
+	private static String getHighlightString (String text, Highlighter highlighter) throws IOException {
 		
 		
 		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
