@@ -73,7 +73,7 @@ public class FulltextController {
 	public List<String> contextSearch(@RequestParam("terms") String terms)
 	{
 		try { 
-			return textRepository.searchContext(terms, 100, 0);
+			return textRepository.searchContext(terms, 10000, 0);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
 		} catch(Exception e) {
@@ -96,7 +96,7 @@ public class FulltextController {
 			
 			try { // Note: Limit matters a lot when getting highlights.  RAM, CPU, lack of SSD probably important
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-						(textRepository.metaContext(terms, 100, 0)));
+						(textRepository.metaContext(terms, 10000, 0)));
 				return highlightsMeta;
 			} catch(org.hibernate.search.exception.EmptyQueryException e) {
 				return new ArrayList<MetadataWithContext>();
