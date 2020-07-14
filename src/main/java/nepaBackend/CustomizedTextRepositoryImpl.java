@@ -94,50 +94,50 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	// Note: Probably unnecessary function
 	/** Return all highlights with context for matching terms (term phrase?) */
-	@SuppressWarnings("unchecked")
-	@Override
-	public List<String> searchContext(String terms, int limit, int offset) {
-
-		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
-		
-		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-				.buildQueryBuilder().forEntity(DocumentText.class).get();
-		Query luceneQuery = queryBuilder
-				.keyword()
-				.onFields("plaintext")
-				.matching(terms)
-				.createQuery();
-		
-		// wrap Lucene query in a javax.persistence.Query
-		javax.persistence.Query jpaQuery =
-				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
-		
-		jpaQuery.setMaxResults(limit);
-		jpaQuery.setFirstResult(offset);
-		
-		// execute search
-		List<DocumentText> docList = jpaQuery.getResultList();
-		List<String> highlightList = new ArrayList<String>();
-		
-		// Use PhraseQuery or TermQuery to get results for matching records
-		for (DocumentText doc: docList) {
-			try {
-				String[] words = terms.split(" ");
-				if(words.length>1) {
-					highlightList.add(getHighlightPhrase(doc.getPlaintext(), words));
-				} else {
-					highlightList.add(getHighlightTerm(doc.getPlaintext(), terms));
-				}
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} finally {
-				fullTextEntityManager.close();
-			}
-		}
-		
-		return highlightList;
-	}
+//	@SuppressWarnings("unchecked")
+//	@Override
+//	public List<String> searchContext(String terms, int limit, int offset) {
+//
+//		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+//		
+//		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//				.buildQueryBuilder().forEntity(DocumentText.class).get();
+//		Query luceneQuery = queryBuilder
+//				.keyword()
+//				.onFields("plaintext")
+//				.matching(terms)
+//				.createQuery();
+//		
+//		// wrap Lucene query in a javax.persistence.Query
+//		javax.persistence.Query jpaQuery =
+//				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
+//		
+//		jpaQuery.setMaxResults(limit);
+//		jpaQuery.setFirstResult(offset);
+//		
+//		// execute search
+//		List<DocumentText> docList = jpaQuery.getResultList();
+//		List<String> highlightList = new ArrayList<String>();
+//		
+//		// Use PhraseQuery or TermQuery to get results for matching records
+//		for (DocumentText doc: docList) {
+//			try {
+//				String[] words = terms.split(" ");
+//				if(words.length>1) {
+//					highlightList.add(getHighlightPhrase(doc.getPlaintext(), words));
+//				} else {
+//					highlightList.add(getHighlightTerm(doc.getPlaintext(), terms));
+//				}
+//			} catch (IOException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} finally {
+//				fullTextEntityManager.close();
+//			}
+//		}
+//		
+//		return highlightList;
+//	}
 	
 	/** Return all highlights with context and document ID for matching terms (term phrase?) */
 	@SuppressWarnings("unchecked")
@@ -167,17 +167,33 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		List<DocumentText> docList = jpaQuery.getResultList();
 		List<MetadataWithContext> highlightList = new ArrayList<MetadataWithContext>();
 		
+
+		
+		
+		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
+		QueryScorer scorer = null;
+
+		String[] words = terms.split(" ");
+		if(words.length > 1) {
+			PhraseQuery query = new PhraseQuery("f", words);
+			scorer = new QueryScorer(query);
+		} else {
+			TermQuery query = new TermQuery(new Term("f", terms));
+			scorer = new QueryScorer(query);
+		}
+
+		Highlighter highlighter = new Highlighter(formatter, scorer);
+		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
+		highlighter.setTextFragmenter(fragmenter);
+		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
+		
+		
+		
 		// Use PhraseQuery or TermQuery to get results for matching records
 		for (DocumentText doc: docList) {
 			try {
-				String[] words = terms.split(" ");
-				String highlight = "";
-				if(words.length > 1) {
-					highlight = getHighlightPhrase(doc.getPlaintext(), words);
-				} else {
-					highlight = getHighlightTerm(doc.getPlaintext(), terms);
-				}
-				if(highlight.length() > 0) {
+				String highlight = getHighlightStringTest(doc.getPlaintext(), highlighter);
+				if(highlight.length() > 0) { // Length 0 shouldn't be possible since we are working on matching results already
 					highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
 				}
 			} catch (IOException e) {
@@ -193,7 +209,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		
 	/** Given multi-word search term and document text, return highlights with context via getHighlightString() */
-	private static String getHighlightPhrase(String text, String[] keywords) throws IOException {
+	private static String getHighlightPhrase(String text, String[] keywords, Highlighter highlighter) throws IOException {
 	//		Builder queryBuilder = new PhraseQuery.Builder();
 	//		for (String word: words) {
 	//			queryBuilder.add(new Term("f",word));
@@ -205,14 +221,15 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 
 	/** Given single-word search term and document text, return highlights with context via getHighlightString() */
-	private static String getHighlightTerm (String text, String keyword) throws IOException {
+	private static String getHighlightTerm (String text, String keyword, Highlighter highlighter) throws IOException {
 		TermQuery query = new TermQuery(new Term("f", keyword));
 		QueryScorer scorer = new QueryScorer(query);
-		
+
+
 		return getHighlightString(text, scorer);
 	}
 
-	// TODO: Re-test
+
 	/** Given document text and QueryScorer, return highlights with context */
 	private static String getHighlightString (String text, QueryScorer scorer) throws IOException {
 		
@@ -221,6 +238,46 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(text.length());
+		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
+		TokenStream tokenStream = stndrdAnalyzer.tokenStream("f", new StringReader(text));
+		String result = "";
+		
+		try {
+			// Add ellipses to denote that these are text fragments within the string
+			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
+//			System.out.println(result);
+			if(result.length()>0) {
+				result = "<span class=\"fragment\">... " + (result.replaceAll("\\n+", " ")).trim().concat(" ...</span>");
+//				System.out.println(result);
+			}
+		} catch (InvalidTokenOffsetsException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			stndrdAnalyzer.close();
+			tokenStream.close();
+			text = "";
+		}
+	
+//			StringBuilder writer = new StringBuilder("");
+//			writer.append("<html>");
+//			writer.append("<style>\n" +
+//				".highlight {\n" +
+//				" background: yellow;\n" +
+//				"}\n" +
+//				"</style>");
+//			writer.append("<body>");
+//			writer.append("");
+//			writer.append("</body></html>");
+	
+//			return ( writer.toString() );
+		return result;
+	 }
+	
+	// TODO: Test impact of passing instead of creating highlighter
+	private static String getHighlightStringTest (String text, Highlighter highlighter) throws IOException {
+		
+		
 		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
 		TokenStream tokenStream = stndrdAnalyzer.tokenStream("f", new StringReader(text));
 		String result = "";

@@ -59,7 +59,7 @@ public class FulltextController {
 	public List<EISDoc> fullSearch(@RequestBody String terms)
 	{
 		try {
-			return textRepository.search(terms, 10000, 0);
+			return textRepository.search(terms, 100000, 0);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
 		} catch(Exception e) {
@@ -70,17 +70,17 @@ public class FulltextController {
 
 	// Note: Probably unnecessary
 	/** Get highlights across entire database for fulltext search term(s) */
-	public List<String> contextSearch(@RequestParam("terms") String terms)
-	{
-		try { 
-			return textRepository.searchContext(terms, 10000, 0);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return null;
-		} catch(Exception e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
+//	public List<String> contextSearch(@RequestParam("terms") String terms)
+//	{
+//		try { 
+//			return textRepository.searchContext(terms, 100, 0);
+//		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+//			return null;
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			return null;
+//		}
+//	}
 
 	/** TODO: Log search terms */
 	/** Get EISDoc with ellipses-separated highlights and context across entire database for fulltext search term(s). 
@@ -94,9 +94,9 @@ public class FulltextController {
 			// Whitespace can prevent Lucene from finding results
 			terms = terms.trim();
 			
-			try { // Note: Limit matters a lot when getting highlights.  RAM, CPU, lack of SSD probably important
+			try { // Note: Limit matters a lot when getting highlights.  Lack of SSD, RAM, CPU probably important, in that order
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-						(textRepository.metaContext(terms, 10000, 0)));
+						(textRepository.metaContext(terms, 100, 0)));
 				return highlightsMeta;
 			} catch(org.hibernate.search.exception.EmptyQueryException e) {
 				return new ArrayList<MetadataWithContext>();

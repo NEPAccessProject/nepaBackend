@@ -8,7 +8,7 @@ import nepaBackend.model.EISDoc;
 
 public interface CustomizedTextRepository {
 	List<EISDoc> search(String term, int limit, int offset);
-	List<String> searchContext(String term, int limit, int offset);
+//	List<String> searchContext(String term, int limit, int offset);
 	List<MetadataWithContext> metaContext(String term, int limit, int offset);
 
 	boolean sync();
