@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 
 import nepaBackend.TextRepository;
+import nepaBackend.enums.SearchType;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.SearchLogRepository;
@@ -96,7 +97,7 @@ public class FulltextController {
 			
 			try { // Note: Limit matters a lot when getting highlights.  Lack of SSD, RAM, CPU probably important, in that order
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-						(textRepository.metaContext(terms, 100, 0)));
+						(textRepository.metaContext(terms, 100, 0, SearchType.ALL)));
 				return highlightsMeta;
 			} catch(org.hibernate.search.exception.EmptyQueryException e) {
 				return new ArrayList<MetadataWithContext>();

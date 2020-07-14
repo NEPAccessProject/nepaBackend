@@ -13,6 +13,7 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.TermsQuery;
+import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.highlight.Fragmenter;
 import org.apache.lucene.search.highlight.Highlighter;
@@ -25,6 +26,7 @@ import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
 
 import nepaBackend.controller.MetadataWithContext;
+import nepaBackend.enums.SearchType;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 
@@ -139,7 +141,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	/** Return all highlights with context and document ID for matching terms (term phrase?) */
 	@SuppressWarnings("unchecked")
 	@Override
-	public List<MetadataWithContext> metaContext(String terms, int limit, int offset) {
+	public List<MetadataWithContext> metaContext(String terms, int limit, int offset, SearchType searchType) {
 		
 		terms = escapeSpecialCharacters(terms);
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
@@ -169,22 +171,20 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 
+		// Logic for exact phrase vs. all-word query
+		QueryScorer scorer = null;
 		String[] words = terms.split(" ");
-		// Logic for exact phrase and logic for single word only
-//		QueryScorer scorer = null;
-//		if(words.length > 1) {
-//			PhraseQuery query = new PhraseQuery("f", words);
-//			scorer = new QueryScorer(query);
-//		} else {
-//			TermQuery query = new TermQuery(new Term("f", terms));
-//			scorer = new QueryScorer(query);
-//		}
-		List<Term> termWords = new ArrayList<Term>();
-		for (String word: words) {
-			termWords.add(new Term("f", word));
+		if(searchType == SearchType.ALL) { // .equals uses == internally
+			List<Term> termWords = new ArrayList<Term>();
+			for (String word: words) {
+				termWords.add(new Term("f", word));
+			}
+			TermsQuery query = new TermsQuery(termWords);
+			scorer = new QueryScorer(query);
+		} else {
+			PhraseQuery query = new PhraseQuery("f", words);
+			scorer = new QueryScorer(query);
 		}
-		TermsQuery query = new TermsQuery(termWords);
-		QueryScorer scorer = new QueryScorer(query);
 
 		Highlighter highlighter = new Highlighter(formatter, scorer);
 		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
