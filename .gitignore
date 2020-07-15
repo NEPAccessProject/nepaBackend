@@ -4,15 +4,7 @@
 # Ignore Gradle build output directory
 build
 src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
-src/main/resources/application-dev.properties
 src/main/resources/application-prod.properties
 /nepaBackend.model.DocumentText/
 /data/
+.temp**
