@@ -514,8 +514,6 @@ public class EISController {
 	@CrossOrigin
 	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
 	public Optional<EISDoc> getById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-		System.out.println("Hey");
-		System.out.println(id);
 		Long lid = Long.parseLong(id);
 		try {
 			return docService.findById(lid);
