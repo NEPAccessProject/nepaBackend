@@ -1,7 +1,6 @@
 package nepaBackend;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -29,9 +28,5 @@ public class DocService {
 	// and then plug them into the search box as selectable suggestions
 	public List<String> getByTitle(String title) {
 		return docRepository.queryByTitle(title);
-	}
-
-	public Optional<EISDoc> findById(Long id) {
-		return docRepository.findById(id);
 	}
 }

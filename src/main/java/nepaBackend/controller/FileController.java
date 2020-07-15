@@ -1467,21 +1467,21 @@ public class FileController {
 	}
 	
 	// Experimental, probably useless (was trying to get document outlines)
-//	@CrossOrigin
-//	@RequestMapping(path = "/xhtml", method = RequestMethod.GET)
-//	public ResponseEntity<List<String>> xhtml(@RequestHeader Map<String, String> headers) {
-//		
-//		String token = headers.get("authorization");
-//		if(!isAdmin(token)) 
-//		{
-//			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
-//		} 
-//		else 
-//		{
-//			return new ResponseEntity<List<String>>(convertXHTML(docRepository.findById(22)), HttpStatus.OK);
-//		}
-//		
-//	}
+	@CrossOrigin
+	@RequestMapping(path = "/xhtml", method = RequestMethod.GET)
+	public ResponseEntity<List<String>> xhtml(@RequestHeader Map<String, String> headers) {
+		
+		String token = headers.get("authorization");
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		else 
+		{
+			return new ResponseEntity<List<String>>(convertXHTML(docRepository.findById(22)), HttpStatus.OK);
+		}
+		
+	}
 
 
 

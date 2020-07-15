@@ -10,8 +10,6 @@ import java.util.Arrays;
 //import java.sql.SQLException;
 //import java.sql.PreparedStatement;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,9 +19,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -509,20 +505,6 @@ public class EISController {
 	public List<String> titles(@RequestParam("title") String title)
 	{
 		return docService.getByTitle(title);
-	}
-	
-	@CrossOrigin
-	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
-	public Optional<EISDoc> getById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-		System.out.println("Hey");
-		System.out.println(id);
-		Long lid = Long.parseLong(id);
-		try {
-			return docService.findById(lid);
-		} catch(Exception e) {
-			e.printStackTrace();
-			return null;
-		}
 	}
 	
 	// TODO: Validation for everything, like Dates
