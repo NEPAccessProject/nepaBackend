@@ -245,16 +245,16 @@ public class EISController {
 				
 				addAnd = true; // Raise AND flag for future iterations
 			}
-
-			// Finalize query
-			int limit = 1000; 
-			if(no_title) {
+			
+			// If natural language mode with title, accept default order (sorted by internal score). Otherwise, order by title
+			if(no_title || searchInputs.searchMode.equals("boolean")) {
 				sQuery += " ORDER BY title";
 			}
+			
+			// Finalize query
+			int limit = 100000;
 			if(saneInput(searchInputs.limit)) {
-				if(searchInputs.limit > 100000) {
-					limit = 100000; // TODO: Review 100k as upper limit
-				} else {
+				if(searchInputs.limit <= 100000) {
 					limit = searchInputs.limit;
 				}
 			}
