@@ -17,15 +17,18 @@ public class NEPAFile {
     @Column(name="id")
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;  // TODO: ID/PK?
-	
-    @Column(name="document_type") // optional, might be redundant
+
+    @Column(name="agency") // optional, might be redundant but can inform path
+    private String agency;
+    
+    @Column(name="document_type") // optional, might be redundant but can inform path
     private String documentType;
-  
+
     @Column(name="filename")
     private String filename; // name of zip file or PDF (non-optional)
 
     @Column(name="folder")
-    private String folder; // unique foldername E.G. EPA_10000 
+    private String folder; // unique foldername/eis identifier E.G. EPA_10000 
     
     @Column(name="relative_path")
     private String relativePath; // relative path (optional, could be in root folder)
@@ -37,8 +40,10 @@ public class NEPAFile {
     
     public NEPAFile() { }
 
-	public NEPAFile(Long id, String documentType, String filename, String folder, String relativePath, EISDoc eisdoc) {
+	public NEPAFile(Long id, String agency, String documentType, String filename, String folder, String relativePath, 
+			EISDoc eisdoc) {
 		this.id = id;
+		this.agency = agency;
 		this.documentType = documentType;
 		this.filename = filename;
 		this.folder = folder;
@@ -46,6 +51,14 @@ public class NEPAFile {
 		this.eisdoc = eisdoc;
 	}
 
+	public String getAgency() {
+		return agency;
+	}
+
+	public void setAgency(String agency) {
+		this.agency = agency;
+	}
+	
 	public String getRelativePath() {
 		return relativePath;
 	}

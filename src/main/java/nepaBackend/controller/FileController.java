@@ -314,12 +314,12 @@ public class FileController {
 		    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
 //		    System.out.println(dto.document_type);
 //		    System.out.println(dto.register_date);
-		    LocalDate parsedDate = parseDate(dto.register_date);
-			dto.register_date = parsedDate.toString();
+		    LocalDate parsedDate = parseDate(dto.federal_register_date);
+			dto.federal_register_date = parsedDate.toString();
 		    dto.filename = origFilename;
 		    // Ensure metadata is valid and doesn't exist before uploading, given upload should always work.
 		    // For the valid but exists case, will add separate function to add files and/or update existing metadata.
-			if(!isValid(dto) || recordExists(dto.title, dto.document_type, dto.register_date)) {
+			if(!isValid(dto) || recordExists(dto.title, dto.document, dto.federal_register_date)) {
 				return new ResponseEntity<boolean[]>(results, HttpStatus.BAD_REQUEST);
 			}
 	    	
@@ -444,11 +444,11 @@ public class FileController {
 	    
     	ObjectMapper mapper = new ObjectMapper();
 	    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
-	    LocalDate parsedDate = parseDate(dto.register_date);
-		dto.register_date = parsedDate.toString();
+	    LocalDate parsedDate = parseDate(dto.federal_register_date);
+		dto.federal_register_date = parsedDate.toString();
 		dto.filename = "";
 
-		if(!isValid(dto) || recordExists(dto.title, dto.document_type, dto.register_date)) {
+		if(!isValid(dto) || recordExists(dto.title, dto.document, dto.federal_register_date)) {
 			return new ResponseEntity<String>(HttpStatus.BAD_REQUEST);
 		}
 		
@@ -516,7 +516,7 @@ public class FileController {
 			    // If file uploaded, proceed to saving to table and logging
 			    if(uploaded) {
 			    	// Save NEPAFile
-			    	handleNEPAFileSave(origFilename, savedDoc, dto.document_type);
+			    	handleNEPAFileSave(origFilename, savedDoc, dto.document);
 			    	
 			    	// Save FileLog
 				    uploadLog.setFilename(savePath);
@@ -845,10 +845,10 @@ public class FileController {
 	private EISDoc saveMetadata(UploadInputs dto) throws org.springframework.orm.jpa.JpaSystemException{
     	EISDoc saveDoc = new EISDoc();
     	saveDoc.setAgency(dto.agency.trim());
-    	saveDoc.setDocumentType(dto.document_type.trim());
+    	saveDoc.setDocumentType(dto.document.trim());
     	
-    	if(dto.register_date.length()>9) {
-	    	saveDoc.setRegisterDate(LocalDate.parse(dto.register_date));
+    	if(dto.federal_register_date.length()>9) {
+	    	saveDoc.setRegisterDate(LocalDate.parse(dto.federal_register_date));
     	} else {
 	    	saveDoc.setRegisterDate(null);
     	}
@@ -876,7 +876,7 @@ public class FileController {
 		boolean valid = true;
 		// Choice: Agency/state required also?
 		// Check for null
-		if(dto.register_date == null || dto.title == null || dto.document_type == null || dto.filename == null) {
+		if(dto.federal_register_date == null || dto.title == null || dto.document == null || dto.filename == null) {
 			valid = false;
 			return valid; // Just stop here and don't have to worry about validating null values
 		}
@@ -886,7 +886,7 @@ public class FileController {
 			valid = false; // Need title
 		}
 
-		if(dto.document_type.trim().length()==0) {
+		if(dto.document.trim().length()==0) {
 			valid = false; // Need type
 		}
 		
@@ -949,10 +949,11 @@ public class FileController {
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
 
+			    	// Save only valid dates
 			    	boolean error = false;
 					try {
-						LocalDate parsedDate = parseDate(itr.register_date);
-						itr.register_date = parsedDate.toString();
+						LocalDate parsedDate = parseDate(itr.federal_register_date);
+						itr.federal_register_date = parsedDate.toString();
 					} catch (IllegalArgumentException e) {
 						results.add("Item " + count + ": " + e.getMessage());
 						error = true;
@@ -960,12 +961,17 @@ public class FileController {
 						results.add("Item " + count + ": Error " + e.getMessage());
 						error = true;
 					}
+
+					if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
+						itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
+					}
+					
 					if(!error) {
 						// TODO: If duplicate, try updating instead of skipping?
 						// TODO: Add foreign key to NEPAFile by foldername, if that exists, otherwise
 						// create NEPAFile with filename value missing to be filled in during bulk file upload
-						if(!recordExists(itr.title, itr.document_type, itr.register_date)) { // Deduplication
-						    ResponseEntity<Long> status = saveDto(itr);
+						if(!recordExists(itr.title, itr.document, itr.federal_register_date)) { // Deduplication
+						    ResponseEntity<Long> status = saveDto(itr); // save record to database
 					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
 					    	if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
@@ -1486,84 +1492,84 @@ public class FileController {
 
 
 	// Probably useless
-	private List<String> convertXHTML(EISDoc eis) {
-
-		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
-		// but presumably different filenames with hopefully different contents
-		final int BUFFER = 2048;
-		
-		List<String> results = new ArrayList<String>();
-		
-		try {
-			Tika tikaParser = new Tika();
-			tikaParser.setMaxStringLength(-1); // disable limit
-			
-			String relevantURL = dbURL;
-			if(testing) {
-				relevantURL = testURL;
-			}
-			URL fileURL = new URL(relevantURL + eis.getFilename());
-			
-			if(testing) {
-				System.out.println("FileURL " + fileURL.toString());
-			}
-			
-			// 1: Download the archive
-			InputStream in = new BufferedInputStream(fileURL.openStream());
-			ZipInputStream zis = new ZipInputStream(in);
-			ZipEntry ze;
-			
-			while((ze = zis.getNextEntry()) != null) {
-				int count;
-				byte[] data = new byte[BUFFER];
-				
-				String filename = ze.getName();
-				
-				// Handle directory - can ignore them if we're just converting PDFs
-				if(!ze.isDirectory()) {
-					if(testing) {
-						System.out.println(textRepository.existsByEisdocAndFilename(eis, filename));
-					}
-					
-					if(textRepository.existsByEisdocAndFilename(eis, filename) && !testing) {
-						zis.closeEntry();
-					} else {
-						
-						if(testing) {
-							System.out.println("Extracting " + ze);
-						}
-						
-						// 2: Extract data and stream to Tika
-						try {
-							ByteArrayOutputStream baos = new ByteArrayOutputStream();
-							while (( count = zis.read(data)) != -1) {
-								baos.write(data, 0, count);
-							}
-							
-							// 3: Convert to text
-							System.out.println(pdfParseToXML(new ByteArrayInputStream(baos.toByteArray())));
-							results.add(pdfParseToXML(new ByteArrayInputStream(baos.toByteArray())));
-							
-						} catch(Exception e){
-							e.printStackTrace();
-						} finally { // while loop handles getNextEntry()
-							zis.closeEntry();
-						}
-					}
-				}
-			
-			}
-
-			// 5: Cleanup
-			in.close();
-			zis.close();
-
-			return results;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return results;
-		}
-	}
+//	private List<String> convertXHTML(EISDoc eis) {
+//
+//		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
+//		// but presumably different filenames with hopefully different contents
+//		final int BUFFER = 2048;
+//		
+//		List<String> results = new ArrayList<String>();
+//		
+//		try {
+//			Tika tikaParser = new Tika();
+//			tikaParser.setMaxStringLength(-1); // disable limit
+//			
+//			String relevantURL = dbURL;
+//			if(testing) {
+//				relevantURL = testURL;
+//			}
+//			URL fileURL = new URL(relevantURL + eis.getFilename());
+//			
+//			if(testing) {
+//				System.out.println("FileURL " + fileURL.toString());
+//			}
+//			
+//			// 1: Download the archive
+//			InputStream in = new BufferedInputStream(fileURL.openStream());
+//			ZipInputStream zis = new ZipInputStream(in);
+//			ZipEntry ze;
+//			
+//			while((ze = zis.getNextEntry()) != null) {
+//				int count;
+//				byte[] data = new byte[BUFFER];
+//				
+//				String filename = ze.getName();
+//				
+//				// Handle directory - can ignore them if we're just converting PDFs
+//				if(!ze.isDirectory()) {
+//					if(testing) {
+//						System.out.println(textRepository.existsByEisdocAndFilename(eis, filename));
+//					}
+//					
+//					if(textRepository.existsByEisdocAndFilename(eis, filename) && !testing) {
+//						zis.closeEntry();
+//					} else {
+//						
+//						if(testing) {
+//							System.out.println("Extracting " + ze);
+//						}
+//						
+//						// 2: Extract data and stream to Tika
+//						try {
+//							ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//							while (( count = zis.read(data)) != -1) {
+//								baos.write(data, 0, count);
+//							}
+//							
+//							// 3: Convert to text
+//							System.out.println(pdfParseToXML(new ByteArrayInputStream(baos.toByteArray())));
+//							results.add(pdfParseToXML(new ByteArrayInputStream(baos.toByteArray())));
+//							
+//						} catch(Exception e){
+//							e.printStackTrace();
+//						} finally { // while loop handles getNextEntry()
+//							zis.closeEntry();
+//						}
+//					}
+//				}
+//			
+//			}
+//
+//			// 5: Cleanup
+//			in.close();
+//			zis.close();
+//
+//			return results;
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			return results;
+//		}
+//	}
 	
 	public long getFileSize(URL url) {
 		HttpURLConnection conn = null;
@@ -1582,15 +1588,23 @@ public class FileController {
 	
 	/** Turns UploadInputs into valid EISDoc and saves to database, returns new ID and 200 (OK) or null and 500 (error) */
 	private ResponseEntity<Long> saveDto(UploadInputs itr) {
+		
+		// translate
 		EISDoc newRecord = new EISDoc();
 		newRecord.setAgency(itr.agency.trim());
-		newRecord.setDocumentType(itr.document_type.trim());
+		newRecord.setDocumentType(itr.document.trim());
 		newRecord.setFilename(itr.filename.trim());
 		newRecord.setCommentsFilename(itr.comments_filename);
-		newRecord.setRegisterDate(LocalDate.parse(itr.register_date));
+		newRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+		newRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
 		newRecord.setState(itr.state.trim());
 		newRecord.setTitle(itr.title.trim());
-		EISDoc savedRecord = docRepository.save(newRecord);
+		newRecord.setFolder(itr.eis_identifier.trim());
+		newRecord.setLink(itr.link.trim());
+		newRecord.setNotes(itr.notes.trim());
+		
+		EISDoc savedRecord = docRepository.save(newRecord); // save to db
+		
 		if(savedRecord != null) {
 			return new ResponseEntity<Long>(savedRecord.getId(), HttpStatus.OK);
 		} else {
