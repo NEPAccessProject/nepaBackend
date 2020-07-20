@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -31,11 +30,11 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.tika.Tika;
-import org.apache.tika.exception.TikaException;
-import org.apache.tika.metadata.Metadata;
-import org.apache.tika.parser.ParseContext;
-import org.apache.tika.parser.pdf.PDFParser;
-import org.apache.tika.sax.ToXMLContentHandler;
+//import org.apache.tika.exception.TikaException;
+//import org.apache.tika.metadata.Metadata;
+//import org.apache.tika.parser.ParseContext;
+//import org.apache.tika.parser.pdf.PDFParser;
+//import org.apache.tika.sax.ToXMLContentHandler;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.http.HttpStatus;
@@ -50,8 +49,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.xml.sax.ContentHandler;
-import org.xml.sax.SAXException;
+//import org.xml.sax.ContentHandler;
+//import org.xml.sax.SAXException;
 
 import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -102,7 +101,7 @@ public class FileController {
 	
 	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
 	// Can also have a backup set up for use if primary fails
-	Boolean testing = false;
+	Boolean testing = true;
 	static String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
 	String testURL = "http://localhost:5000/";
 	String uploadTestURL = "http://localhost:5309/uploadFilesTest";
@@ -283,13 +282,18 @@ public class FileController {
 	 */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFile", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<boolean[]> uploadFile(@RequestPart(name="file") MultipartFile file, 
+	private ResponseEntity<boolean[]> importDocument(@RequestPart(name="file") MultipartFile file, 
 								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
 //		if(testing) {
 //			System.out.println(doc);
 //			return new ResponseEntity<boolean[]>(HttpStatus.OK);
 //		}
+
+		// TODO: Should we save a NepaFile record for single file imports?
+
+	    HttpStatus returnStatus = HttpStatus.OK;
+		
 	    boolean[] results = new boolean[3];
 		String token = headers.get("authorization");
 		if(!isCurator(token) && !isAdmin(token)) 
@@ -312,76 +316,96 @@ public class FileController {
 	    	
 	    	ObjectMapper mapper = new ObjectMapper();
 		    UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
-//		    System.out.println(dto.document_type);
+//		    System.out.println(dto.document);
 //		    System.out.println(dto.register_date);
 		    LocalDate parsedDate = parseDate(dto.federal_register_date);
 			dto.federal_register_date = parsedDate.toString();
 		    dto.filename = origFilename;
-		    // Ensure metadata is valid and doesn't exist before uploading, given upload should always work.
-		    // For the valid but exists case, will add separate function to add files and/or update existing metadata.
-			if(!isValid(dto) || recordExists(dto.title, dto.document, dto.federal_register_date)) {
+		    
+		    // Validate: File must exist, valid fields, and can't be duplicate
+			if(file == null || !isValid(dto) || recordExists(dto.title, dto.document, dto.federal_register_date)) {
 				return new ResponseEntity<boolean[]>(results, HttpStatus.BAD_REQUEST);
 			}
-	    	
 			
-	    	HttpEntity entity = MultipartEntityBuilder.create()
-	    				.addBinaryBody("test", // TODO: This should probably be "upload" and not "test" but need to verify
+	    	// Start log
+		    uploadLog.setUser(getUser(token));
+		    uploadLog.setLogTime(LocalDateTime.now());
+		    
+		    // Prefer empty string over null
+		    if(dto.eis_identifier == null) {
+		    	dto.eis_identifier = "";
+		    }
+		    if(dto.link == null) {
+		    	dto.link = "";
+		    }
+		    if(dto.notes == null) {
+		    	dto.notes = "";
+		    }
+		    
+		    // Since metadata is already validated, this should always save successfully with a db connection.
+	    	EISDoc savedDoc = saveMetadata(dto); // note: JPA .save() is safe from sql injection
+
+	    	// saved?
+	    	results[0] = (savedDoc != null);
+	    	if(results[0]) {
+	    		uploadLog.setErrorType("Saved");
+
+			    uploadLog.setDocumentId(savedDoc.getId());
+			    
+			    HttpEntity entity = MultipartEntityBuilder.create()
+						.addTextBody("filepath",
+								savedDoc.getId().toString()) // Feed Express path to use
+	    				.addBinaryBody("test", // This name can be used by multer
 	    						file.getInputStream(), 
 	    						ContentType.create("application/octet-stream"), 
 	    						file.getOriginalFilename())
 	    				.build();
-		    HttpPost request = new HttpPost(uploadURL);
-		    if(testing) { request = new HttpPost(uploadTestURL); }
-		    request.setEntity(entity);
-
-		    HttpClient client = HttpClientBuilder.create().build();
-		    HttpResponse response = client.execute(request);
-		    System.out.println(response.toString());
-		    
-		    // so far so good?
-		    results[0] = (response.getStatusLine().getStatusCode() == 200);
-
-		    // Only save if file upload succeeded.  We don't want loose files, and we don't want metadata without files.
-		    if(results[0]) {
-		    	// Log
-			    uploadLog.setFilename(file.getOriginalFilename());
-			    uploadLog.setUser(getUser(token));
-			    uploadLog.setLogTime(LocalDateTime.now());
-			    uploadLog.setErrorType("Uploaded");
+			    HttpPost request = new HttpPost(uploadURL);
+			    if(testing) { request = new HttpPost(uploadTestURL); }
+			    request.setEntity(entity);
+			    HttpClient client = HttpClientBuilder.create().build();
+			    HttpResponse response = client.execute(request);
 			    
-			    // Since metadata is already validated, this should always work.
-		    	EISDoc savedDoc = saveMetadata(dto); // note: JPA .save() is safe from sql injection
-		    	results[1] = true;
-
-			    uploadLog.setDocumentId(savedDoc.getId());
+			    System.out.println(response.toString());
 			    
-		    	// Run Tika on file, record if 200 or not
-			    if(origFilename.length() > 4
-		    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
-			    {
-		    		int status = this.convertPDF(savedDoc).getStatusCodeValue();
-			    	results[2] = (status == 200);
-		    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
-			    	int status = this.convertRecordSmart(savedDoc).getStatusCodeValue();
-			    	results[2] = (status == 200);
-			    	// Note: 200 doesn't necessarily mean tika was able to convert anything
-		    	}
+			    // uploaded?
+			    results[1] = (response.getStatusLine().getStatusCode() == 200);
+
+			    if(results[1]) {
+		    		uploadLog.setErrorType("Uploaded");
+		    		uploadLog.setFilename(file.getOriginalFilename());
+				    
+			    	// Run Tika on file, record if 200 or not
+				    if(origFilename.length() > 4
+			    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
+				    {
+			    		int status = this.convertPDF(savedDoc).getStatusCodeValue();
+				    	results[2] = (status == 200);
+			    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
+				    	int status = this.convertRecordSmart(savedDoc).getStatusCodeValue();
+				    	results[2] = (status == 200);
+				    	// Note: 200 doesn't necessarily mean tika was able to convert anything
+			    	}
+				    
+			    	// converted to fulltext?  Or at least no Tika errors converting
+			    	if(results[2]) {
+					    uploadLog.setImported(true);
+			    	}
+			    }
 		    	
-		    	if(results[2]) {
-				    uploadLog.setImported(true);
-		    	}
+		    } else {
+		    	returnStatus = HttpStatus.INTERNAL_SERVER_ERROR;
 		    }
 			
 		} catch (Exception e) {
+			uploadLog.setErrorType(e.getStackTrace().toString());
 			e.printStackTrace();
 		} finally {
 		    file.getInputStream().close();
-		    if(uploadLog.getUser() != null) { // if we have a user then it was at least uploaded
-		    	fileLogRepository.save(uploadLog);
-		    }
+	    	fileLogRepository.save(uploadLog);
 		}
 
-		return new ResponseEntity<boolean[]>(results, HttpStatus.OK);
+		return new ResponseEntity<boolean[]>(results, returnStatus);
 	}
 	
 	
@@ -416,7 +440,7 @@ public class FileController {
 	 * */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFiles", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<String> uploadFiles(@RequestPart(name="files") MultipartFile[] files, 
+	private ResponseEntity<String> importDocuments(@RequestPart(name="files") MultipartFile[] files, 
 								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
 										throws IOException 
 	{ 
@@ -550,7 +574,7 @@ public class FileController {
 			}
 		}
 		
-		return new ResponseEntity<String>("OK", HttpStatus.ACCEPTED);
+		return new ResponseEntity<String>("OK", HttpStatus.OK);
 		
 		
 		// TODO: Can save CSV data before NEPAFiles, and vice versa.  Therefore EISDoc needs a Folder, and 
@@ -709,7 +733,7 @@ public class FileController {
 			}
 		}
 		
-		return new ResponseEntity<String>("OK", HttpStatus.ACCEPTED);
+		return new ResponseEntity<String>("OK", HttpStatus.OK);
 	}
 		
 		
@@ -875,18 +899,28 @@ public class FileController {
 	private boolean isValid(UploadInputs dto) {
 		boolean valid = true;
 		// Choice: Agency/state required also?
-		// Check for null
+		// Check for null; filename should at least be "multi"
 		if(dto.federal_register_date == null || dto.title == null || dto.document == null || dto.filename == null) {
 			valid = false;
 			return valid; // Just stop here and don't have to worry about validating null values
 		}
 		
+		if(dto.filename.isBlank() || dto.filename.contentEquals("n/a")) {
+			valid = false;
+		}
+		
+		// Expect filename not "n/a" and if "multi" then need identifier to match files when uploading
+		if(dto.filename.contentEquals("multi") && (dto.eis_identifier == null || dto.eis_identifier.isBlank()) ) {
+			valid = false;
+			return valid;
+		}
+		
 		// Check for empty
-		if(dto.title.trim().length()==0) {
+		if(dto.title.isBlank()) {
 			valid = false; // Need title
 		}
 
-		if(dto.document.trim().length()==0) {
+		if(dto.document.isBlank()) {
 			valid = false; // Need type
 		}
 		
@@ -934,9 +968,9 @@ public class FileController {
 		List<String> results = new ArrayList<String>();
 
 
-	    // TODO: Expect these headers:
+	    // Expect these headers:
 	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
-	    // Translate these into a standard before proceeding?
+	    // TODO: Translate these into a standard before proceeding? Such as Type or Document Type instead of Document
 		
 	    try {
 	    	
@@ -1682,37 +1716,37 @@ public class FileController {
 	}
 
 	// Probably useless
-	private String pdfParseToXML(ByteArrayInputStream inputstream) {
-		ContentHandler handler = new ToXMLContentHandler();
-		Metadata metadata = new Metadata();
-		ParseContext pcontext = new ParseContext();
-
-		//parsing the document using PDF parser
-		PDFParser pdfparser = new PDFParser(); 
-		try {
-			pdfparser.parse(inputstream, handler, metadata,pcontext);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SAXException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (TikaException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		//getting the content of the document
-//		System.out.println("Contents of the PDF :" + handler.toString());
-		return handler.toString();
-		
-		//getting metadata of the document
-//		System.out.println("Metadata of the PDF:");
-//		String[] metadataNames = metadata.names();
-//		
-//		for(String name : metadataNames) {
-//		 System.out.println(name+ " : " + metadata.get(name));
+//	private String pdfParseToXML(ByteArrayInputStream inputstream) {
+//		ContentHandler handler = new ToXMLContentHandler();
+//		Metadata metadata = new Metadata();
+//		ParseContext pcontext = new ParseContext();
+//
+//		//parsing the document using PDF parser
+//		PDFParser pdfparser = new PDFParser(); 
+//		try {
+//			pdfparser.parse(inputstream, handler, metadata,pcontext);
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (SAXException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (TikaException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
 //		}
-	}
+//		
+//		//getting the content of the document
+////		System.out.println("Contents of the PDF :" + handler.toString());
+//		return handler.toString();
+//		
+//		//getting metadata of the document
+////		System.out.println("Metadata of the PDF:");
+////		String[] metadataNames = metadata.names();
+////		
+////		for(String name : metadataNames) {
+////		 System.out.println(name+ " : " + metadata.get(name));
+////		}
+//	}
 	
 }
