@@ -14,6 +14,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -897,20 +898,27 @@ public class FileController {
 
 	/** Check that required fields exist (doesn't verify document type from a list of acceptable types) */
 	private boolean isValid(UploadInputs dto) {
+//		System.out.println(dto.title);
+//		System.out.println(dto.federal_register_date);
+//		System.out.println(dto.document);
+//		System.out.println(dto.filename);
 		boolean valid = true;
 		// Choice: Agency/state required also?
-		// Check for null; filename should at least be "multi"
-		if(dto.federal_register_date == null || dto.title == null || dto.document == null || dto.filename == null) {
+		// Check for null; filename should at least be "multi" but sometimes may be blank
+		if(dto.filename == null) {
+			dto.filename = "";
+		}
+		if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
 			valid = false;
 			return valid; // Just stop here and don't have to worry about validating null values
 		}
 		
-		if(dto.filename.isBlank() || dto.filename.contentEquals("n/a")) {
+		if(dto.filename.contentEquals("n/a")) {
 			valid = false;
 		}
 		
-		// Expect filename not "n/a" and if "multi" then need identifier to match files when uploading
-		if(dto.filename.contentEquals("multi") && (dto.eis_identifier == null || dto.eis_identifier.isBlank()) ) {
+		// Expect EIS identifier
+		if(dto.eis_identifier == null || dto.eis_identifier.isBlank()) {
 			valid = false;
 			return valid;
 		}
@@ -957,7 +965,6 @@ public class FileController {
 	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> uploadCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
-//		System.out.println(csv);
 		
 		String token = headers.get("authorization");
 		
@@ -980,6 +987,7 @@ public class FileController {
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) {
+				itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
 
@@ -1004,31 +1012,68 @@ public class FileController {
 						// TODO: If duplicate, try updating instead of skipping?
 						// TODO: Add foreign key to NEPAFile by foldername, if that exists, otherwise
 						// create NEPAFile with filename value missing to be filled in during bulk file upload
-						if(!recordExists(itr.title, itr.document, itr.federal_register_date)) { // Deduplication
-						    ResponseEntity<Long> status = saveDto(itr); // save record to database
-					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
-					    	if(status.getStatusCodeValue() == 500) { // Error
-								results.add("Item " + count + ": Error saving: " + itr.title);
-					    	} else {
-					    		if(testing) {
+						
+						// Deduplication
+						
+						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
+						
+						// If file exists but has no filename, then update it
+						if(recordThatMayExist.isPresent() && recordThatMayExist.get().getFilename().isBlank()) {
+							if(testing) {
+								// not saving for now, just pretending
+								results.add("Item " + count + ": Updated: " + itr.title);
+							} else {
+								ResponseEntity<Long> status = updateDto(itr, recordThatMayExist);
+								results.add("Item " + count + ": Updated: " + itr.title);
+								
+								if(status.getStatusCodeValue() == 500) { // Error
+									results.add("Item " + count + ": Error saving: " + itr.title);
+						    	} else {
 						    		results.add("Item " + count + ": OK: " + itr.title);
-					    		}
 
-					    		// Log successful record import (need accountability for new metadata)
-								FileLog recordLog = new FileLog();
-					    		recordLog.setDocumentId(status.getBody());
-					    		recordLog.setFilename(itr.filename);
-					    		recordLog.setImported(false);
-					    		recordLog.setLogTime(LocalDateTime.now());
-					    		recordLog.setUser(getUser(token));
-					    		fileLogRepository.save(recordLog);
-					    	}
+						    		// Log successful record import (need accountability for new metadata)
+									FileLog recordLog = new FileLog();
+						    		recordLog.setDocumentId(status.getBody());
+						    		recordLog.setFilename(itr.filename);
+						    		recordLog.setImported(false);
+						    		recordLog.setLogTime(LocalDateTime.now());
+						    		recordLog.setUser(getUser(token));
+						    		fileLogRepository.save(recordLog);
+						    	}
+							}
+						}
+						// If file doesn't exist, then create new record
+						else if(!recordThatMayExist.isPresent()) { 
+//							System.out.println(itr.title);
+//							System.out.println(itr.document);
+//							System.out.println(itr.federal_register_date);
+							if(testing) {
+								// not saving for now, just pretending
+								results.add("Item " + count + ": OK: " + itr.title);
+							} else {
+							    ResponseEntity<Long> status = saveDto(itr); // save record to database
+						    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
+						    	if(status.getStatusCodeValue() == 500) { // Error
+									results.add("Item " + count + ": Error saving: " + itr.title);
+						    	} else {
+						    		results.add("Item " + count + ": OK: " + itr.title);
+	
+						    		// Log successful record import (need accountability for new metadata)
+									FileLog recordLog = new FileLog();
+						    		recordLog.setDocumentId(status.getBody());
+						    		recordLog.setFilename(itr.filename);
+						    		recordLog.setImported(false);
+						    		recordLog.setLogTime(LocalDateTime.now());
+						    		recordLog.setUser(getUser(token));
+						    		fileLogRepository.save(recordLog);
+						    	}
+							}
 				    	} else {
 							results.add("Item " + count + ": Duplicate");
 				    	}
 					}
 			    } else {
-					results.add("Item " + count + ": Missing one or more fields: register_date/document_type/filename/title");
+					results.add("Item " + count + ": Missing one or more required fields: federal_register_date/document_type/eis_identifier/title");
 			    }
 			    count++;
 			}
@@ -1503,8 +1548,13 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/existsTitleTypeDate", method = RequestMethod.GET)
 	private boolean recordExists(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
-		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date)).isPresent();
-	}
+		// Original data has no apostrophes, so a better dupe check ORs the results of comparing both with the original title, and 
+		// a title without apostrophes, specifically
+		String noApostropheTitle = title.replaceAll("'", "");
+		return (docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date)).isPresent()
+				|| docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(noApostropheTitle.trim(), type.trim(), LocalDate.parse(date)).isPresent()
+			);
+		}
 	
 	// Experimental, probably useless (was trying to get document outlines)
 //	@CrossOrigin
@@ -1605,6 +1655,22 @@ public class FileController {
 //		}
 //	}
 	
+	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination */
+	private Optional<EISDoc> getEISDocByTitleTypeDate(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
+		// Original dataset has no apostrophes
+		String noApostropheTitle = title.replaceAll("'", "");
+		
+		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date));
+		if(!docToReturn.isPresent()) {
+			// Try without apostrophes?
+			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(noApostropheTitle.trim(), type.trim(), LocalDate.parse(date));
+		}
+		
+		return docToReturn;
+	}
+
+
+
 	public long getFileSize(URL url) {
 		HttpURLConnection conn = null;
 		try {
@@ -1623,16 +1689,21 @@ public class FileController {
 	/** Turns UploadInputs into valid EISDoc and saves to database, returns new ID and 200 (OK) or null and 500 (error) */
 	private ResponseEntity<Long> saveDto(UploadInputs itr) {
 		
+		
 		// translate
 		EISDoc newRecord = new EISDoc();
-		newRecord.setAgency(itr.agency.trim());
-		newRecord.setDocumentType(itr.document.trim());
-		newRecord.setFilename(itr.filename.trim());
+		newRecord.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
+		newRecord.setDocumentType(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.document));
+		newRecord.setFilename(itr.filename);
 		newRecord.setCommentsFilename(itr.comments_filename);
 		newRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
-		newRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
-		newRecord.setState(itr.state.trim());
-		newRecord.setTitle(itr.title.trim());
+		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
+			// skip
+		} else {
+			newRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
+		}
+		newRecord.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
+		newRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
 		newRecord.setFolder(itr.eis_identifier.trim());
 		newRecord.setLink(itr.link.trim());
 		newRecord.setNotes(itr.notes.trim());
@@ -1644,6 +1715,38 @@ public class FileController {
 		} else {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+	}
+
+	/** Expects matching record and new data; updates; preserves comments/comments date if no new values for those */
+	private ResponseEntity<Long> updateDto(UploadInputs itr, Optional<EISDoc> existingRecord) {
+
+		if(!existingRecord.isPresent()) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		EISDoc oldRecord = existingRecord.get();
+		// translate
+		// at this point we've matched on agency and document type already
+		oldRecord.setFilename(itr.filename);
+		if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
+			// skip, leave original
+		} else {
+			oldRecord.setCommentsFilename(itr.comments_filename);
+		}
+		oldRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
+			// skip, leave original
+		} else {
+			oldRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
+		}
+		oldRecord.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
+		oldRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
+		oldRecord.setFolder(itr.eis_identifier.strip());
+		oldRecord.setLink(itr.link.strip());
+		oldRecord.setNotes(itr.notes.strip());
+		
+		docRepository.save(oldRecord); // save to db, ID shouldn't change
+		
+		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
 	}
 
 
