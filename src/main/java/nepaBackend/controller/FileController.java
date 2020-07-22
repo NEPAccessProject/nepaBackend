@@ -6,7 +6,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -113,6 +116,7 @@ public class FileController {
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String filename) {
 		try {
+			// TODO: Rewrite to support file paths provided by NEPAFile table
 			// TODO: if not .zip try adding .pdf first?  Client will need file type and we need to capture all the files to deliver
 			// potentially in a zip
 			// TODO: Eventually going to need a lot of logic for exploring folder structures
@@ -133,7 +137,7 @@ public class FileController {
 			response.flushBuffer();
 			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
 		} catch (Exception e) {
-		// TODO: Log missing file errors somewhere
+		// TODO: Log missing file errors in db file log?
 //			StringWriter sw = new StringWriter();
 //			PrintWriter pw = new PrintWriter(sw);
 //			e.printStackTrace(pw);
@@ -374,7 +378,7 @@ public class FileController {
 
 			    if(results[1]) {
 		    		uploadLog.setErrorType("Uploaded");
-		    		uploadLog.setFilename(file.getOriginalFilename());
+		    		uploadLog.setFilename(origFilename);
 				    
 			    	// Run Tika on file, record if 200 or not
 				    if(origFilename.length() > 4
@@ -544,7 +548,7 @@ public class FileController {
 			    	handleNEPAFileSave(origFilename, savedDoc, dto.document);
 			    	
 			    	// Save FileLog
-				    uploadLog.setFilename(savePath);
+				    uploadLog.setFilename(origFilename);
 				    uploadLog.setUser(getUser(token));
 				    uploadLog.setLogTime(LocalDateTime.now());
 				    uploadLog.setErrorType("Uploaded");
@@ -619,7 +623,7 @@ public class FileController {
 	 * */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFilesBulk", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<String> uploadFilesBulk(@RequestPart(name="files") MultipartFile[] files, 
+	private ResponseEntity<String> importFilesBulk(@RequestPart(name="files") MultipartFile[] files, 
 								@RequestHeader Map<String, String> headers) 
 										throws IOException 
 	{ 
@@ -636,7 +640,6 @@ public class FileController {
 		} 
 		
 		
-		
 		/** If valid: Upload files, save to files table, add to existing records if possible, and log */
 		
 		for(int i = 0; i < files.length; i++) {
@@ -650,8 +653,8 @@ public class FileController {
 			    
 			    if(folderName.length() == 0) { // If no folder name
 			    	// Do nothing (reject file: no upload, no log)
-			    } else {
-		    	
+			    } else if(metadataExists(folderName)){
+			    	// If metadata exists we can link this to something, therefore proceed with upload
 				    String savePath = getPathOnly(origFilename);
 				    
 				    // Upload file
@@ -682,39 +685,32 @@ public class FileController {
 				    List<EISDoc> existingDocs = docRepository.findAllByFolder(folderName);
 				    if(uploaded) {
 				    	// Save NEPAFile
-				    	// TODO:
-				    	// 1. Existing file could be null, if so we can't set up the link yet (expecting CSV import)
+
+				    	// 1. Requires ability to link from previous CSV import
 				    	// 2. Type would be the directory after the unique folder name, use that if it exists.
 				    	// 3. If no directory after that, use existingDoc's (if existingDoc exists).  
 				    	// Otherwise leave type empty
 				    	// 4. While folder should be unique if non-empty ideally, it's not fully enforced
 				    	// (hopefully never actually happens or else someone messed up)
 				    	// If it does happen, log and save to the first in the list found by JPA
-				    	// NOTE: Because everything is cleaner if the CSV comes first, it might be better (and easier)
-				    	// to reject before upload if we can't link them up.
-				    	handleNEPAFileSave(origFilename, existingDocs);
+
+				    	NEPAFile savedNEPAFile = handleNEPAFileSave(origFilename, existingDocs);
 				    	
 				    	// Save FileLog
-					    uploadLog.setFilename(savePath);
+					    uploadLog.setFilename(origFilename); // full path incl. filename
 					    uploadLog.setUser(getUser(token));
 					    uploadLog.setLogTime(LocalDateTime.now());
 					    uploadLog.setErrorType("Uploaded");
+					    // Note: Should be impossible not to have a linked document if the logic got us here
 					    if(existingDocs.size() > 0) { // If we have a linked document:
-					    	// Log if size() > 1 (anomaly)
+					    	// Log if size() > 1 (means we sort of have representation of a process)
 					    	if(existingDocs.size() > 1) {
 							    uploadLog.setErrorType("Uploaded to 2 or more documents");
 					    	}
 						    uploadLog.setDocumentId(existingDocs.get(0).getId());
 					    
 					    	// Run Tika on folder, record if 200 or not
-					    	if(origFilename.length() > 4
-					    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
-					    	{
-					    		converted = (this.convertPDF(existingDocs.get(0)).getStatusCodeValue() == 200);
-					    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
-					    		converted = (this.convertRecordSmart(existingDocs.get(0)).getStatusCodeValue() == 200);
-						    	// Note: 200 doesn't necessarily mean tika was able to convert anything
-					    	}
+						    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
 					    	
 					    	if(converted) {
 							    uploadLog.setImported(true);
@@ -722,6 +718,8 @@ public class FileController {
 					    }
 					    // Otherwise wait for CSV import to run on linked document
 				    }
+			    } else {
+			    	// TODO: Inform user this file can't be linked to anything, and has been rejected
 			    }
 	
 			} catch (Exception e) {
@@ -737,36 +735,47 @@ public class FileController {
 		return new ResponseEntity<String>("OK", HttpStatus.OK);
 	}
 		
-		
-	// TODO: Can save CSV data before NEPAFiles, and vice versa.  (Note: Probably changing to forcing CSV first soon.)
-	// Therefore EISDoc needs a Folder, and 
-	// NEPAFiles might have null for the foreign key.  The connection has to be enforced after we have both.
+	/** Return whether metadata exists for a given EIS Identifier (folder) */
+	private boolean metadataExists(String folderName) {
+		// TODO Auto-generated method stub
+		long numRecords = docRepository.countByFolder(folderName);
+		boolean exists = numRecords > 0;
+		return exists;
+	}
+
+
+
+	// Must have a link available, presumably added by a CSV import. 
+	// Therefore EISDoc needs a Folder, and the connection has to be enforced after we have both.
 	
-	// Choice so far: Overwrite everything that already exists when uploading, separate update function should be
+	// Choice so far: Overwrite same-name files that already exists when uploading, separate update function should be
 	// the way to add/remove files with an existing record with existing files
 	
 	/** Given relative path and possibly one or more EISDocs (use first EISDoc if exists), 
-	 *  saves NEPAFile with or without EISDoc link.  Prefers to set document type from directory if available,
+	 *  saves NEPAFile.  Prefers to set document type from directory if available,
 	 *  rather than from EISDoc.  Should be used after we verify a unique folder name exists
-	 *  because without that field a link shouldn't be possible yet */
-	private void handleNEPAFileSave(String relativePath, List<EISDoc> existingDocs) {
+	 *  because without that field a link shouldn't be possible yet 
+	 * @return */
+	private NEPAFile handleNEPAFileSave(String fullPath, List<EISDoc> existingDocs) {
     	NEPAFile fileToSave = new NEPAFile();
-    	fileToSave.setFilename(getFilenameWithoutPath(relativePath));
-    	fileToSave.setFolder(getUniqueFolderNameOrEmpty(relativePath));
-        fileToSave.setRelativePath(getPathOnly(relativePath)); 
+    	NEPAFile savedFile = null;
+    	fileToSave.setFilename(getFilenameWithoutPath(fullPath));
+    	fileToSave.setFolder(getUniqueFolderNameOrEmpty(fullPath));
+        fileToSave.setRelativePath(getPathOnly(fullPath)); 
 		if(existingDocs.size()>0) {
 	    	fileToSave.setEisdoc(existingDocs.get(0));
 	    	
 	    	// prefer to use directory document type, if exists
-	    	String docType = getDocumentTypeOrEmpty(relativePath);
+	    	String docType = getDocumentTypeOrEmpty(fullPath);
 	    	if(docType.length() == 0) {
 		    	fileToSave.setDocumentType(existingDocs.get(0).getDocumentType());
 	    	} else {
 	    		fileToSave.setDocumentType(docType);
 	    	}
 	    	
-	    	nepaFileRepository.save(fileToSave);
+	    	savedFile = nepaFileRepository.save(fileToSave);
 		}
+		return savedFile;
 	}
 
 
@@ -1024,12 +1033,11 @@ public class FileController {
 								results.add("Item " + count + ": Updated: " + itr.title);
 							} else {
 								ResponseEntity<Long> status = updateDto(itr, recordThatMayExist);
-								results.add("Item " + count + ": Updated: " + itr.title);
 								
 								if(status.getStatusCodeValue() == 500) { // Error
 									results.add("Item " + count + ": Error saving: " + itr.title);
 						    	} else {
-						    		results.add("Item " + count + ": OK: " + itr.title);
+									results.add("Item " + count + ": Updated: " + itr.title);
 
 						    		// Log successful record import (need accountability for new metadata)
 									FileLog recordLog = new FileLog();
@@ -1147,8 +1155,7 @@ public class FileController {
 			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
 		}
 		
-		// Deduplication: Ignore when document ID already exists in EISDoc table.
-		// Will need different logic to handle multiple files per record
+		// Deduplication: Ignore when document ID already exists in EISDoc table
 		if(textRepository.existsByEisdoc(eis)) 
 		{
 			return new ResponseEntity<Void>(HttpStatus.FOUND);
@@ -1175,8 +1182,7 @@ public class FileController {
 			}
 			URL fileURL = new URL(relevantURL + filename);
 			
-			// 1: Download the archive
-			// Handle non-archive case
+			// 1: Download the file
 			InputStream in = new BufferedInputStream(fileURL.openStream());
 			
 			int count;
@@ -1251,8 +1257,183 @@ public class FileController {
 			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	
-	// TODO: Generalize for entries with folder or multiple files instead of simple filename
+
+	private ResponseEntity<Void> convertNEPAFile(NEPAFile savedNEPAFile) {
+
+		// Check to make sure this record exists.
+		if(savedNEPAFile == null) {
+			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+		}
+		
+		// Note: There can be multiple files per archive and multiple folders, 
+		// resulting in multiple documenttext records for the same ID, 
+		// but presumably different full paths with hopefully different files
+		final int BUFFER = 2048;
+		
+		try {
+			Tika tikaParser = new Tika();
+			tikaParser.setMaxStringLength(-1); // disable limit
+
+			String filename = savedNEPAFile.getFilename();
+		
+			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
+			if(filename == null || filename.length() == 0) {
+				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
+			}
+			
+			String relevantURL = dbURL;
+			if(testing) {
+				relevantURL = testURL;
+			}
+			
+			// Note: because the relative path always begins with / and relevantURL already has /,
+			// we drop the first character of fullPath when we build it here:
+			String fullPath = (savedNEPAFile.getRelativePath() + filename).substring(1);
+
+			
+			URI uri = new URI(relevantURL + fullPath.replaceAll(" ", "%20"));
+			System.out.println("URI: " + uri.toString());
+			URL fileURL = uri.toURL();
+			
+			if(testing) {
+				System.out.println("FileURL " + fileURL.toString());
+			}
+			
+			// Note: Multiple eisdocs may share the folder and therefore responsibility for this file.
+			// So, the uniqueness should be determined by folder AND document type.
+			// Therefore we need to get the EISDoc representing that, exactly.
+			Optional<EISDoc> eis = docRepository.findTopByFolderAndDocumentTypeIn(savedNEPAFile.getFolder(), savedNEPAFile.getDocumentType());
+
+			// If we anomalously can't get that exact match, just use the first one we find
+			if(!eis.isPresent()) {
+				eis = docRepository.findTopByFolder(savedNEPAFile.getFolder());
+			}
+			
+			// Somehow no link at all?
+			if(!eis.isPresent()) {
+				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+			}
+			
+			EISDoc foundDoc = eis.get();
+			
+			// Duplicate?  Theoretically can be identical filenames for a linked folder, or we'd check document_text
+			// check file_log to see if we've Imported this file before (if full path and imported)
+			// tinyInt(1) is effectively a boolean
+			
+			// TODO: Move file log here, and don't save the log if we skipped due to duplicate?
+			if(fileLogRepository.existsByFilenameAndImported((savedNEPAFile.getRelativePath() + filename), true)) 
+			{
+				// 302 (bulk import file log will treat this as imported=0 but still log it)
+				return new ResponseEntity<Void>(HttpStatus.FOUND);
+			} 
+			
+			// PDF vs. Archive logic:
+			boolean fileIsArchive = true;
+			if(filename.length() > 4 && filename.substring(filename.length()-4).equalsIgnoreCase(".pdf")) 
+	    	{
+				// file is PDF
+	    		fileIsArchive = false;
+	    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
+	    		
+	    	}
+			
+			// 1: Download the file
+			InputStream in = new BufferedInputStream(fileURL.openStream());
+			
+			if(fileIsArchive) {
+				ZipInputStream zis = new ZipInputStream(in);
+				ZipEntry ze;
+				
+				while((ze = zis.getNextEntry()) != null) {
+					int count;
+					byte[] data = new byte[BUFFER];
+					
+					String extractedFilename = ze.getName();
+					
+					// Handle directory - can ignore them if we're just converting PDFs
+					if(!ze.isDirectory()) {
+						if(testing) {
+							System.out.println(textRepository.existsByEisdocAndFilename(foundDoc, extractedFilename));
+						}
+						
+						if(textRepository.existsByEisdocAndFilename(foundDoc, extractedFilename)) {
+							zis.closeEntry();
+						} else {
+							
+							if(testing) {
+								System.out.println("Extracting " + ze);
+							}
+							
+							DocumentText docText = new DocumentText();
+							docText.setEisdoc(foundDoc);
+							docText.setFilename(extractedFilename);
+							
+							// 2: Extract data and stream to Tika
+							try {
+								ByteArrayOutputStream baos = new ByteArrayOutputStream();
+								while (( count = zis.read(data)) != -1) {
+									baos.write(data, 0, count);
+								}
+								
+								// 3: Convert to text
+								String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+								docText.setPlaintext(textResult);
+								
+								// 4: Add converted text to database for document(EISDoc) ID, filename
+								this.save(docText);
+							} catch(Exception e){
+								e.printStackTrace();
+							} finally { // while loop handles getNextEntry()
+								zis.closeEntry();
+							}
+						}
+					}
+				
+				}
+
+				// 5: Cleanup
+				in.close();
+				zis.close();
+
+				return new ResponseEntity<Void>(HttpStatus.OK);
+			} else {
+				// PDF case
+				DocumentText docText = new DocumentText();
+				docText.setEisdoc(foundDoc);
+				docText.setFilename(filename);
+
+				int count;
+				byte[] data = new byte[BUFFER];
+				
+				// 2: Extract data and stream to Tika
+				try {
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					while (( count = in.read(data)) != -1) {
+						baos.write(data, 0, count);
+					}
+					
+					// 3: Convert to text
+					String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+					docText.setPlaintext(textResult);
+					
+					// 4: Add converted text to database for document(EISDoc) ID, filename
+					this.save(docText);
+				} catch(Exception e){
+					e.printStackTrace();
+				}
+				
+				in.close();
+
+				return new ResponseEntity<Void>(HttpStatus.OK);
+				
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+			
+	}
+
 	private ResponseEntity<Void> convertRecord(EISDoc eis) {
 
 		// Check to make sure this record exists.
@@ -1307,10 +1488,6 @@ public class FileController {
 				byte[] data = new byte[BUFFER];
 				
 				String filename = ze.getName();
-				
-				
-				// TODO: Check to make sure we don't already have this document in the system.
-				// Deduplication: Ignore when filename and document ID combination already exists in EISDoc table.
 				
 				// Handle directory - can ignore them if we're just converting PDFs
 				if(!ze.isDirectory()) {
@@ -1429,8 +1606,7 @@ public class FileController {
 			Tika tikaParser = new Tika();
 			tikaParser.setMaxStringLength(-1); // disable limit
 		
-			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
-			// TODO: Handle folders/multiple files for future (currently only archives/PDFs)
+			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
 			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
 				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
 			}

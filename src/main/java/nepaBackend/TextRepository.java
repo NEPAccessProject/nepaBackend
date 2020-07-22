@@ -18,5 +18,7 @@ public interface TextRepository extends JpaRepository<DocumentText, Long>, Custo
 	List<DocumentText> findAllByEisdoc(EISDoc eis);
 
 	boolean existsByEisdoc(EISDoc eis);
+
+	boolean existsByEisdocAndFilenameIn(EISDoc foundDoc, String filename);
 	
 }

@@ -68,5 +68,11 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	Optional<EISDoc> findTopByTitleAndDocumentTypeAndRegisterDateIn(String title, String type, LocalDate registerDate);
 
 	List<EISDoc> findAllByFolder(String folder); // TODO: Enforce uniqueness of foldername if non-empty?
+
+	Optional<EISDoc> findTopByFolder(String folderName);
+
+	long countByFolder(String folderName);
+
+	Optional<EISDoc> findTopByFolderAndDocumentTypeIn(String folder, String documentType);
 	
 }
