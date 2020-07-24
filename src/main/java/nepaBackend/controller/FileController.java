@@ -617,6 +617,140 @@ public class FileController {
 
 
 	/** 
+	 * Takes .csv file with required headers: title/register_date/filename/document_type and imports each valid,
+	 * non-duplicate record.  
+	 * 
+	 * Valid records: Must have title/register_date/filename/document_type, register_date must conform to one of
+	 * the formats in parseFormatters[]
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
+	 * and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		
+		String token = headers.get("authorization");
+		
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		List<String> results = new ArrayList<String>();
+
+
+	    // Expect these headers:
+	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
+	    // TODO: Translate these into a standard before proceeding? Such as Type or Document Type instead of Document
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+		    // Ensure metadata is valid
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
+			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
+			    if(isValid(itr)) {
+
+			    	// Save only valid dates
+			    	boolean error = false;
+					try {
+						LocalDate parsedDate = parseDate(itr.federal_register_date);
+						itr.federal_register_date = parsedDate.toString();
+					} catch (IllegalArgumentException e) {
+						results.add("Item " + count + ": " + e.getMessage());
+						error = true;
+					} catch (Exception e) {
+						results.add("Item " + count + ": Error " + e.getMessage());
+						error = true;
+					}
+
+					if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
+						itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
+					}
+					
+					if(!error) {
+						// Deduplication
+						
+						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
+						
+						// If record exists but has no filename, then update it instead of skipping
+						// This is because current data is based on having a filename for an archive or not,
+						// so new data can add files where there are none, without adding redundant data when there is data
+						if(recordThatMayExist.isPresent() && recordThatMayExist.get().getFilename().isBlank()) {
+//							if(testing) {
+//								// not saving for now, just pretending
+//								results.add("Item " + count + ": Updated: " + itr.title);
+//							} else {
+							ResponseEntity<Long> status = updateDto(itr, recordThatMayExist);
+							
+							if(status.getStatusCodeValue() == 500) { // Error
+								results.add("Item " + count + ": Error saving: " + itr.title);
+					    	} else {
+								results.add("Item " + count + ": Updated: " + itr.title);
+
+					    		// Log successful record update for accountability (can know last person to update an EISDoc)
+								FileLog recordLog = new FileLog();
+								recordLog.setErrorType("Updated existing record because it had no filename");
+					    		recordLog.setDocumentId(status.getBody());
+					    		recordLog.setFilename(itr.filename);
+					    		recordLog.setImported(false);
+					    		recordLog.setLogTime(LocalDateTime.now());
+					    		recordLog.setUser(getUser(token));
+					    		fileLogRepository.save(recordLog);
+					    	}
+//							}
+						}
+						// If file doesn't exist, then create new record
+						else if(!recordThatMayExist.isPresent()) { 
+//							System.out.println(itr.title);
+//							System.out.println(itr.document);
+//							System.out.println(itr.federal_register_date);
+//							if(testing) {
+//								// not saving for now, just pretending
+//								results.add("Item " + count + ": OK: " + itr.title);
+//							} else {
+						    ResponseEntity<Long> status = saveDto(itr); // save record to database
+						    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
+					    	if(status.getStatusCodeValue() == 500) { // Error
+								results.add("Item " + count + ": Error saving: " + itr.title);
+					    	} else {
+					    		results.add("Item " + count + ": OK: " + itr.title);
+
+					    		// Log successful record import (need accountability for new metadata)
+								FileLog recordLog = new FileLog();
+					    		recordLog.setDocumentId(status.getBody());
+					    		recordLog.setFilename(itr.filename);
+					    		recordLog.setImported(false);
+					    		recordLog.setLogTime(LocalDateTime.now());
+					    		recordLog.setUser(getUser(token));
+					    		fileLogRepository.save(recordLog);
+					    	}
+//							}
+				    	} else {
+							results.add("Item " + count + ": Duplicate");
+				    	}
+					}
+			    } else {
+					results.add("Item " + count + ": Missing one or more required fields: federal_register_date/document_type/eis_identifier/title");
+			    }
+			    count++;
+			}
+	    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+
+
+
+	/** 
 	 * Upload more than one directory already associated with a CSV (or will be in the future and has a unique foldername)
 	 * For each file, assumes a base folder that ends in a number (identifying folder)
 	 * If that doesn't exist, rejects that file because it can't ever be automatically connected to a record 
@@ -698,26 +832,31 @@ public class FileController {
 				    	NEPAFile savedNEPAFile = handleNEPAFileSave(origFilename, existingDocs);
 				    	
 				    	// Save FileLog
-					    uploadLog.setFilename(origFilename); // full path incl. filename
-					    uploadLog.setUser(getUser(token));
-					    uploadLog.setLogTime(LocalDateTime.now());
-					    uploadLog.setErrorType("Uploaded");
-					    // Note: Should be impossible not to have a linked document if the logic got us here
-					    if(existingDocs.size() > 0) { // If we have a linked document:
-					    	// Log if size() > 1 (means we sort of have representation of a process)
-					    	if(existingDocs.size() > 1) {
-							    uploadLog.setErrorType("Uploaded to 2 or more documents");
-					    	}
-						    uploadLog.setDocumentId(existingDocs.get(0).getId());
-					    
-					    	// Run Tika on folder, record if 200 or not
-						    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
-					    	
-					    	if(converted) {
-							    uploadLog.setImported(true);
-					    	}
-					    }
-					    // Otherwise wait for CSV import to run on linked document
+				    	
+				    	if(savedNEPAFile == null) {
+				    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
+				    	} else {
+				    		uploadLog.setFilename(origFilename); // full path incl. filename
+						    uploadLog.setUser(getUser(token));
+						    uploadLog.setLogTime(LocalDateTime.now());
+						    uploadLog.setErrorType("Uploaded");
+						    // Note: Should be impossible not to have a linked document if the logic got us here
+						    if(existingDocs.size() > 0) { // If we have a linked document:
+						    	// Log if size() > 1 (means we sort of have representation of a process)
+						    	// hopefully we matched to the correct record via type, but if not we'll know to check maybe
+						    	if(existingDocs.size() > 1) {
+								    uploadLog.setErrorType("Matched 2 or more documents");
+						    	}
+							    uploadLog.setDocumentId(savedNEPAFile.getEisdoc().getId());
+						    
+						    	// Run Tika on folder, record if 200 or not
+							    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
+							    
+						    	if(converted) {
+								    uploadLog.setImported(true);
+						    	}
+						    }
+				    	}
 				    }
 			    } else {
 			    	// TODO: Inform user this file can't be linked to anything, and has been rejected
@@ -753,31 +892,79 @@ public class FileController {
 	// the way to add/remove files with an existing record with existing files
 	
 	/** Given relative path and possibly one or more EISDocs (use first EISDoc if exists), 
-	 *  saves NEPAFile.  Prefers to set document type from directory if available,
+	 *  saves NEPAFile if it doesn't exist already.  Prefers to set document type from directory if available,
 	 *  rather than from EISDoc.  Should be used after we verify a unique folder name exists
 	 *  because without that field a link shouldn't be possible yet 
 	 * @return */
 	private NEPAFile handleNEPAFileSave(String fullPath, List<EISDoc> existingDocs) {
-    	NEPAFile fileToSave = new NEPAFile();
-    	NEPAFile savedFile = null;
-    	fileToSave.setFilename(getFilenameWithoutPath(fullPath));
-    	fileToSave.setFolder(getUniqueFolderNameOrEmpty(fullPath));
-        fileToSave.setRelativePath(getPathOnly(fullPath)); 
-		if(existingDocs.size()>0) {
-	    	fileToSave.setEisdoc(existingDocs.get(0));
+		boolean duplicate = nepaFileRepository.existsByFilenameAndRelativePathIn(getFilenameWithoutPath(fullPath), getPathOnly(fullPath));
+		
+		if(duplicate) {
+			return null;
+		} else {
+			NEPAFile fileToSave = new NEPAFile();
+	    	NEPAFile savedFile = null;
 	    	
-	    	// prefer to use directory document type, if exists
-	    	String docType = getDocumentTypeOrEmpty(fullPath);
-	    	if(docType.length() == 0) {
-		    	fileToSave.setDocumentType(existingDocs.get(0).getDocumentType());
-	    	} else {
-	    		fileToSave.setDocumentType(docType);
-	    	}
+	    	String folderName = getUniqueFolderNameOrEmpty(fullPath);
+	    	String documentType = getDocumentTypeOrEmpty(fullPath);
 	    	
-	    	savedFile = nepaFileRepository.save(fileToSave);
+	    	fileToSave.setFilename(getFilenameWithoutPath(fullPath));
+	    	fileToSave.setFolder(folderName);
+	        fileToSave.setRelativePath(getPathOnly(fullPath)); 
+			if(existingDocs.size()>0) {
+				
+				// If we matched on more than one record, we had better have a document type to differentiate them.
+				// Should expect this anyway, ideally.
+				// Records may be part of the same process and share a folder, but NEPAFiles are for one document type.
+				Optional<EISDoc> existingDoc = docRepository.findTopByFolderAndDocumentTypeIn(folderName, documentType);
+		    	if(existingDoc.isPresent() && !folderName.isBlank() && !documentType.isBlank()) {
+		    		fileToSave.setEisdoc(existingDoc.get());
+		    	} else { // if we fail (this is not great), just link with the top of the list
+			    	fileToSave.setEisdoc(existingDocs.get(0));
+		    	}
+		    	
+		    	// prefer to use directory document type, if exists
+		    	if(documentType.isBlank()) {
+			    	fileToSave.setDocumentType(existingDocs.get(0).getDocumentType());
+		    	} else {
+		    		fileToSave.setDocumentType(documentType);
+		    	}
+		    	
+		    	savedFile = nepaFileRepository.save(fileToSave);
+			}
+			return savedFile;
 		}
-		return savedFile;
 	}
+
+
+	/** Given path, new/updated EISDoc and document_type, save new NEPAFile if not a duplicate. 
+	 *  Uses getFilenameWithoutPath() to set filename and getUniqueFolderName() to set folder, uses identical logic 
+	 *  for giving Express service the relative path to use (thus ensuring the download path is consistent for
+	 *  both database and file directory on DBFS). */
+	private void handleNEPAFileSave(String relativePath, EISDoc savedDoc, String document_type) {
+		boolean duplicate = true;
+		duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(getFilenameWithoutPath(relativePath), savedDoc);
+		
+		if(duplicate) {
+			return;
+		} else {
+	    	NEPAFile fileToSave = new NEPAFile();
+	    	fileToSave.setEisdoc(savedDoc);
+	    	fileToSave.setFilename(getFilenameWithoutPath(relativePath));
+	    	fileToSave.setFolder(getUniqueFolderName(relativePath, savedDoc));
+	    	/** TODO: Temporary logic until we get the path back from Express to guarantee consistency
+	    	/* if we get the path wrong the system will fail to find the files 
+	    	/* even when the NEPAFile has a correct foreign key */
+	    	if(fileToSave.getFolder().equalsIgnoreCase(savedDoc.toString())) { // If we generated the folder ourselves
+	    		fileToSave.setRelativePath("/" + fileToSave.getFolder() + "/"); // Assume saved to /{ID}/
+	    	} else { // Otherwise use provided path
+	        	fileToSave.setRelativePath(getPathOnly(relativePath)); 
+	    	}
+	    	fileToSave.setDocumentType(document_type);
+	    	nepaFileRepository.save(fileToSave);
+		}
+	}
+
 
 
 	/** Returns name of document type derived from relative path if possible, else returns empty string */
@@ -821,27 +1008,6 @@ public class FileController {
 	}
 
 
-
-	/** Given path, new EISDoc and document_type, save new NEPAFile.  
-	 *  Uses getFilenameWithoutPath() to set filename and getUniqueFolderName() to set folder, uses identical logic 
-	 *  for giving Express service the relative path to use (thus ensuring the download path is consistent for
-	 *  both database and file directory on DBFS). */
-	private void handleNEPAFileSave(String relativePath, EISDoc savedDoc, String document_type) {
-    	NEPAFile fileToSave = new NEPAFile();
-    	fileToSave.setEisdoc(savedDoc);
-    	fileToSave.setFilename(getFilenameWithoutPath(relativePath));
-    	fileToSave.setFolder(getUniqueFolderName(relativePath, savedDoc));
-    	/** TODO: Temporary logic until we get the path back from Express to guarantee consistency
-    	/* if we get the path wrong the system will fail to find the files 
-    	/* even when the NEPAFile has a correct foreign key */
-    	if(fileToSave.getFolder().equalsIgnoreCase(savedDoc.toString())) { // If we generated the folder ourselves
-    		fileToSave.setRelativePath("/" + fileToSave.getFolder() + "/"); // Assume saved to /{ID}/
-    	} else { // Otherwise use provided path
-        	fileToSave.setRelativePath(getPathOnly(relativePath)); 
-    	}
-    	fileToSave.setDocumentType(document_type);
-    	nepaFileRepository.save(fileToSave);
-	}
 
 	/** Pulls the EIS identifier from the string if it exists (shallowest folder ending in 4 numbers
 	 *  - there shouldn't be any other folders ending in numbers, that's an important rule for users uploading like this),
@@ -962,139 +1128,6 @@ public class FileController {
 		throw new IllegalArgumentException("Couldn't parse date (preferred format is yyyy-MM-dd): " + date);
 	}
 
-	/** 
-	 * Takes .csv file with required headers: title/register_date/filename/document_type and imports each valid,
-	 * non-duplicate record.  
-	 * 
-	 * Valid records: Must have title/register_date/filename/document_type, register_date must conform to one of
-	 * the formats in parseFormatters[]
-	 * 
-	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
-	 * and potentially more details */
-	@CrossOrigin
-	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<List<String>> uploadCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
-										throws IOException { 
-		
-		String token = headers.get("authorization");
-		
-		if(!isCurator(token) && !isAdmin(token)) 
-		{
-			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
-		} 
-		List<String> results = new ArrayList<String>();
-
-
-	    // Expect these headers:
-	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
-	    // TODO: Translate these into a standard before proceeding? Such as Type or Document Type instead of Document
-		
-	    try {
-	    	
-	    	ObjectMapper mapper = new ObjectMapper();
-		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
-
-		    // Ensure metadata is valid
-			int count = 0;
-			for (UploadInputs itr : dto) {
-				itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
-			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
-			    if(isValid(itr)) {
-
-			    	// Save only valid dates
-			    	boolean error = false;
-					try {
-						LocalDate parsedDate = parseDate(itr.federal_register_date);
-						itr.federal_register_date = parsedDate.toString();
-					} catch (IllegalArgumentException e) {
-						results.add("Item " + count + ": " + e.getMessage());
-						error = true;
-					} catch (Exception e) {
-						results.add("Item " + count + ": Error " + e.getMessage());
-						error = true;
-					}
-
-					if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
-						itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
-					}
-					
-					if(!error) {
-						// TODO: If duplicate, try updating instead of skipping?
-						// TODO: Add foreign key to NEPAFile by foldername, if that exists, otherwise
-						// create NEPAFile with filename value missing to be filled in during bulk file upload
-						
-						// Deduplication
-						
-						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
-						
-						// If file exists but has no filename, then update it
-						if(recordThatMayExist.isPresent() && recordThatMayExist.get().getFilename().isBlank()) {
-							if(testing) {
-								// not saving for now, just pretending
-								results.add("Item " + count + ": Updated: " + itr.title);
-							} else {
-								ResponseEntity<Long> status = updateDto(itr, recordThatMayExist);
-								
-								if(status.getStatusCodeValue() == 500) { // Error
-									results.add("Item " + count + ": Error saving: " + itr.title);
-						    	} else {
-									results.add("Item " + count + ": Updated: " + itr.title);
-
-						    		// Log successful record import (need accountability for new metadata)
-									FileLog recordLog = new FileLog();
-						    		recordLog.setDocumentId(status.getBody());
-						    		recordLog.setFilename(itr.filename);
-						    		recordLog.setImported(false);
-						    		recordLog.setLogTime(LocalDateTime.now());
-						    		recordLog.setUser(getUser(token));
-						    		fileLogRepository.save(recordLog);
-						    	}
-							}
-						}
-						// If file doesn't exist, then create new record
-						else if(!recordThatMayExist.isPresent()) { 
-//							System.out.println(itr.title);
-//							System.out.println(itr.document);
-//							System.out.println(itr.federal_register_date);
-							if(testing) {
-								// not saving for now, just pretending
-								results.add("Item " + count + ": OK: " + itr.title);
-							} else {
-							    ResponseEntity<Long> status = saveDto(itr); // save record to database
-						    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
-						    	if(status.getStatusCodeValue() == 500) { // Error
-									results.add("Item " + count + ": Error saving: " + itr.title);
-						    	} else {
-						    		results.add("Item " + count + ": OK: " + itr.title);
-	
-						    		// Log successful record import (need accountability for new metadata)
-									FileLog recordLog = new FileLog();
-						    		recordLog.setDocumentId(status.getBody());
-						    		recordLog.setFilename(itr.filename);
-						    		recordLog.setImported(false);
-						    		recordLog.setLogTime(LocalDateTime.now());
-						    		recordLog.setUser(getUser(token));
-						    		fileLogRepository.save(recordLog);
-						    	}
-							}
-				    	} else {
-							results.add("Item " + count + ": Duplicate");
-				    	}
-					}
-			    } else {
-					results.add("Item " + count + ": Missing one or more required fields: federal_register_date/document_type/eis_identifier/title");
-			    }
-			    count++;
-			}
-	    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
-	}
-	
 	/** Minimal upload test to make sure uploading works (saves nothing to db, does save file to disk) */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadTest", method = RequestMethod.POST, consumes = "multipart/form-data")
@@ -1288,7 +1321,7 @@ public class FileController {
 //			URI uri = new URI(relevantURL + fullPath.replaceAll(" ", "%20"));
 //			System.out.println("URI: " + uri.toString());
 //			URL fileURL = uri.toURL();
-			URL fileURL = new URL(encodeURIComponent(relevantURL + fullPath));
+			URL fileURL = new URL(relevantURL + encodeURIComponent(fullPath));
 			
 			
 			if(testing) {

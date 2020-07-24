@@ -12,4 +12,6 @@ public interface FileLogRepository extends JpaRepository<FileLog, Long> {
 	boolean existsByFilename(String string);
 
 	boolean existsByFilenameAndImported(String string, boolean b);
+
+	List<FileLog> findAllByDocumentId(Long id);
 }

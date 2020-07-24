@@ -1,6 +1,5 @@
 package nepaBackend.model;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -17,11 +16,8 @@ public class NEPAFile {
     @Column(name="id")
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;  // TODO: ID/PK?
-
-    @Column(name="agency") // optional, might be redundant but can inform path
-    private String agency;
     
-    @Column(name="document_type") // optional, might be redundant but can inform path
+    @Column(name="document_type") // optional, might be redundant but can ensure we get the correct files for the correct eisdoc
     private String documentType;
 
     @Column(name="filename")
@@ -40,23 +36,14 @@ public class NEPAFile {
     
     public NEPAFile() { }
 
-	public NEPAFile(Long id, String agency, String documentType, String filename, String folder, String relativePath, 
+	public NEPAFile(Long id, String documentType, String filename, String folder, String relativePath, 
 			EISDoc eisdoc) {
 		this.id = id;
-		this.agency = agency;
 		this.documentType = documentType;
 		this.filename = filename;
 		this.folder = folder;
 		this.relativePath = relativePath;
 		this.eisdoc = eisdoc;
-	}
-
-	public String getAgency() {
-		return agency;
-	}
-
-	public void setAgency(String agency) {
-		this.agency = agency;
 	}
 	
 	public String getRelativePath() {

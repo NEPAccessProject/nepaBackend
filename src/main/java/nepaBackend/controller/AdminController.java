@@ -49,6 +49,8 @@ public class AdminController {
 		this.applicationUserRepository = applicationUserRepository;
 		this.nepaFileRepository = nepaFileRepository;
     }
+    
+    // TODO: Separate method which can delete an EISDoc, which should call deleteAllFiles first for a manual cascade delete
 
     /** Delete all NEPAFiles and DocumentTexts from an EISDoc by its ID, then delete the actual files on disk, and finally delete
      * the Folder field for the EISDoc and update it.
@@ -69,6 +71,8 @@ public class AdminController {
     		
     		else {
 
+    			ApplicationUser user = getUser(token);
+    			
     			// Delete documenttexts, then disk and nepafiles and possibly eisdoc.filename, then clearing folder name from eisdoc, then log
 
     			// TODO: No link between nepafile-listed archives and documenttext entries for its existing files.
@@ -82,10 +86,8 @@ public class AdminController {
     			
     			EISDoc foundDoc = doc.get();
     			
+    			// Delete full texts
     			List<DocumentText> textList = textRepository.findAllByEisdoc(foundDoc);
-    			
-    			ApplicationUser user = getUser(token);
-    			
     			for(DocumentText text : textList) {
     				deletedList.add("DocumentText " + text.getFilename());
     				textRepository.deleteById(text.getId());
@@ -94,8 +96,17 @@ public class AdminController {
     				logDelete(foundDoc, "Deleted: DocumentText", user, text.getFilename());
     			}
     			
-    			List<NEPAFile> nepaFileList = nepaFileRepository.findAllByEisdoc(foundDoc);
+    			// Update logs
+    			// Because FileLog is used to verify if we have imported something or not, we can either update the log records
+    			// to show imported=0 (false), delete the logs, or we can add a new isDeleted column to exclude the logs from the verification
+    			List<FileLog> fileLogList = fileLogRepository.findAllByDocumentId(foundDoc.getId());
+    			for(FileLog log : fileLogList) {
+    				log.setImported(false);
+    				fileLogRepository.save(log);
+    			}
     			
+    			// Delete NEPAFiles
+    			List<NEPAFile> nepaFileList = nepaFileRepository.findAllByEisdoc(foundDoc);
     			for(NEPAFile nepaFile : nepaFileList) {
     				
     				// TODO: Delete from disk here

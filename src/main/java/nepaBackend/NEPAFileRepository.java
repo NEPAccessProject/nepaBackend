@@ -13,6 +13,10 @@ public interface NEPAFileRepository extends JpaRepository<NEPAFile, Long> {
 
 	List<NEPAFile> findAllByEisdoc(EISDoc eis);
 
+	boolean existsByFilenameAndEisdocIn(String filenameWithoutPath, EISDoc eisdoc);
+
+	boolean existsByFilenameAndRelativePathIn(String filenameWithoutPath, String pathOnly);
+
 //	boolean existsByEisdoc(EISDoc eis);
 	
 }
