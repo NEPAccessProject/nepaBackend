@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
@@ -1169,8 +1170,7 @@ public class FileController {
 			Tika tikaParser = new Tika();
 			tikaParser.setMaxStringLength(-1); // disable limit
 		
-			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
-			// TODO: Handle folders/multiple files for future (currently only archives)
+			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
 			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
 				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
 			}
@@ -1213,27 +1213,25 @@ public class FileController {
 					
 					// 4: Add converted text to database for document(EISDoc) ID, filename
 					this.save(docText);
-				} catch(Exception e){
+				} catch(Exception e) {
+					// Log error
 					try {
-
 						if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
 							fileLog.setImported(false);
 						} else {
 							fileLog.setImported(true);
 						}
 						
-						// Note:  This step does not index; that's a separate process.  N/A, so null would be fine.
-						// But Tinyint is numeric, should default to 0.  Still better than the Boolean type in MySQL
-						
 						fileLog.setErrorType(e.getLocalizedMessage());
 						fileLog.setLogTime(LocalDateTime.now());
 						fileLogRepository.save(fileLog);
 						e.printStackTrace();
 					} catch (Exception e2) {
-						System.out.println("Error logging error...");
-						e2.printStackTrace();
+						if(testing) {
+							System.out.println("Error logging error...");
+							e2.printStackTrace();
+						}
 					}
-					
 				} 
 			}
 
@@ -1268,12 +1266,8 @@ public class FileController {
 		// Note: There can be multiple files per archive and multiple folders, 
 		// resulting in multiple documenttext records for the same ID, 
 		// but presumably different full paths with hopefully different files
-		final int BUFFER = 2048;
 		
 		try {
-			Tika tikaParser = new Tika();
-			tikaParser.setMaxStringLength(-1); // disable limit
-
 			String filename = savedNEPAFile.getFilename();
 		
 			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
@@ -1290,10 +1284,12 @@ public class FileController {
 			// we drop the first character of fullPath when we build it here:
 			String fullPath = (savedNEPAFile.getRelativePath() + filename).substring(1);
 
+			// Handle things like spaces in folder names:
+//			URI uri = new URI(relevantURL + fullPath.replaceAll(" ", "%20"));
+//			System.out.println("URI: " + uri.toString());
+//			URL fileURL = uri.toURL();
+			URL fileURL = new URL(encodeURIComponent(relevantURL + fullPath));
 			
-			URI uri = new URI(relevantURL + fullPath.replaceAll(" ", "%20"));
-			System.out.println("URI: " + uri.toString());
-			URL fileURL = uri.toURL();
 			
 			if(testing) {
 				System.out.println("FileURL " + fileURL.toString());
@@ -1316,18 +1312,21 @@ public class FileController {
 			
 			EISDoc foundDoc = eis.get();
 			
+			
 			// Duplicate?  Theoretically can be identical filenames for a linked folder, or we'd check document_text
 			// check file_log to see if we've Imported this file before (if full path and imported)
 			// tinyInt(1) is effectively a boolean
 			
-			// TODO: Move file log here, and don't save the log if we skipped due to duplicate?
+			// Option: Move file log down to this scope, and don't save the log if we skipped due to duplicate?
+			// Or, if HttpStatus.FOUND, parent function can choose to skip logging this or not
 			if(fileLogRepository.existsByFilenameAndImported((savedNEPAFile.getRelativePath() + filename), true)) 
 			{
 				// 302 (bulk import file log will treat this as imported=0 but still log it)
 				return new ResponseEntity<Void>(HttpStatus.FOUND);
 			} 
 			
-			// PDF vs. Archive logic:
+			
+			// PDF or archive?
 			boolean fileIsArchive = true;
 			if(filename.length() > 4 && filename.substring(filename.length()-4).equalsIgnoreCase(".pdf")) 
 	    	{
@@ -1336,103 +1335,131 @@ public class FileController {
 	    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
 	    		
 	    	}
-			
-			// 1: Download the file
-			InputStream in = new BufferedInputStream(fileURL.openStream());
-			
+
+			HttpStatus importStatus = HttpStatus.OK;
+			// logic is necessarily different for archives (need ZipInputStream to go through all files in archive)
 			if(fileIsArchive) {
-				ZipInputStream zis = new ZipInputStream(in);
-				ZipEntry ze;
-				
-				while((ze = zis.getNextEntry()) != null) {
-					int count;
-					byte[] data = new byte[BUFFER];
-					
-					String extractedFilename = ze.getName();
-					
-					// Handle directory - can ignore them if we're just converting PDFs
-					if(!ze.isDirectory()) {
-						if(testing) {
-							System.out.println(textRepository.existsByEisdocAndFilename(foundDoc, extractedFilename));
-						}
-						
-						if(textRepository.existsByEisdocAndFilename(foundDoc, extractedFilename)) {
-							zis.closeEntry();
-						} else {
-							
-							if(testing) {
-								System.out.println("Extracting " + ze);
-							}
-							
-							DocumentText docText = new DocumentText();
-							docText.setEisdoc(foundDoc);
-							docText.setFilename(extractedFilename);
-							
-							// 2: Extract data and stream to Tika
-							try {
-								ByteArrayOutputStream baos = new ByteArrayOutputStream();
-								while (( count = zis.read(data)) != -1) {
-									baos.write(data, 0, count);
-								}
-								
-								// 3: Convert to text
-								String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-								docText.setPlaintext(textResult);
-								
-								// 4: Add converted text to database for document(EISDoc) ID, filename
-								this.save(docText);
-							} catch(Exception e){
-								e.printStackTrace();
-							} finally { // while loop handles getNextEntry()
-								zis.closeEntry();
-							}
-						}
-					}
-				
-				}
-
-				// 5: Cleanup
-				in.close();
-				zis.close();
-
-				return new ResponseEntity<Void>(HttpStatus.OK);
-			} else {
-				// PDF case
-				DocumentText docText = new DocumentText();
-				docText.setEisdoc(foundDoc);
-				docText.setFilename(filename);
-
-				int count;
-				byte[] data = new byte[BUFFER];
-				
-				// 2: Extract data and stream to Tika
-				try {
-					ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					while (( count = in.read(data)) != -1) {
-						baos.write(data, 0, count);
-					}
-					
-					// 3: Convert to text
-					String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-					docText.setPlaintext(textResult);
-					
-					// 4: Add converted text to database for document(EISDoc) ID, filename
-					this.save(docText);
-				} catch(Exception e){
-					e.printStackTrace();
-				}
-				
-				in.close();
-
-				return new ResponseEntity<Void>(HttpStatus.OK);
-				
+				importStatus = archiveConvertImportAndIndex(foundDoc, fileURL);
+			} else { // PDF
+				importStatus = pdfConvertImportAndIndex(foundDoc, fileURL, filename);
 			}
+			
+			return new ResponseEntity<Void>(importStatus);
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 			
 	}
+
+	// helper method for bulk file import gets file, converts to text, indexing is then automatic
+	private HttpStatus pdfConvertImportAndIndex(EISDoc foundDoc, URL fileURL, String filename) throws IOException {
+		final int BUFFER = 2048;
+
+		Tika tikaParser = new Tika();
+		tikaParser.setMaxStringLength(-1); // disable limit
+
+		// 1: Download the file
+		InputStream in = new BufferedInputStream(fileURL.openStream());
+		
+		DocumentText docText = new DocumentText();
+		docText.setEisdoc(foundDoc);
+		docText.setFilename(filename);
+
+		int count;
+		byte[] data = new byte[BUFFER];
+		
+		// 2: Extract data and stream to Tika
+		try {
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			while (( count = in.read(data)) != -1) {
+				baos.write(data, 0, count);
+			}
+			
+			// 3: Convert to text
+			String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+			docText.setPlaintext(textResult);
+			
+			// 4: Add converted text to database for document(EISDoc) ID, filename
+			this.save(docText);
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		
+		in.close();
+
+		return HttpStatus.OK;
+	}
+
+	// helper method for bulk file import gets file, iterates through archive contents, converts to text, auto-indexed
+	private HttpStatus archiveConvertImportAndIndex(EISDoc nepaDoc, URL fileURL) throws IOException {
+		final int BUFFER = 2048;
+
+		Tika tikaParser = new Tika();
+		tikaParser.setMaxStringLength(-1); // disable limit
+
+		InputStream in = new BufferedInputStream(fileURL.openStream());
+		ZipInputStream zis = new ZipInputStream(in);
+		ZipEntry ze;
+		
+		while((ze = zis.getNextEntry()) != null) {
+			
+			int count;
+			byte[] data = new byte[BUFFER];
+			
+			String extractedFilename = ze.getName();
+			
+			// Handle directory - can ignore them if we're just converting PDFs
+			if(!ze.isDirectory()) {
+				if(testing) {
+					System.out.println(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename));
+				}
+				
+				// Skip if we have this text already (duplicate filenames associated with one EISDoc record are skipped)
+				if(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename)) {
+					zis.closeEntry();
+				} else {
+					
+					if(testing) {
+						System.out.println("Extracting " + ze);
+					}
+					
+					DocumentText docText = new DocumentText();
+					docText.setEisdoc(nepaDoc);
+					docText.setFilename(extractedFilename);
+					
+					// 2: Extract data and stream to Tika
+					try {
+						ByteArrayOutputStream baos = new ByteArrayOutputStream();
+						while (( count = zis.read(data)) != -1) {
+							baos.write(data, 0, count);
+						}
+						
+						// 3: Convert to text
+						String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+						docText.setPlaintext(textResult);
+						
+						// 4: Add converted text to database for document(EISDoc) ID, filename
+						this.save(docText);
+					} catch(Exception e){
+						// TODO: Report/log error specific to file within archive?
+						e.printStackTrace();
+					} finally { // while loop handles getNextEntry()
+						zis.closeEntry();
+					}
+				}
+			}
+		
+		}
+
+		// 5: Cleanup
+		in.close();
+		zis.close();
+
+		return HttpStatus.OK;
+	}
+
 
 	private ResponseEntity<Void> convertRecord(EISDoc eis) {
 
@@ -1992,6 +2019,24 @@ public class FileController {
 		} else {
 			return null;
 		}
+	}
+	
+	public static String encodeURIComponent(String s) {
+	    String result;
+
+	    try {
+	        result = URLEncoder.encode(s, "UTF-8")
+	                .replaceAll("\\+", "%20")
+	                .replaceAll("\\%21", "!")
+	                .replaceAll("\\%27", "'")
+	                .replaceAll("\\%28", "(")
+	                .replaceAll("\\%29", ")")
+	                .replaceAll("\\%7E", "~");
+	    } catch (UnsupportedEncodingException e) {
+	        result = s;
+	    }
+
+	    return result;
 	}
 
 	// Probably useless
