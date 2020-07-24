@@ -33,7 +33,7 @@ public class DocumentText {
 	private Long id;
 	
 	// Foreign key: EISDoc ID
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name="document_id")
 	private EISDoc eisdoc;
 

@@ -34,7 +34,7 @@ public class NEPAFile {
     private String relativePath; // relative path (optional, could be in root folder)
 
 	// Mandatory Foreign key: EISDoc
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(columnDefinition="INT(11)", name="document_id")
 	private EISDoc eisdoc;
     

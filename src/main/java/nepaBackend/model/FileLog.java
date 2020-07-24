@@ -31,7 +31,7 @@ public class FileLog {
 	private String extractedFilename;
 	
 	// Optional Foreign key: User ID
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name="user_id")
 	private ApplicationUser user;
     
