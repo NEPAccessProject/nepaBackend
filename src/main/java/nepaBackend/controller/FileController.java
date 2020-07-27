@@ -637,11 +637,17 @@ public class FileController {
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
 		List<String> results = new ArrayList<String>();
+		
+		if(testing) {
+			String[] testing = csv.split("\n");
+			System.out.println(testing[0]);
+		}
 
 
 	    // Expect these headers:
 	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
 	    // TODO: Translate these into a standard before proceeding? Such as Type or Document Type instead of Document
+		// (this would require editing the first line of the csv String?)
 		
 	    try {
 	    	
@@ -731,11 +737,11 @@ public class FileController {
 					    	}
 //							}
 				    	} else {
-							results.add("Item " + count + ": Duplicate");
+							results.add("Item " + count + ": Duplicate (no action): " + itr.title);
 				    	}
 					}
 			    } else {
-					results.add("Item " + count + ": Missing one or more required fields: federal_register_date/document_type/eis_identifier/title");
+					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/EIS Identifier/Title");
 			    }
 			    count++;
 			}
@@ -2041,10 +2047,10 @@ public class FileController {
 			try {
 				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 					.getId();
-				System.out.println("ID: " + id);
+				if(testing) {System.out.println("ID: " + id);}
 
 				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-				System.out.println("User ID: " + user.getId());
+				if(testing) {System.out.println("User ID: " + user.getId());}
 				return user;
 			} catch (Exception e) {
 				return null;
