@@ -19,6 +19,7 @@ public class UploadInputs {
 	public String comments_filename;
 	public String link;
 	public String notes;
+	public String force_update;
 	
 	public UploadInputs() {
 	}

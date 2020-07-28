@@ -685,8 +685,12 @@ public class FileController {
 						
 						// If record exists but has no filename, then update it instead of skipping
 						// This is because current data is based on having a filename for an archive or not,
-						// so new data can add files where there are none, without adding redundant data when there is data
-						if(recordThatMayExist.isPresent() && recordThatMayExist.get().getFilename().isBlank()) {
+						// so new data can add files where there are none, without adding redundant data when there is data.
+						// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
+						if(recordThatMayExist.isPresent() && 
+								(recordThatMayExist.get().getFilename().isBlank() || 
+										(itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) )
+						) {
 //							if(testing) {
 //								// not saving for now, just pretending
 //								results.add("Item " + count + ": Updated: " + itr.title);
@@ -842,7 +846,7 @@ public class FileController {
 				    	if(savedNEPAFile == null) {
 				    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 				    	} else {
-				    		uploadLog.setFilename(origFilename); // full path incl. filename
+				    		uploadLog.setFilename(getPathOnly(origFilename) + getFilenameOnly(origFilename)); // full path incl. filename with agency base folder subbed in if needed
 						    uploadLog.setUser(getUser(token));
 						    uploadLog.setLogTime(LocalDateTime.now());
 						    uploadLog.setErrorType("Uploaded");
@@ -880,7 +884,7 @@ public class FileController {
 		
 		return new ResponseEntity<String>("OK", HttpStatus.OK);
 	}
-		
+
 	/** Return whether metadata exists for a given EIS Identifier (folder) */
 	private boolean metadataExists(String folderName) {
 		// TODO Auto-generated method stub
@@ -903,7 +907,7 @@ public class FileController {
 	 *  because without that field a link shouldn't be possible yet 
 	 * @return */
 	private NEPAFile handleNEPAFileSave(String fullPath, List<EISDoc> existingDocs) {
-		boolean duplicate = nepaFileRepository.existsByFilenameAndRelativePathIn(getFilenameWithoutPath(fullPath), getPathOnly(fullPath));
+		boolean duplicate = nepaFileRepository.existsByFilenameAndRelativePathIn(getFilenameOnly(fullPath), getPathOnly(fullPath));
 		
 		if(duplicate) {
 			return null;
@@ -914,7 +918,7 @@ public class FileController {
 	    	String folderName = getUniqueFolderNameOrEmpty(fullPath);
 	    	String documentType = getDocumentTypeOrEmpty(fullPath);
 	    	
-	    	fileToSave.setFilename(getFilenameWithoutPath(fullPath));
+	    	fileToSave.setFilename(getFilenameOnly(fullPath));
 	    	fileToSave.setFolder(folderName);
 	        fileToSave.setRelativePath(getPathOnly(fullPath)); 
 			if(existingDocs.size()>0) {
@@ -949,14 +953,14 @@ public class FileController {
 	 *  both database and file directory on DBFS). */
 	private void handleNEPAFileSave(String relativePath, EISDoc savedDoc, String document_type) {
 		boolean duplicate = true;
-		duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(getFilenameWithoutPath(relativePath), savedDoc);
+		duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(getFilenameOnly(relativePath), savedDoc);
 		
 		if(duplicate) {
 			return;
 		} else {
 	    	NEPAFile fileToSave = new NEPAFile();
 	    	fileToSave.setEisdoc(savedDoc);
-	    	fileToSave.setFilename(getFilenameWithoutPath(relativePath));
+	    	fileToSave.setFilename(getFilenameOnly(relativePath));
 	    	fileToSave.setFolder(getUniqueFolderName(relativePath, savedDoc));
 	    	/** TODO: Temporary logic until we get the path back from Express to guarantee consistency
 	    	/* if we get the path wrong the system will fail to find the files 
@@ -1036,14 +1040,35 @@ public class FileController {
 		return eisdoc.getId().toString();
 	}
 
-	/** e.g. C:/ex/etc/test.pdf --> C:/ex/etc/ */
+	/** e.g. /NSF_0001/etc/... --> /NSF/NSF_0001/etc/ (it adds a base agency folder if missing, based on the
+	 * pre-underscore text of the identifying folder */
 	private String getPathOnly(String pathWithFilename) {
+		String result = "";
+		
+		
+		// Check if we have agency folder, and if not, prepend it
+		
+		String[] folders = pathWithFilename.replaceAll("\\\\", "/").split("/");
+		// Note: folders[0] is expected to be blank, or none of this is going to work anyway.
+		String probableAgencyFolder = folders[1]; // e.g. NSF_00001
+		if(probableAgencyFolder.contentEquals(getUniqueFolderNameOrEmpty(pathWithFilename))) {
+			// Base folder is EIS Identifier: Need to interpret base folder (agency folder)
+			// First part of EIS Identifier should be agency name followed by _, or user error
+			String[] segments = pathWithFilename.split("_"); // e.g. [0]: /NSF, [1]: 00001/...
+			result = segments[0]; // /NSF
+		} else {
+			// Agency folder already included, or user error
+		}
+		
+		
 		int idx = pathWithFilename.replaceAll("\\\\", "/").lastIndexOf("/");
-		return idx >= 0 ? pathWithFilename.substring(0, idx + 1) : pathWithFilename;
+		result += (idx >= 0 ? pathWithFilename.substring(0, idx + 1) : pathWithFilename);
+		
+		return result;
 	}
 	
 	/** e.g. C:/ex/etc/test.pdf --> test.pdf */
-	private String getFilenameWithoutPath(String pathWithFilename) {
+	private String getFilenameOnly(String pathWithFilename) {
 		int idx = pathWithFilename.replaceAll("\\\\", "/").lastIndexOf("/");
 		return idx >= 0 ? pathWithFilename.substring(idx + 1) : pathWithFilename;
 	}
