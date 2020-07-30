@@ -17,8 +17,8 @@ public class DocService {
 		return docRepository.queryBy(id, idList1, idList2);
 	}
 	
-	public void saveEISDoc(EISDoc doc) {
-		docRepository.save(doc);
+	public EISDoc saveEISDoc(EISDoc doc) {
+		return docRepository.save(doc);
 	}
 	
 //	public List<String> getAllTitles() {

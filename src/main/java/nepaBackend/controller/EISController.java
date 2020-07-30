@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 //import java.sql.ResultSet;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -25,27 +27,46 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.auth0.jwt.JWT;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DateValidator;
 import nepaBackend.DateValidatorUsingLocalDate;
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.SearchLogRepository;
+import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
 import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.MatchParams;
 import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.UploadInputs;
+import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/test")
 public class EISController {
 	private SearchLogRepository searchLogRepository;
+	private ApplicationUserRepository applicationUserRepository;
 	
-	public EISController(SearchLogRepository searchLogRepository) {
+	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
+			"yyyy/MM/dd", "MM/dd/yyyy", 
+			"M/dd/yyyy", "yyyy/M/dd", "M-dd-yyyy", "yyyy-M-dd",
+			"MM/d/yyyy", "yyyy/MM/d", "MM-d-yyyy", "yyyy-MM-d",
+			"M/d/yyyy", "yyyy/M/d", "M-d-yyyy", "yyyy-M-d",
+			"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+			.map(DateTimeFormatter::ofPattern)
+			.toArray(DateTimeFormatter[]::new);
+	
+	public EISController(SearchLogRepository searchLogRepository, ApplicationUserRepository applicationUserRepository) {
 		this.searchLogRepository = searchLogRepository;
+		this.applicationUserRepository = applicationUserRepository;
 	}
 
 	@Autowired
@@ -524,6 +545,118 @@ public class EISController {
 			return null;
 		}
 	}
+	
+	/** Updates given UploadInputs "doc" string with ID.
+	 * 200: Done
+	 * 204: Got document from ID but couldn't update it, somehow 
+	 * 401: Not curator/admin 
+	 * 404: No document for ID 
+	 * 500: Something broke before we even got to the ID */
+	@CrossOrigin
+	@RequestMapping(path = "/update_doc", method = RequestMethod.POST)
+	public ResponseEntity<Void> updateDoc(@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			try {
+				// translate
+				ObjectMapper mapper = new ObjectMapper();
+				UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
+				LocalDate parsedDate = parseDate(dto.federal_register_date);
+				
+				dto.federal_register_date = parsedDate.toString();
+				
+				// update
+				ResponseEntity<Void> status = updateFromDTO(dto);
+				
+				return status;
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} else {
+			return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	
+	
+	private boolean userIsAuthorized(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().equalsIgnoreCase("CURATOR") || user.getRole().equalsIgnoreCase("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+
+	}
+	
+	
+	/** Turns UploadInputs into valid, current EISDoc and updates it, returns 200 (OK) or 500 (error), 
+	 * 404 is no current EISDoc for ID, 400 if title, type or date are missing,
+	 * 204 if the .save itself was somehow rejected (database deemed it invalid or no connection?) */
+	private ResponseEntity<Void> updateFromDTO(UploadInputs itr) {
+		
+		Optional<EISDoc> maybeRecord = docService.findById(Long.parseLong(itr.id));
+		if(maybeRecord.isPresent()) {
+			EISDoc recordToUpdate = maybeRecord.get();
+
+			// translate
+			recordToUpdate.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
+			recordToUpdate.setDocumentType(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.document));
+			recordToUpdate.setFilename(itr.filename);
+			recordToUpdate.setCommentsFilename(itr.comments_filename);
+			recordToUpdate.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+			if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
+				// skip
+			} else {
+				recordToUpdate.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
+			}
+			recordToUpdate.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
+			recordToUpdate.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
+			recordToUpdate.setFolder(itr.eis_identifier.trim());
+			recordToUpdate.setLink(itr.link.trim());
+			recordToUpdate.setNotes(itr.notes.trim());
+			
+			if(recordToUpdate.getTitle().isBlank() || recordToUpdate.getDocumentType().isBlank() 
+					|| recordToUpdate.getRegisterDate() == null) {
+				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+			}
+			
+			EISDoc updatedRecord = docService.saveEISDoc(recordToUpdate); // save to db
+			
+			if(updatedRecord != null) {
+				return new ResponseEntity<Void>(HttpStatus.OK);
+			} else {
+				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
+			}
+		} else {
+			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
+		}
+	}
+	
+	
+	/**
+	 * Attempts to return valid parsed LocalDate from String argument, based on formats specified in  
+	 * DateTimeFormatter[] parseFormatters
+	 * @param date
+	 * @throws IllegalArgumentException
+	 */
+	private LocalDate parseDate(String date) {
+		for (DateTimeFormatter formatter : parseFormatters) {
+			try {
+				return LocalDate.parse(date, formatter);
+			} catch (DateTimeParseException dtpe) {
+				// ignore, try next
+			}
+		}
+		throw new IllegalArgumentException("Couldn't parse date (preferred format is yyyy-MM-dd): " + date);
+	}
+	
 	
 	// TODO: Validation for everything, like Dates
 	

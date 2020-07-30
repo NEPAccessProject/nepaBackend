@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UploadInputs {
+	public String id;
 	public String title;
 	public String document;
 	public String federal_register_date;
