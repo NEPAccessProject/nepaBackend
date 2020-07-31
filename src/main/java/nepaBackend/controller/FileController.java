@@ -3,6 +3,7 @@ package nepaBackend.controller;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
@@ -117,11 +119,8 @@ public class FileController {
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String filename) {
 		try {
-			// TODO: Rewrite to support file paths provided by NEPAFile table
 			// TODO: if not .zip try adding .pdf first?  Client will need file type and we need to capture all the files to deliver
 			// potentially in a zip
-			// TODO: Eventually going to need a lot of logic for exploring folder structures
-			// and capturing multiple files
 			URL fileURL = new URL(dbURL + filename);
 			if(testing) {
 				fileURL = new URL(testURL + filename);
@@ -145,6 +144,64 @@ public class FileController {
 //			e.printStackTrace();
 //			String sStackTrace = sw.toString();
 			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
+		}
+	}
+
+	/** Handles multiple files to download for an EISDoc record, given its ID */
+	@CrossOrigin
+	@RequestMapping(path = "/downloadFolder", method = RequestMethod.GET)
+	public ResponseEntity<Void> downloadFolderById(HttpServletRequest request, HttpServletResponse response,
+			@RequestParam String id) {
+		ZipOutputStream zip = null;
+
+		try {
+		    zip = new ZipOutputStream(response.getOutputStream());
+
+			// Get full folder path from nepafile for eis (or path would work) and then zip that folder's contents
+			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
+			response.addHeader("Content-Disposition", "attachment; filename=\"" + nepaFiles.get(0).getFolder() + "_" + nepaFiles.get(0).getDocumentType() + ".zip\""); 
+			
+			for(NEPAFile nepaFile : nepaFiles) {
+
+				// Format URI properly (%20 for spaces in folder, file name...)
+				String fullPath = encodeURIComponent(nepaFile.getRelativePath() + nepaFile.getFilename());
+				URL fileURL = new URL(dbURL + fullPath);
+				if(testing) {
+					fileURL = new URL(testURL + fullPath);
+				}
+
+				InputStream in = new BufferedInputStream(fileURL.openStream());
+				
+				zip.putNextEntry(new ZipEntry(nepaFile.getFilename()));
+		        int length;
+
+		        byte[] b = new byte[2048];
+
+		        while((length = in.read(b)) > 0) {
+		            zip.write(b, 0, length);
+		        }
+		        
+		        zip.closeEntry();
+		        in.close();
+			}
+			// Issues with content-length because of transfer-encoding: chunked
+//			response.addHeader("Content-Length", "" + fileSize + ""); 
+//			response.setContentLength(fileSize);
+
+			zip.flush();
+			
+			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
+		} catch(Exception e) {
+			
+			if(testing) {e.printStackTrace();}
+			
+			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+		} finally {
+		    try {
+				zip.close();
+			} catch (IOException e2) {
+				if(testing) {e2.printStackTrace();}
+			}
 		}
 	}
 	
