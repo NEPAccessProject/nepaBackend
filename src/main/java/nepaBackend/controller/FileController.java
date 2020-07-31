@@ -160,6 +160,7 @@ public class FileController {
 			// Get full folder path from nepafile for eis (or path would work) and then zip that folder's contents
 			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
 			response.addHeader("Content-Disposition", "attachment; filename=\"" + nepaFiles.get(0).getFolder() + "_" + nepaFiles.get(0).getDocumentType() + ".zip\""); 
+			response.addHeader("Access-Control-Expose-Headers", "Content-Disposition,X-Decompressed-Content-Length,Transfer-Encoding");
 			
 			for(NEPAFile nepaFile : nepaFiles) {
 
