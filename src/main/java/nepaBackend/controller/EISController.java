@@ -41,10 +41,12 @@ import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.Globals;
 import nepaBackend.SearchLogRepository;
+import nepaBackend.UpdateLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
 import nepaBackend.model.SearchLog;
+import nepaBackend.model.UpdateLog;
 import nepaBackend.pojo.MatchParams;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.UploadInputs;
@@ -55,6 +57,7 @@ import nepaBackend.security.SecurityConstants;
 public class EISController {
 	private SearchLogRepository searchLogRepository;
 	private ApplicationUserRepository applicationUserRepository;
+	private UpdateLogRepository updateLogRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
 			"yyyy/MM/dd", "MM/dd/yyyy", 
@@ -65,9 +68,11 @@ public class EISController {
 			.map(DateTimeFormatter::ofPattern)
 			.toArray(DateTimeFormatter[]::new);
 	
-	public EISController(SearchLogRepository searchLogRepository, ApplicationUserRepository applicationUserRepository) {
+	public EISController(SearchLogRepository searchLogRepository, ApplicationUserRepository applicationUserRepository,
+			UpdateLogRepository updateLogRepository) {
 		this.searchLogRepository = searchLogRepository;
 		this.applicationUserRepository = applicationUserRepository;
+		this.updateLogRepository = updateLogRepository;
 	}
 
 	@Autowired
@@ -566,7 +571,7 @@ public class EISController {
 				dto.federal_register_date = parsedDate.toString();
 				
 				// update
-				ResponseEntity<Void> status = updateFromDTO(dto);
+				ResponseEntity<Void> status = updateFromDTO(dto, token);
 				
 				return status;
 			} catch(Exception e) {
@@ -599,7 +604,7 @@ public class EISController {
 	/** Turns UploadInputs into valid, current EISDoc and updates it, returns 200 (OK) or 500 (error), 
 	 * 404 is no current EISDoc for ID, 400 if title, type or date are missing,
 	 * 204 if the .save itself was somehow rejected (database deemed it invalid or no connection?) */
-	private ResponseEntity<Void> updateFromDTO(UploadInputs itr) {
+	private ResponseEntity<Void> updateFromDTO(UploadInputs itr, String token) {
 		
 		Optional<EISDoc> maybeRecord = docService.findById(Long.parseLong(itr.id));
 		if(maybeRecord.isPresent()) {
@@ -630,6 +635,24 @@ public class EISController {
 			EISDoc updatedRecord = docService.saveEISDoc(recordToUpdate); // save to db
 			
 			if(updatedRecord != null) {
+				
+				// Log
+				UpdateLog updateLog = new UpdateLog();
+				updateLog.setDocumentId(updatedRecord.getId());
+				updateLog.setAgency(updatedRecord.getAgency());
+				updateLog.setTitle(updatedRecord.getTitle());
+				updateLog.setDocument(updatedRecord.getDocumentType());
+				updateLog.setFilename(updatedRecord.getFilename());
+				updateLog.setState(updatedRecord.getState());
+				updateLog.setFolder(updatedRecord.getFolder());
+				updateLog.setLink(updatedRecord.getLink());
+				updateLog.setNotes(updatedRecord.getNotes());
+
+		        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, ""))).getId();
+//				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+				updateLog.setUserId(Long.parseLong(id));
+				updateLogRepository.save(updateLog);
+				
 				return new ResponseEntity<Void>(HttpStatus.OK);
 			} else {
 				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);

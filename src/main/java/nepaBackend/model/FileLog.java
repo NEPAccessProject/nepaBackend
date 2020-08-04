@@ -45,7 +45,9 @@ public class FileLog {
 	private LocalDateTime logTime;
 
 
-	public FileLog() { }
+	public FileLog() { 
+		this.logTime = LocalDateTime.now();
+	}
 
 	public FileLog(long id, String filename, ApplicationUser user, boolean imported, String errorType, LocalDateTime logTime) {
 		super();
@@ -54,7 +56,7 @@ public class FileLog {
 		this.imported = imported;
 		this.user = user;
 		this.errorType = errorType;
-		this.logTime = logTime;
+		this.logTime = LocalDateTime.now();
 	}
 
 

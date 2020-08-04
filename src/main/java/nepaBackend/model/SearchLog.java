@@ -63,7 +63,9 @@ public class SearchLog {
 	@Column(name = "saved_time", columnDefinition="TIMESTAMP")
 	private LocalDateTime savedTime;
 
-	public SearchLog() {}
+	public SearchLog() {
+		this.savedTime = LocalDateTime.now();
+	}
 	
     public SearchLog(Long id, Long userId, String searchName, String searchMode, String title, String documentTypes, String startComment,
 			String endComment, String startPublish, String endPublish, String agency, String state, boolean needsDocument,
@@ -83,6 +85,7 @@ public class SearchLog {
 		this.needsDocument = needsDocument;
 		this.needsComments = needsComments;
 		this.howMany = howMany;
+		this.savedTime = LocalDateTime.now();
 	}
 
 

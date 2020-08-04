@@ -39,7 +39,9 @@ public class EmailLog {
     
 
 
-	public EmailLog() { }
+	public EmailLog() { 
+		this.logTime = LocalDateTime.now();
+	}
 
 	public EmailLog(Long id, String email, String username, boolean sent, String emailType, String errorType) {
 		//super();  // TODO: Do we need this for this project?
@@ -50,6 +52,7 @@ public class EmailLog {
 		this.sent = sent;
 		this.emailType = emailType;
 		this.errorType = errorType;
+		this.logTime = LocalDateTime.now();
 	}
     
     
