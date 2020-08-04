@@ -137,7 +137,7 @@ public class FileController {
 			response.flushBuffer();
 			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
 		} catch (Exception e) {
-		// TODO: Log missing file errors in db file log?
+		// TODO: Log missing file errors in db file log?  Verify file doesn't exist and then remove filename from record?
 //			StringWriter sw = new StringWriter();
 //			PrintWriter pw = new PrintWriter(sw);
 //			e.printStackTrace(pw);
@@ -675,10 +675,9 @@ public class FileController {
 
 
 	/** 
-	 * Takes .csv file with required headers: title/register_date/filename/document_type and imports each valid,
-	 * non-duplicate record.  
+	 * Takes .csv file with required headers and imports each valid, non-duplicate record.  Updates existing records
 	 * 
-	 * Valid records: Must have title/register_date/filename/document_type, register_date must conform to one of
+	 * Valid records: Must have title/register_date/filename or folder/document_type, register_date must conform to one of
 	 * the formats in parseFormatters[]
 	 * 
 	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
@@ -2042,29 +2041,52 @@ public class FileController {
 		}
 	}
 
-	/** Expects matching record and new data; updates; preserves comments/comments date if no new values for those */
+	/** Expects matching record and new data; updates; preserves comments/comments date, state, agency if no new values for those */
 	private ResponseEntity<Long> updateDto(UploadInputs itr, Optional<EISDoc> existingRecord) {
 
 		if(!existingRecord.isPresent()) {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 		EISDoc oldRecord = existingRecord.get();
-		// translate
-		// at this point we've matched on agency and document type already
-		oldRecord.setFilename(itr.filename);
+
+		// at this point we've matched on title, date and document type already but because of how we match on title
+		// it can actually be slightly different and hopefully more accurate
+		oldRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
+		
+		// this is redundant because the outer logic doesn't set the filename when one exists without force_update
+		if(itr.filename == null || itr.filename.isBlank()) {
+			// skip, leave original
+		} else if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
+			/** 
+			 * update even if new filename is blank/null, allowing user to potentially ungracefully unlink existing
+			 *  files from metadata.  Also allows bulk fixing of past mistakes if they previously added a bunch of
+			 *  invalid filenames.  So this can both break and fix the database depending on user, 
+			 *  which is true of the import in general
+			 */
+			oldRecord.setFilename(itr.filename);
+		} else {
+			oldRecord.setFilename(itr.filename);
+		}
+		
 		if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
 			// skip, leave original
 		} else {
 			oldRecord.setCommentsFilename(itr.comments_filename);
 		}
-		oldRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+		
+//		oldRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
 		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
 			// skip, leave original
 		} else {
 			oldRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
 		}
-		oldRecord.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
-		oldRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
+		
+		if(itr.state != null && !itr.state.isBlank()) {
+			oldRecord.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
+		}
+		if(itr.agency != null && !itr.agency.isBlank()) {
+			oldRecord.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
+		}
 		oldRecord.setFolder(itr.eis_identifier.strip());
 		oldRecord.setLink(itr.link.strip());
 		oldRecord.setNotes(itr.notes.strip());

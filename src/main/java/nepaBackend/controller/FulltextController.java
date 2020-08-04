@@ -1,5 +1,6 @@
 package nepaBackend.controller;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +52,8 @@ public class FulltextController {
 		this.applicationUserRepository = applicationUserRepository;
 		this.searchLogRepository = searchLogRepository;
 	}
+	
+	private boolean testing = true;
 	
 
 	/** TODO: Log search terms */
@@ -170,7 +173,7 @@ public class FulltextController {
 	}
 	
 
-	/** Get a list of DocumentTexts for a given EIS title (EISDoc.title) (title is not unique)*/
+	/** Get a list of DocumentTexts by the first EISDoc to match on filename (filename is not unique)*/
 	@CrossOrigin
 	@RequestMapping(path = "/get_by_filename", method = RequestMethod.GET)
 	public List<DocumentText> getByFilename(@RequestParam String filename, @RequestHeader Map<String, String> headers) {
@@ -189,8 +192,36 @@ public class FulltextController {
 			}
 		}
 	}
-	
 
+	/** Given id, returns length of plaintext for document_text if found.  If not found, returns -1
+	 */
+	@CrossOrigin
+	@RequestMapping(path = "/get_length", method = RequestMethod.GET)
+	public int getLengthOfDocumentText(@RequestParam long id) {
+		try {
+			return textRepository.findPlaintextLengthById(id);
+		} catch(Exception e) {
+			return -1;
+		}
+	}
+
+	/** Get a list of document_text IDs who have the same length(plaintext) as for the given document_text ID. 
+	 * It's one method for finding potential duplicates which may or may not have the same filename or be associated
+	 * with the same EISDoc record */
+	@CrossOrigin
+	@RequestMapping(path = "/get_length_ids", method = RequestMethod.GET)
+	public List<BigInteger> getIdsByLengthFromId(@RequestParam long id) {
+		if(testing) {
+			System.out.println(id);
+			System.out.println(getLengthOfDocumentText(id));
+		}
+		// empty list if invalid ID (won't find any plaintext lengths of -1)
+		return textRepository.findIdsByPlaintextLength(getLengthOfDocumentText(id));
+	}
+
+	
+	
+	
 	/** Decode trusted token and then ask database if user is admin */
 	private boolean isAdmin(String token) {
 		boolean result = false;
