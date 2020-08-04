@@ -39,6 +39,7 @@ import nepaBackend.DateValidator;
 import nepaBackend.DateValidatorUsingLocalDate;
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
+import nepaBackend.Globals;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
@@ -307,8 +308,7 @@ public class EISController {
 			// Otherwise let natural language mode pick the top results
 			
 			// debugging
-			Boolean testing = false;
-			if(testing) {
+			if(Globals.TESTING) {
 				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
 				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
 				System.out.println(validator.isValid(searchInputs.endPublish));

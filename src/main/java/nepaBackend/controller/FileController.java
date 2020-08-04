@@ -65,6 +65,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
+import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.model.ApplicationUser;
@@ -106,13 +107,12 @@ public class FileController {
 		this.nepaFileRepository = nepaFileRepository;
 	}
 	
-	// TODO: Set this as a global constant somewhere?  May be changed to SBS and then elsewhere in future
-	// Can also have a backup set up for use if primary fails
-	Boolean testing = true;
-	static String dbURL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
-	String testURL = "http://localhost:5000/";
-	String uploadTestURL = "http://localhost:5309/uploadFilesTest";
-	static String uploadURL = "http://mis-jvinaldbl1.catnet.arizona.edu:5309/upload";
+	private static boolean testing = Globals.TESTING;
+	private static String dbURL = Globals.DOWNLOAD_URL;
+	private static String uploadURL = Globals.UPLOAD_URL;
+	
+	private static String testURL = "http://localhost:5000/";
+	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
@@ -1406,11 +1406,7 @@ public class FileController {
 			String fullPath = (savedNEPAFile.getRelativePath() + filename).substring(1);
 
 			// Handle things like spaces in folder names:
-//			URI uri = new URI(relevantURL + fullPath.replaceAll(" ", "%20"));
-//			System.out.println("URI: " + uri.toString());
-//			URL fileURL = uri.toURL();
 			URL fileURL = new URL(relevantURL + encodeURIComponent(fullPath));
-			
 			
 			if(testing) {
 				System.out.println("FileURL " + fileURL.toString());

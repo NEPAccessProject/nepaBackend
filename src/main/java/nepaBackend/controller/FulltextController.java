@@ -24,6 +24,7 @@ import nepaBackend.TextRepository;
 import nepaBackend.enums.SearchType;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
+import nepaBackend.Globals;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
@@ -53,8 +54,7 @@ public class FulltextController {
 		this.searchLogRepository = searchLogRepository;
 	}
 	
-	private boolean testing = true;
-	
+	private boolean testing = Globals.TESTING;
 
 	/** TODO: Log search terms */
 	/** Get DocumentText matches across entire database for fulltext search term(s) */

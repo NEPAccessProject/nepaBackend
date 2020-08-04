@@ -157,7 +157,7 @@ public class AdminController {
 	}
 	
 
-	/** Return ApplicationUser given JWT String */
+	/** Return ApplicationUser given trusted JWT String */
 	private ApplicationUser getUser(String token) {
 		if(token != null) {
 			// get ID
@@ -174,7 +174,7 @@ public class AdminController {
 		}
 	}
 		
-	/** Return whether JWT is from Admin role */
+	/** Return whether trusted JWT is from Admin role */
 	private boolean isAdmin(String token) {
 		boolean result = false;
 		ApplicationUser user = getUser(token);
