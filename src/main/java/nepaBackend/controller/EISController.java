@@ -313,7 +313,7 @@ public class EISController {
 			// Otherwise let natural language mode pick the top results
 			
 			// debugging
-			if(Globals.TESTING) {
+			if(Globals.TESTING && searchInputs.endPublish != null) {
 				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
 				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
 				System.out.println(validator.isValid(searchInputs.endPublish));

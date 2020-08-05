@@ -386,8 +386,18 @@ public class FileController {
 			dto.federal_register_date = parsedDate.toString();
 		    dto.filename = origFilename;
 		    
+		    if(dto.eis_identifier == null || dto.eis_identifier.isBlank()) {
+		    	// This gets set later, but it can't be blank or null for the isValid test
+		    	dto.eis_identifier = "temp";
+		    }
+		    
 		    // Validate: File must exist, valid fields, and can't be duplicate
 			if(file == null || !isValid(dto) || recordExists(dto.title, dto.document, dto.federal_register_date)) {
+				if(Globals.TESTING) {
+					System.out.println(file == null);
+					System.out.println(!isValid(dto));
+					System.out.println(recordExists(dto.title, dto.document, dto.federal_register_date));
+				}
 				return new ResponseEntity<boolean[]>(results, HttpStatus.BAD_REQUEST);
 			}
 			
@@ -395,10 +405,6 @@ public class FileController {
 		    uploadLog.setUser(getUser(token));
 		    uploadLog.setLogTime(LocalDateTime.now());
 		    
-		    // Prefer empty string over null
-		    if(dto.eis_identifier == null) {
-		    	dto.eis_identifier = "";
-		    }
 		    if(dto.link == null) {
 		    	dto.link = "";
 		    }
@@ -408,6 +414,7 @@ public class FileController {
 		    
 		    // Since metadata is already validated, this should always save successfully with a db connection.
 	    	EISDoc savedDoc = saveMetadata(dto); // note: JPA .save() is safe from sql injection
+	    	savedDoc.setFolder(savedDoc.getId().toString()); // Use ID as folder
 
 	    	// saved?
 	    	results[0] = (savedDoc != null);
@@ -418,7 +425,7 @@ public class FileController {
 			    
 			    HttpEntity entity = MultipartEntityBuilder.create()
 						.addTextBody("filepath",
-								savedDoc.getId().toString()) // Feed Express path to use
+								"/" + savedDoc.getId().toString() + "/") // Feed Express path to use
 	    				.addBinaryBody("test", // This name can be used by multer
 	    						file.getInputStream(), 
 	    						ContentType.create("application/octet-stream"), 
@@ -436,6 +443,8 @@ public class FileController {
 			    results[1] = (response.getStatusLine().getStatusCode() == 200);
 
 			    if(results[1]) {
+			    	// Save NEPAFile
+			    	handleNEPAFileSave(origFilename, savedDoc, dto.document);
 		    		uploadLog.setErrorType("Uploaded");
 		    		uploadLog.setFilename(origFilename);
 				    
@@ -535,6 +544,9 @@ public class FileController {
 	    LocalDate parsedDate = parseDate(dto.federal_register_date);
 		dto.federal_register_date = parsedDate.toString();
 		dto.filename = "";
+		
+    	// This gets set later, but it can't be blank or null for the isValid test
+    	dto.eis_identifier = "temp";
 
 		if(!isValid(dto) || recordExists(dto.title, dto.document, dto.federal_register_date)) {
 			return new ResponseEntity<String>(HttpStatus.BAD_REQUEST);
@@ -550,6 +562,8 @@ public class FileController {
 	    	savedDoc = saveMetadata(dto);
 	    	if(savedDoc == null) {
 				return new ResponseEntity<String>(HttpStatus.INTERNAL_SERVER_ERROR);
+	    	} else {
+	    		savedDoc.setFolder(savedDoc.getId().toString());
 	    	}
 		} catch(Exception e) {
 			// Couldn't save
@@ -571,7 +585,7 @@ public class FileController {
 			    }
 			    
 			    String savePath = "";
-			    if(getUniqueFolderName(origFilename, savedDoc).equalsIgnoreCase(savedDoc.toString())) { // If we generated the folder ourselves
+			    if(getUniqueFolderName(origFilename, savedDoc).equalsIgnoreCase(savedDoc.getId().toString())) { // If we generated the folder ourselves
 			    	savePath = "/" + getUniqueFolderName(origFilename, savedDoc) + "/"; // Assume saved to /{ID}/
 		    	} else { // Otherwise use provided path
 		    		savePath = getPathOnly(origFilename);
@@ -1022,7 +1036,7 @@ public class FileController {
 	    	/** TODO: Temporary logic until we get the path back from Express to guarantee consistency
 	    	/* if we get the path wrong the system will fail to find the files 
 	    	/* even when the NEPAFile has a correct foreign key */
-	    	if(fileToSave.getFolder().equalsIgnoreCase(savedDoc.toString())) { // If we generated the folder ourselves
+	    	if(fileToSave.getFolder().equalsIgnoreCase(savedDoc.getId().toString())) { // If we generated the folder ourselves
 	    		fileToSave.setRelativePath("/" + fileToSave.getFolder() + "/"); // Assume saved to /{ID}/
 	    	} else { // Otherwise use provided path
 	        	fileToSave.setRelativePath(getPathOnly(relativePath)); 
@@ -1195,7 +1209,7 @@ public class FileController {
 		if(dto.document.isBlank()) {
 			valid = false; // Need type
 		}
-		
+
 		return valid;
 	}
 
