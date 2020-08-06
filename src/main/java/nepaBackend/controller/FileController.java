@@ -225,6 +225,26 @@ public class FileController {
 		}
 		
 	}
+
+	/** Return all file logs for an eisdoc */
+	@CrossOrigin
+	@RequestMapping(path = "/nepafiles", method = RequestMethod.GET)
+	public ResponseEntity<List<NEPAFile>> getAllNEPAFilesByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+
+		List<NEPAFile> filesList = nepaFileRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
+		return new ResponseEntity<List<NEPAFile>>(filesList, HttpStatus.OK);
+		
+	}
+	
+	/** Return all document texts for an eisdoc */
+	@CrossOrigin
+	@RequestMapping(path = "/doc_texts", method = RequestMethod.GET)
+	public ResponseEntity<List<DocumentText>> getAllTextsByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+	
+		List<DocumentText> docList = textRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
+		return new ResponseEntity<List<DocumentText>>(docList, HttpStatus.OK);
+	
+	}
 	
 	
 
