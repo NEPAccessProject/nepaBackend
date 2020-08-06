@@ -7,12 +7,12 @@ import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
 
@@ -28,10 +28,10 @@ import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.security.SecurityConstants;
 
-@Controller
+@RestController
 @RequestMapping("/admin")
 public class AdminController {
-    
+	
     private ApplicationUserRepository applicationUserRepository;
     private NEPAFileRepository nepaFileRepository;
     private DocRepository docRepository;
@@ -50,13 +50,132 @@ public class AdminController {
 		this.nepaFileRepository = nepaFileRepository;
     }
     
-    // TODO: Separate method which can delete an EISDoc, which should call deleteAllFiles first for a manual cascade delete
+    
+    /** Given DocumentText ID, get the associated NEPAFile(s)*/
+    @CrossOrigin
+    @RequestMapping(path = "/deleteFile", method = RequestMethod.POST)
+    ResponseEntity<String> deleteFileByDocumentTextId(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+    	// TODO: Probably want to delete by NEPAFile ID, not by DocumentText ID?  Maybe replace this route with that one
+    	try {
+    		String token = headers.get("authorization");
+    		if(!isAdminOrCurator(token)) {
+    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
+    		}
+    		else {
+    			ApplicationUser user = getUser(token);
+    			
+    			// Get DocumentText by ID
+    			Optional<DocumentText> textRecord = textRepository.findById(Long.valueOf(id));
+    			if(textRecord.isEmpty()) {
+        			return new ResponseEntity<String>("No text record found", HttpStatus.BAD_REQUEST);
+    			}
+    			
+    			// Get DocumentText by eisdoc and filename from NEPAFile
+//    			Optional<DocumentText> textRecord = textRepository.findByEisdocAndFilenameIn(eisDoc, presentFile.getFilename());
+    			
+    			DocumentText presentText = textRecord.get();
+    			EISDoc eisDoc = presentText.getEisdoc();
+    			// Get NEPAFile by filename and EISDoc
+    			Optional<NEPAFile> nepaFile = nepaFileRepository.findByEisdocAndFilenameIn(eisDoc, presentText.getFilename());
+    			
+    			if(nepaFile.isPresent()) {
+    				NEPAFile presentFile = nepaFile.get();
+        			String fullPath = presentFile.getRelativePath() + presentFile.getFilename();
+        			
+        			// Get FileLog by filename and EISDoc and imported = true
+        			Optional<FileLog> fileLog = fileLogRepository.findByDocumentIdAndFilenameAndImportedIn(eisDoc.getId(), fullPath, true);
+        			if(fileLog.isPresent()) {
+        				FileLog presentLog = fileLog.get();
+            			// Mark as no longer Imported in the filelog by EISDoc ID and relative path + filename from NEPAFile
+            			presentLog.setImported(false);
+        				fileLogRepository.save(presentLog); // Ensure it's updated
+        			}
+        			
+        			// Log + Delete NEPAFile
+    				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
+    				nepaFileRepository.delete(presentFile);
+    			}
+    			
+    			// Log + Delete DocumentText
+				logDelete(presentText.getEisdoc(), "Deleted: DocumentText", user, presentText.getFilename());
+				textRepository.delete(presentText);
+				
+    			return new ResponseEntity<String>(HttpStatus.OK);
+    		}
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    		
+			return new ResponseEntity<String>("Error: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+    	}
+    		
+    }
+    
+    /** Given DocumentText ID, get the associated NEPAFile(s)*/
+    @CrossOrigin
+    @RequestMapping(path = "/deleteFile2", method = RequestMethod.POST)
+    ResponseEntity<String> deleteFileById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+    	// TODO: Verify logic in this and in deleteAll with respect to zip files
+    	// TODO: "Orphaned files" algorithm to list files we aren't using, which we could then feed to a new process to delete them all
+    	// or delete manually
+    	try {
+    		String token = headers.get("authorization");
+    		if(!isAdminOrCurator(token)) {
+    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
+    		}
+    		else {
+    			ApplicationUser user = getUser(token);
+    			
+    			// Get NEPAFile by ID
+    			Optional<NEPAFile> nepaFile = nepaFileRepository.findById(Long.valueOf(id));
+    			if(nepaFile.isEmpty()) {
+        			return new ResponseEntity<String>("No file record found", HttpStatus.BAD_REQUEST);
+    			}
+    			
+    			NEPAFile presentFile = nepaFile.get();
+    			EISDoc eisDoc = presentFile.getEisdoc();
+    			
+    			String fullPath = presentFile.getRelativePath() + presentFile.getFilename();
+    			
+    			// Get FileLog by filename and EISDoc and imported = true
+    			Optional<FileLog> fileLog = fileLogRepository.findByDocumentIdAndFilenameAndImportedIn(eisDoc.getId(), fullPath, true);
+    			if(fileLog.isPresent()) {
+    				FileLog presentLog = fileLog.get();
+    				
+        			// Mark as no longer Imported in the filelog by EISDoc ID and relative path + filename from NEPAFile
+        			presentLog.setImported(false);
+    				fileLogRepository.save(presentLog); // Ensure it's updated
+    			}
+    			
+    			// Get DocumentText by eisdoc and filename from NEPAFile
+    			Optional<DocumentText> textRecord = textRepository.findByEisdocAndFilenameIn(eisDoc, presentFile.getFilename());
+    			
+    			if(textRecord.isPresent()) {
+    				DocumentText presentText = textRecord.get();
+        			
+        			// Log + Delete DocumentText
+    				logDelete(presentText.getEisdoc(), "Deleted: DocumentText", user, presentText.getFilename());
+    				textRepository.delete(presentText);
+    			}
+    			
+    			// Log + Delete NEPAFile
+				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
+				nepaFileRepository.delete(presentFile);
+				
+    			return new ResponseEntity<String>(HttpStatus.OK);
+    		}
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    		
+			return new ResponseEntity<String>("Error: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+    	}
+    		
+    }
 
     /** Delete all NEPAFiles and DocumentTexts from an EISDoc by its ID, then delete the actual files on disk, and finally delete
      * the Folder field for the EISDoc and update it.
      * Using ORM to delete allows Lucene to automatically also delete the relevant data from its index. */
     @CrossOrigin
-    @RequestMapping(path = "/deleteAllFiles", method = RequestMethod.GET)
+    @RequestMapping(path = "/deleteAllFiles", method = RequestMethod.POST)
     ResponseEntity<String> deleteAllFiles(@RequestParam String id, @RequestHeader Map<String, String> headers) {
     	
     	List<String> deletedList = new ArrayList<String>();
@@ -65,7 +184,7 @@ public class AdminController {
     	
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdmin(token)) {
+    		if(!isAdminOrCurator(token)) {
     			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     		
@@ -142,6 +261,57 @@ public class AdminController {
 			return new ResponseEntity<String>("Error: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
     	}
     }
+
+    // Deletes the eisdoc itself after calling deleteAllFiles
+    // TODO: Test
+    @CrossOrigin
+    @RequestMapping(path = "/deleteDoc", method = RequestMethod.POST)
+    ResponseEntity<String> deleteDoc(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+    	
+    	// First, ensure we delete the associated files, or they will be orphaned
+    	ResponseEntity<String> deleteAllResponse = this.deleteAllFiles(id, headers);
+    	if(deleteAllResponse.getStatusCodeValue() != 200) { // Couldn't delete?
+    		// Return response
+			return deleteAllResponse;
+    	}
+
+    	Long idToDelete = Long.valueOf(id);
+    	
+    	try {
+    		String token = headers.get("authorization");
+    		if(!isAdminOrCurator(token)) {
+    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
+    		}
+    		
+    		else {
+
+    			ApplicationUser user = getUser(token);
+    			
+    			// Try to get by ID
+    			Optional<EISDoc> doc = docRepository.findById(idToDelete);
+    			if(doc.isEmpty()) {
+    				return new ResponseEntity<String>("No such document for ID " + idToDelete, HttpStatus.NOT_FOUND);
+    			}
+    			EISDoc foundDoc = doc.get();
+    			
+    			// Delete 
+    			try {
+        			docRepository.delete(foundDoc);
+    			} catch (IllegalArgumentException e) {
+    				return new ResponseEntity<String>("Error deleting: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+    			}
+    			
+    			// Log
+				logDelete(foundDoc, "Deleted: EISDoc", user, "EISDoc");
+    			
+    			return new ResponseEntity<String>("Deleted " + id, HttpStatus.OK);
+    		}
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    		
+			return new ResponseEntity<String>("Error: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+    	}
+    }
     
 
 	private void logDelete(EISDoc foundDoc, String message, ApplicationUser user, String filename) {
@@ -175,12 +345,12 @@ public class AdminController {
 	}
 		
 	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdmin(String token) {
+	private boolean isAdminOrCurator(String token) {
 		boolean result = false;
 		ApplicationUser user = getUser(token);
 		// get user
 		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
+			if(user.getRole().contentEquals("ADMIN") || user.getRole().contentEquals("CURATOR")) {
 				result = true;
 			}
 		}

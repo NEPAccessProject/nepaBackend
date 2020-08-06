@@ -956,13 +956,7 @@ public class FileController {
 		return new ResponseEntity<String>("OK", HttpStatus.OK);
 	}
 
-	/** Return whether metadata exists for a given EIS Identifier (folder) */
-	private boolean metadataExists(String folderName) {
-		// TODO Auto-generated method stub
-		long numRecords = docRepository.countByFolder(folderName);
-		boolean exists = numRecords > 0;
-		return exists;
-	}
+	
 
 
 
@@ -1144,133 +1138,6 @@ public class FileController {
 		return idx >= 0 ? pathWithFilename.substring(idx + 1) : pathWithFilename;
 	}
 
-	/** Saves pre-validated metadata record to database and returns the EISDoc with new ID */
-	private EISDoc saveMetadata(UploadInputs dto) throws org.springframework.orm.jpa.JpaSystemException{
-    	EISDoc saveDoc = new EISDoc();
-    	saveDoc.setAgency(dto.agency.trim());
-    	saveDoc.setDocumentType(dto.document.trim());
-    	
-    	if(dto.federal_register_date.length()>9) {
-	    	saveDoc.setRegisterDate(LocalDate.parse(dto.federal_register_date));
-    	} else {
-	    	saveDoc.setRegisterDate(null);
-    	}
-    	saveDoc.setState(dto.state);
-    	saveDoc.setTitle(dto.title.trim());
-    	
-    	saveDoc.setCommentDate(null);
-    	saveDoc.setFilename(dto.filename);
-    	saveDoc.setCommentsFilename("");
-    	
-    	// Save (ID is null at this point, but .save() picks a unique ID thanks to the model so it's good)
-    	EISDoc savedDoc = docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
-    	
-    	return savedDoc;
-	}
-	
-	
-	
-	
-	
-	
-
-	/** Check that required fields exist (doesn't verify document type from a list of acceptable types) */
-	private boolean isValid(UploadInputs dto) {
-//		System.out.println(dto.title);
-//		System.out.println(dto.federal_register_date);
-//		System.out.println(dto.document);
-//		System.out.println(dto.filename);
-		boolean valid = true;
-		// Choice: Agency/state required also?
-		// Check for null; filename should at least be "multi" but sometimes may be blank
-		if(dto.filename == null) {
-			dto.filename = "";
-		}
-		if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
-			valid = false;
-			return valid; // Just stop here and don't have to worry about validating null values
-		}
-		
-		if(dto.filename.contentEquals("n/a")) {
-			valid = false;
-		}
-		
-		// Expect EIS identifier
-		if(dto.eis_identifier == null || dto.eis_identifier.isBlank()) {
-			valid = false;
-			return valid;
-		}
-		
-		// Check for empty
-		if(dto.title.isBlank()) {
-			valid = false; // Need title
-		}
-
-		if(dto.document.isBlank()) {
-			valid = false; // Need type
-		}
-
-		return valid;
-	}
-
-	/**
-	 * Attempts to return valid parsed LocalDate from String argument, based on formats specified in  
-	 * DateTimeFormatter[] parseFormatters
-	 * @param date
-	 * @throws IllegalArgumentException
-	 */
-	private LocalDate parseDate(String date) {
-		for (DateTimeFormatter formatter : parseFormatters) {
-			try {
-				return LocalDate.parse(date, formatter);
-			} catch (DateTimeParseException dtpe) {
-				// ignore, try next
-			}
-		}
-		throw new IllegalArgumentException("Couldn't parse date (preferred format is yyyy-MM-dd): " + date);
-	}
-
-	/** Minimal upload test to make sure uploading works (saves nothing to db, does save file to disk) */
-	@CrossOrigin
-	@RequestMapping(path = "/uploadTest", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<String> uploadTest(@RequestPart(name="file") MultipartFile file, 
-			@RequestHeader Map<String, String> headers) 
-					throws IOException { 
-	    String result = "Started";
-	    
-		String token = headers.get("authorization");
-		if(!isCurator(token) && !isAdmin(token)) 
-		{
-			return new ResponseEntity<String>(result, HttpStatus.UNAUTHORIZED);
-		}
-
-	    try {
-			
-	    	HttpEntity entity = MultipartEntityBuilder.create()
-	    				.addBinaryBody("test", 
-	    						file.getInputStream(), 
-	    						ContentType.create("application/octet-stream"), 
-	    						file.getOriginalFilename())
-	    				.build();
-		    HttpPost request = new HttpPost(uploadURL);
-		    if(testing) { request = new HttpPost(uploadTestURL); }
-		    request.setEntity(entity);
-
-		    HttpClient client = HttpClientBuilder.create().build();
-		    HttpResponse response = client.execute(request);
-		    
-		    // so far so good?
-		    result = response.toString();
-			
-		} catch (Exception e) {
-			result += " *** Error: " + e.toString();
-		} finally {
-		    file.getInputStream().close();
-		}
-
-		return new ResponseEntity<String>(result, HttpStatus.OK);
-	}
-	
 	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
 		if(testing) {
 			System.out.println("Converting PDF");
@@ -1878,6 +1745,14 @@ public class FileController {
 		}
 	}
 
+	/** Return whether metadata exists for a given EIS Identifier (folder) */
+	private boolean metadataExists(String folderName) {
+		// TODO Auto-generated method stub
+		long numRecords = docRepository.countByFolder(folderName);
+		boolean exists = numRecords > 0;
+		return exists;
+	}
+
 	/** Returns if database contains at least one instance of a title/type/date combination */
 	@CrossOrigin
 	@RequestMapping(path = "/existsTitleTypeDate", method = RequestMethod.GET)
@@ -2020,6 +1895,30 @@ public class FileController {
 		}
 	}
 	
+	/** Saves pre-validated metadata record to database and returns the EISDoc with new ID */
+	private EISDoc saveMetadata(UploadInputs dto) throws org.springframework.orm.jpa.JpaSystemException{
+		EISDoc saveDoc = new EISDoc();
+		saveDoc.setAgency(dto.agency.trim());
+		saveDoc.setDocumentType(dto.document.trim());
+		
+		if(dto.federal_register_date.length()>9) {
+	    	saveDoc.setRegisterDate(LocalDate.parse(dto.federal_register_date));
+		} else {
+	    	saveDoc.setRegisterDate(null);
+		}
+		saveDoc.setState(dto.state);
+		saveDoc.setTitle(dto.title.trim());
+		
+		saveDoc.setCommentDate(null);
+		saveDoc.setFilename(dto.filename);
+		saveDoc.setCommentsFilename("");
+		
+		// Save (ID is null at this point, but .save() picks a unique ID thanks to the model so it's good)
+		EISDoc savedDoc = docRepository.save(saveDoc); // note: JPA .save() is safe from sql injection
+		
+		return savedDoc;
+	}
+
 	/** Turns UploadInputs into valid EISDoc and saves to database, returns new ID and 200 (OK) or null and 500 (error) */
 	private ResponseEntity<Long> saveDto(UploadInputs itr) {
 		
@@ -2129,6 +2028,45 @@ public class FileController {
 		
 	}
 
+	/** Check that required fields exist (doesn't verify document type from a list of acceptable types) */
+		private boolean isValid(UploadInputs dto) {
+	//		System.out.println(dto.title);
+	//		System.out.println(dto.federal_register_date);
+	//		System.out.println(dto.document);
+	//		System.out.println(dto.filename);
+			boolean valid = true;
+			// Choice: Agency/state required also?
+			// Check for null; filename should at least be "multi" but sometimes may be blank
+			if(dto.filename == null) {
+				dto.filename = "";
+			}
+			if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
+				valid = false;
+				return valid; // Just stop here and don't have to worry about validating null values
+			}
+			
+			if(dto.filename.contentEquals("n/a")) {
+				valid = false;
+			}
+			
+			// Expect EIS identifier
+			if(dto.eis_identifier == null || dto.eis_identifier.isBlank()) {
+				valid = false;
+				return valid;
+			}
+			
+			// Check for empty
+			if(dto.title.isBlank()) {
+				valid = false; // Need title
+			}
+	
+			if(dto.document.isBlank()) {
+				valid = false; // Need type
+			}
+	
+			return valid;
+		}
+
 	/** Return whether JWT is from Admin role */
 	private boolean isAdmin(String token) {
 		boolean result = false;
@@ -2175,6 +2113,64 @@ public class FileController {
 		}
 	}
 	
+	/**
+	 * Attempts to return valid parsed LocalDate from String argument, based on formats specified in  
+	 * DateTimeFormatter[] parseFormatters
+	 * @param date
+	 * @throws IllegalArgumentException
+	 */
+	private LocalDate parseDate(String date) {
+		for (DateTimeFormatter formatter : parseFormatters) {
+			try {
+				return LocalDate.parse(date, formatter);
+			} catch (DateTimeParseException dtpe) {
+				// ignore, try next
+			}
+		}
+		throw new IllegalArgumentException("Couldn't parse date (preferred format is yyyy-MM-dd): " + date);
+	}
+
+	/** Minimal upload test to make sure uploading works (saves nothing to db, does save file to disk) */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadTest", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<String> uploadTest(@RequestPart(name="file") MultipartFile file, 
+			@RequestHeader Map<String, String> headers) 
+					throws IOException { 
+	    String result = "Started";
+	    
+		String token = headers.get("authorization");
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<String>(result, HttpStatus.UNAUTHORIZED);
+		}
+	
+	    try {
+			
+	    	HttpEntity entity = MultipartEntityBuilder.create()
+	    				.addBinaryBody("test", 
+	    						file.getInputStream(), 
+	    						ContentType.create("application/octet-stream"), 
+	    						file.getOriginalFilename())
+	    				.build();
+		    HttpPost request = new HttpPost(uploadURL);
+		    if(testing) { request = new HttpPost(uploadTestURL); }
+		    request.setEntity(entity);
+	
+		    HttpClient client = HttpClientBuilder.create().build();
+		    HttpResponse response = client.execute(request);
+		    
+		    // so far so good?
+		    result = response.toString();
+			
+		} catch (Exception e) {
+			result += " *** Error: " + e.toString();
+		} finally {
+		    file.getInputStream().close();
+		}
+	
+		return new ResponseEntity<String>(result, HttpStatus.OK);
+	}
+
 	public static String encodeURIComponent(String s) {
 	    String result;
 

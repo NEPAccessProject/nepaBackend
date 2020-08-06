@@ -37,4 +37,6 @@ public interface TextRepository extends JpaRepository<DocumentText, Long>, Custo
 			"LIMIT 1",
 			nativeQuery = true)
 	int findPlaintextLengthById(@Param("id") long id);
+
+	Optional<DocumentText> findByEisdocAndFilenameIn(EISDoc eisDoc, String filename);
 }
