@@ -60,11 +60,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
 
 		// Old code: Only good for single terms, even encapsulated in double quotes.  For multiple terms, it splits them by spaces and will basically OR them together.
-		Query luceneQuery = queryBuilder
-				.keyword()
-				.onField("plaintext")
-				.matching(terms)
-				.createQuery();
+//		Query luceneQuery = queryBuilder
+//				.keyword()
+//				.onField("plaintext")
+//				.matching(terms)
+//				.createQuery();
 		
 		// Old code: Tries to match on phrases
 //		Query luceneQuery = queryBuilder
@@ -83,6 +83,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.createQuery();
 		
 		// Let's try an all-word search.
+
+		String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
+		String allWordTerms = "";
+		for(int i = 0; i < termsArray.length; i++) {
+			allWordTerms += "+" + termsArray[i] + " ";
+		}
+		allWordTerms = allWordTerms.strip();
+		Query luceneQuery = queryBuilder
+				.keyword()
+				.onField("plaintext")
+				.matching(allWordTerms)
+				.createQuery();
 //		String defaultField = "plaintext";
 //		Analyzer analyzer = new StandardAnalyzer();
 //		QueryParser queryParser = new QueryParser()
