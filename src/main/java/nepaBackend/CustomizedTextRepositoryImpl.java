@@ -47,7 +47,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	private static int numberOfFragmentsMax = 5;
 	private static int fragmentSize = 250;
 	
-	private static int fuzzyLevel = 0;
+	private static int fuzzyLevel = 1;
 
 	/** Return all records matching terms (no highlights/context) */
 	@SuppressWarnings("unchecked")
