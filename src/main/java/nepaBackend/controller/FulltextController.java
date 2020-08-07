@@ -100,7 +100,7 @@ public class FulltextController {
 			
 			try { // Note: Limit matters a lot when getting highlights.  Lack of SSD, RAM, CPU probably important, in that order
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-						(textRepository.metaContext(terms, 1000, 0, SearchType.ALL)));
+						(textRepository.metaContext(terms, 100, 0, SearchType.ALL)));
 				return highlightsMeta;
 			} catch(org.hibernate.search.exception.EmptyQueryException e) {
 				return new ArrayList<MetadataWithContext>();
