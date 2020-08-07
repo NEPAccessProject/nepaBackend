@@ -19,6 +19,7 @@ import org.apache.lucene.queryparser.surround.query.BasicQueryFactory;
 import org.apache.lucene.queryparser.surround.query.SrndQuery;
 import org.apache.lucene.sandbox.queries.FuzzyLikeThisQuery;
 import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
@@ -52,7 +53,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	private static int numberOfFragmentsMax = 5;
 	private static int fragmentSize = 250;
 	
-	private static int fuzzyLevel = 1;
+//	private static int fuzzyLevel = 1;
 
 	/** Return all records matching terms (no highlights/context) */
 	@SuppressWarnings("unchecked")
@@ -88,18 +89,25 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		// Let's try an all-word search.
 //		SrndQuery q = QueryParser.parse(terms);
-
-		String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
-		String allWordTerms = "";
-		for(int i = 0; i < termsArray.length; i++) {
-			allWordTerms += termsArray[i] + " AND ";
-		}
-		allWordTerms = allWordTerms.substring(0, allWordTerms.length()-4).strip();
+		
 		Query luceneQuery = queryBuilder
-				.keyword()
+				.simpleQueryString()
 				.onField("plaintext")
-				.matching(allWordTerms)
+				.withAndAsDefaultOperator()
+				.matching(terms)
 				.createQuery();
+
+//		String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
+//		String allWordTerms = "";
+//		for(int i = 0; i < termsArray.length; i++) {
+//			allWordTerms += termsArray[i] + " AND ";
+//		}
+//		allWordTerms = allWordTerms.substring(0, allWordTerms.length()-4).strip();
+//		Query luceneQuery = queryBuilder
+//				.keyword()
+//				.onField("plaintext")
+//				.matching(allWordTerms)
+//				.createQuery();
 		
 		
 //		String defaultField = "plaintext";
@@ -189,7 +197,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //	}
 	
 	/** Return all highlights with context and document ID for matching terms (term phrase?) */
-	@SuppressWarnings("unchecked")
+//	@SuppressWarnings({ "unchecked", "deprecation" })
 	@Override
 	public List<MetadataWithContext> metaContext(String terms, int limit, int offset, SearchType searchType) {
 		
@@ -202,13 +210,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		boolean fuzzy = false;
 		if(fuzzy) {
-			luceneQuery = queryBuilder
-					.keyword()
-					.fuzzy()
-					.withEditDistanceUpTo(fuzzyLevel) // max: 2; default: 2; aka maximum fuzziness
-					.onField("plaintext")
-					.matching(terms)
-					.createQuery();
+//			luceneQuery = queryBuilder
+//					.keyword()
+//					.fuzzy()
+//					.withEditDistanceUpTo(fuzzyLevel) // max: 2; default: 2; aka maximum fuzziness
+//					.onField("plaintext")
+//					.matching(terms)
+//					.createQuery();
 			
 		} else {
 			// for phrases
@@ -220,18 +228,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					.createQuery();
 			
 			// all-word?
-			String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
-			String allWordTerms = "";
-			for(int i = 0; i < termsArray.length; i++) {
-				allWordTerms += "+" + termsArray[i] + " ";
-			}
-			allWordTerms = allWordTerms.strip();
-			
+
 			luceneQuery = queryBuilder
-					.keyword()
+					.simpleQueryString()
 					.onField("plaintext")
-					.matching(allWordTerms)
+					.withAndAsDefaultOperator()
+					.matching(terms)
 					.createQuery();
+			
+//			String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
+//			String allWordTerms = "";
+//			for(int i = 0; i < termsArray.length; i++) {
+//				allWordTerms += "+" + termsArray[i] + " ";
+//			}
+//			allWordTerms = allWordTerms.strip();
+//			
+//			luceneQuery = queryBuilder
+//					.keyword()
+//					.onField("plaintext")
+//					.matching(allWordTerms)
+//					.createQuery();
 		}
 			
 		// wrap Lucene query in a javax.persistence.Query
@@ -256,18 +272,24 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		if(searchType == SearchType.ALL) { // .equals uses == internally
 			if(fuzzy) {
 				// New search code
-				FuzzyLikeThisQuery fuzzyQuery = new FuzzyLikeThisQuery(32, new StandardAnalyzer());
-				fuzzyQuery.addTerms(terms, "f", fuzzyLevel, 0);
-				scorer = new QueryScorer(fuzzyQuery);
+//				FuzzyLikeThisQuery fuzzyQuery = new FuzzyLikeThisQuery(32, new StandardAnalyzer());
+//				fuzzyQuery.addTerms(terms, "f", fuzzyLevel, 0);
+//				scorer = new QueryScorer(fuzzyQuery);
 			} else {
-				// Old search code: should be all-word?
-				List<Term> termWords = new ArrayList<Term>();
-				for (String word: words) {
-					termWords.add(new Term("f", word));
-				}
+				// Old search code: any-word
+//				List<Term> termWords = new ArrayList<Term>();
+//				for (String word: words) {
+//					termWords.add(new Term("f", word));
+//				}
+//				TermsQuery query = new TermsQuery(termWords);
+//				scorer = new QueryScorer(query);
 				
-				TermsQuery query = new TermsQuery(termWords);
-				scorer = new QueryScorer(query);
+				// all-word
+				BooleanQuery bq = new BooleanQuery();
+				for (String word: words) {
+					bq.add(new TermQuery(new Term("f", word)), Occur.MUST);
+				}
+				scorer = new QueryScorer(bq);
 			}
 		} else {
 			// Oldest code (most precision required)
