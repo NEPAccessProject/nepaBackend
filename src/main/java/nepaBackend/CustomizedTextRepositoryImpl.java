@@ -181,7 +181,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
 		Query luceneQuery = null;
 		
-		boolean fuzzy = true;
+		boolean fuzzy = false;
 		if(fuzzy) {
 			luceneQuery = queryBuilder
 					.keyword()
@@ -199,7 +199,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					.onField("plaintext")
 //					.sentence(terms)
 //					.createQuery();
-			// any-word
+			
+			// any-word?
 			luceneQuery = queryBuilder
 					.keyword()
 					.onField("plaintext")
