@@ -13,6 +13,12 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.TermsQuery;
+import org.apache.lucene.queryparser.surround.parser.QueryParser;
+import org.apache.lucene.queryparser.surround.query.BasicQueryFactory;
+import org.apache.lucene.queryparser.surround.query.SrndQuery;
+import org.apache.lucene.sandbox.queries.FuzzyLikeThisQuery;
+import org.apache.lucene.search.FuzzyQuery;
+import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.highlight.Fragmenter;
@@ -21,6 +27,9 @@ import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleFragmenter;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.apache.lucene.search.spans.SpanMultiTermQueryWrapper;
+import org.apache.lucene.search.spans.SpanNearQuery;
+import org.apache.lucene.search.spans.SpanQuery;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
@@ -54,10 +63,20 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.matching(terms)
 //				.createQuery();
 		
+		// Old code: Tries to match on phrases
+//		Query luceneQuery = queryBuilder
+//				.phrase()
+//				.onField("plaintext")
+//				.sentence(terms)
+//				.createQuery();
+		
+		// This is as loose of a search as we can build.
 		Query luceneQuery = queryBuilder
-				.phrase()
+				.keyword()
+				.fuzzy()
+				.withEditDistanceUpTo(2) // max: 2; default: 2; aka maximum fuzziness
 				.onField("plaintext")
-				.sentence(terms)
+				.matching(terms)
 				.createQuery();
 
 		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
@@ -155,6 +174,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			luceneQuery = queryBuilder
 					.keyword()
 					.fuzzy()
+					.withEditDistanceUpTo(2) // max: 2; default: 2; aka maximum fuzziness
 					.onField("plaintext")
 					.matching(terms)
 					.createQuery();
@@ -188,13 +208,23 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		QueryScorer scorer = null;
 		String[] words = terms.split(" ");
 		if(searchType == SearchType.ALL) { // .equals uses == internally
-			List<Term> termWords = new ArrayList<Term>();
-			for (String word: words) {
-				termWords.add(new Term("f", word));
+			if(fuzzy) {
+				// New search code
+				FuzzyLikeThisQuery fuzzyQuery = new FuzzyLikeThisQuery(32, new StandardAnalyzer());
+				fuzzyQuery.addTerms(terms, "f", 2, 0);
+				scorer = new QueryScorer(fuzzyQuery);
+			} else {
+				// Old search code
+				List<Term> termWords = new ArrayList<Term>();
+				for (String word: words) {
+					termWords.add(new Term("f", word));
+				}
+				
+				TermsQuery query = new TermsQuery(termWords);
+				scorer = new QueryScorer(query);
 			}
-			TermsQuery query = new TermsQuery(termWords);
-			scorer = new QueryScorer(query);
 		} else {
+			// Oldest code (most precision required)
 			PhraseQuery query = new PhraseQuery("f", words);
 			scorer = new QueryScorer(query);
 		}
