@@ -18,10 +18,13 @@ import org.apache.lucene.queryparser.surround.parser.QueryParser;
 import org.apache.lucene.queryparser.surround.query.BasicQueryFactory;
 import org.apache.lucene.queryparser.surround.query.SrndQuery;
 import org.apache.lucene.sandbox.queries.FuzzyLikeThisQuery;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.FuzzyQuery;
 import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.highlight.Fragmenter;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
@@ -31,6 +34,7 @@ import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.apache.lucene.search.spans.SpanMultiTermQueryWrapper;
 import org.apache.lucene.search.spans.SpanNearQuery;
 import org.apache.lucene.search.spans.SpanQuery;
+import org.apache.lucene.util.Version;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
@@ -83,18 +87,21 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.createQuery();
 		
 		// Let's try an all-word search.
+//		SrndQuery q = QueryParser.parse(terms);
 
 		String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
 		String allWordTerms = "";
 		for(int i = 0; i < termsArray.length; i++) {
-			allWordTerms += "+" + termsArray[i] + " ";
+			allWordTerms += termsArray[i] + " AND ";
 		}
-		allWordTerms = allWordTerms.strip();
+		allWordTerms = allWordTerms.substring(0, allWordTerms.length()-4).strip();
 		Query luceneQuery = queryBuilder
 				.keyword()
 				.onField("plaintext")
 				.matching(allWordTerms)
 				.createQuery();
+		
+		
 //		String defaultField = "plaintext";
 //		Analyzer analyzer = new StandardAnalyzer();
 //		QueryParser queryParser = new QueryParser()
