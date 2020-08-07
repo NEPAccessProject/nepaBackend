@@ -46,6 +46,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	private static int numberOfFragmentsMax = 5;
 	private static int fragmentSize = 250;
+	
+	private static int fuzzyLevel = 0;
 
 	/** Return all records matching terms (no highlights/context) */
 	@SuppressWarnings("unchecked")
@@ -69,8 +71,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.onField("plaintext")
 //				.sentence(terms)
 //				.createQuery();
-		
-		int fuzzyLevel = 1;
 		
 		// This is as loose of a search as we can build.
 		Query luceneQuery = queryBuilder
@@ -172,7 +172,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		Query luceneQuery = null;
 		
 		boolean fuzzy = true;
-		int fuzzyLevel = 1;
 		if(fuzzy) {
 			luceneQuery = queryBuilder
 					.keyword()
