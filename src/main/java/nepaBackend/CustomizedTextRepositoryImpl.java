@@ -9,6 +9,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
 import org.hibernate.search.query.dsl.QueryBuilder;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
@@ -59,11 +60,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
 
 		// Old code: Only good for single terms, even encapsulated in double quotes.  For multiple terms, it splits them by spaces and will basically OR them together.
-//		Query luceneQuery = queryBuilder
-//				.keyword()
-//				.onField("plaintext")
-//				.matching(terms)
-//				.createQuery();
+		Query luceneQuery = queryBuilder
+				.keyword()
+				.onField("plaintext")
+				.matching(terms)
+				.createQuery();
 		
 		// Old code: Tries to match on phrases
 //		Query luceneQuery = queryBuilder
@@ -73,13 +74,22 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.createQuery();
 		
 		// This is as loose of a search as we can build.
-		Query luceneQuery = queryBuilder
-				.keyword()
-				.fuzzy()
-				.withEditDistanceUpTo(fuzzyLevel) // max: 2; default: 2; aka maximum fuzziness
-				.onField("plaintext")
-				.matching(terms)
-				.createQuery();
+//		Query luceneQuery = queryBuilder
+//				.keyword()
+//				.fuzzy()
+//				.withEditDistanceUpTo(fuzzyLevel) // max: 2; default: 2; aka maximum fuzziness
+//				.onField("plaintext")
+//				.matching(terms)
+//				.createQuery();
+		
+		// Let's try an all-word search.
+//		String defaultField = "plaintext";
+//		Analyzer analyzer = new StandardAnalyzer();
+//		QueryParser queryParser = new QueryParser()
+//				.AndQuery()
+//				.;
+//		queryParser.setDefaultOperator(QueryParser.Operator.AND);
+//		Query query = queryParser.parse(terms);
 
 		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
@@ -182,11 +192,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					.createQuery();
 			
 		} else {
+			// for phrases
+//			luceneQuery = queryBuilder
+//					.phrase()
+//						.withSlop(0) // default: 0 (note: doesn't work as expected)
+//					.onField("plaintext")
+//					.sentence(terms)
+//					.createQuery();
+			// any-word
 			luceneQuery = queryBuilder
-					.phrase()
-						.withSlop(0) // default: 0 (note: doesn't work as expected)
+					.keyword()
 					.onField("plaintext")
-					.sentence(terms)
+					.matching(terms)
 					.createQuery();
 		}
 			
