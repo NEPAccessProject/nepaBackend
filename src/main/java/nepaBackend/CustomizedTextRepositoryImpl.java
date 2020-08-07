@@ -148,12 +148,25 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
-		Query luceneQuery = queryBuilder
-				.phrase()
-					.withSlop(0) // default: 0 (note: doesn't work as expected)
-				.onField("plaintext")
-				.sentence(terms)
-				.createQuery();
+		Query luceneQuery = null;
+		
+		boolean fuzzy = true;
+		if(fuzzy) {
+			luceneQuery = queryBuilder
+					.keyword()
+					.fuzzy()
+					.onField("plaintext")
+					.matching(terms)
+					.createQuery();
+			
+		} else {
+			luceneQuery = queryBuilder
+					.phrase()
+						.withSlop(0) // default: 0 (note: doesn't work as expected)
+					.onField("plaintext")
+					.sentence(terms)
+					.createQuery();
+		}
 			
 		// wrap Lucene query in a javax.persistence.Query
 		javax.persistence.Query jpaQuery =
