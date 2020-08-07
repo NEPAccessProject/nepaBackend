@@ -200,11 +200,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					.sentence(terms)
 //					.createQuery();
 			
-			// any-word?
+			// all-word?
+			String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
+			String allWordTerms = "";
+			for(int i = 0; i < termsArray.length; i++) {
+				allWordTerms += "+" + termsArray[i] + " ";
+			}
+			allWordTerms = allWordTerms.strip();
+			
 			luceneQuery = queryBuilder
 					.keyword()
 					.onField("plaintext")
-					.matching(terms)
+					.matching(allWordTerms)
 					.createQuery();
 		}
 			
@@ -234,7 +241,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				fuzzyQuery.addTerms(terms, "f", fuzzyLevel, 0);
 				scorer = new QueryScorer(fuzzyQuery);
 			} else {
-				// Old search code
+				// Old search code: should be all-word?
 				List<Term> termWords = new ArrayList<Term>();
 				for (String word: words) {
 					termWords.add(new Term("f", word));
