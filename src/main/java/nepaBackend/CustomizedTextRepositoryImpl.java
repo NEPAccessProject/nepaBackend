@@ -70,11 +70,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.sentence(terms)
 //				.createQuery();
 		
+		int fuzzyLevel = 1;
+		
 		// This is as loose of a search as we can build.
 		Query luceneQuery = queryBuilder
 				.keyword()
 				.fuzzy()
-				.withEditDistanceUpTo(2) // max: 2; default: 2; aka maximum fuzziness
+				.withEditDistanceUpTo(fuzzyLevel) // max: 2; default: 2; aka maximum fuzziness
 				.onField("plaintext")
 				.matching(terms)
 				.createQuery();
@@ -170,11 +172,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		Query luceneQuery = null;
 		
 		boolean fuzzy = true;
+		int fuzzyLevel = 1;
 		if(fuzzy) {
 			luceneQuery = queryBuilder
 					.keyword()
 					.fuzzy()
-					.withEditDistanceUpTo(2) // max: 2; default: 2; aka maximum fuzziness
+					.withEditDistanceUpTo(fuzzyLevel) // max: 2; default: 2; aka maximum fuzziness
 					.onField("plaintext")
 					.matching(terms)
 					.createQuery();
@@ -211,7 +214,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			if(fuzzy) {
 				// New search code
 				FuzzyLikeThisQuery fuzzyQuery = new FuzzyLikeThisQuery(32, new StandardAnalyzer());
-				fuzzyQuery.addTerms(terms, "f", 2, 0);
+				fuzzyQuery.addTerms(terms, "f", fuzzyLevel, 0);
 				scorer = new QueryScorer(fuzzyQuery);
 			} else {
 				// Old search code
