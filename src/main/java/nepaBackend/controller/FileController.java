@@ -155,11 +155,17 @@ public class FileController {
 		ZipOutputStream zip = null;
 
 		try {
-		    zip = new ZipOutputStream(response.getOutputStream());
 
 			// Get full folder path from nepafile for eis (or path would work) and then zip that folder's contents
-			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
-			response.addHeader("Content-Disposition", "attachment; filename=\"" + nepaFiles.get(0).getFolder() + "_" + nepaFiles.get(0).getDocumentType() + ".zip\""); 
+			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
+			System.out.println(nepaFiles.size());
+			if(nepaFiles.size() == 0) {
+				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+			}
+			String downloadFilename = nepaFiles.get(0).getFolder();
+			
+		    zip = new ZipOutputStream(response.getOutputStream());
+			response.addHeader("Content-Disposition", "attachment; filename=\"" + downloadFilename + ".zip\""); 
 			response.addHeader("Access-Control-Expose-Headers", "Content-Disposition,X-Decompressed-Content-Length,Transfer-Encoding");
 			
 			for(NEPAFile nepaFile : nepaFiles) {
@@ -190,7 +196,6 @@ public class FileController {
 //			response.setContentLength(fileSize);
 
 			zip.flush();
-			
 			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
 		} catch(Exception e) {
 			
@@ -230,7 +235,7 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/nepafiles", method = RequestMethod.GET)
 	public ResponseEntity<List<NEPAFile>> getAllNEPAFilesByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-		List<NEPAFile> filesList = nepaFileRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
+		List<NEPAFile> filesList = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
 		return new ResponseEntity<List<NEPAFile>>(filesList, HttpStatus.OK);
 	}
 	
