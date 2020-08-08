@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -51,11 +52,12 @@ public class AdminController {
     }
     
     
-    /** Given DocumentText ID, get the associated NEPAFile(s)*/
+    /** Given DocumentText ID, delete the DocumentText and any NEPAFile(s) for it from the linked EISDoc */
     @CrossOrigin
-    @RequestMapping(path = "/deleteFile", method = RequestMethod.POST)
-    ResponseEntity<String> deleteFileByDocumentTextId(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-    	// TODO: Probably want to delete by NEPAFile ID, not by DocumentText ID?  Maybe replace this route with that one
+    @RequestMapping(path = "/delete_text", method = RequestMethod.POST)
+    ResponseEntity<String> deleteFileByDocumentTextId(@RequestBody String id, @RequestHeader Map<String, String> headers) {
+    	System.out.println(id);
+    	// Normally probably want to go by NEPAFile ID but for the original files there are no NEPAFiles anyway
     	try {
     		String token = headers.get("authorization");
     		if(!isAdminOrCurator(token)) {
@@ -100,6 +102,10 @@ public class AdminController {
 				logDelete(presentText.getEisdoc(), "Deleted: DocumentText", user, presentText.getFilename());
 				textRepository.delete(presentText);
 				
+				// If we decide to delete the file itself, we would want to clear the filename
+//				eisDoc.setFilename("");
+//				docRepository.save(eisDoc);
+				
     			return new ResponseEntity<String>(HttpStatus.OK);
     		}
     	} catch(Exception e) {
@@ -109,10 +115,10 @@ public class AdminController {
     	}
     		
     }
+
     
-    /** Given DocumentText ID, get the associated NEPAFile(s)*/
     @CrossOrigin
-    @RequestMapping(path = "/deleteFile2", method = RequestMethod.POST)
+    @RequestMapping(path = "/delete_nepa_file", method = RequestMethod.POST)
     ResponseEntity<String> deleteFileById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
     	// TODO: Verify logic in this and in deleteAll with respect to zip files
     	// TODO: "Orphaned files" algorithm to list files we aren't using, which we could then feed to a new process to delete them all
@@ -176,8 +182,7 @@ public class AdminController {
      * Using ORM to delete allows Lucene to automatically also delete the relevant data from its index. */
     @CrossOrigin
     @RequestMapping(path = "/deleteAllFiles", method = RequestMethod.POST)
-    ResponseEntity<String> deleteAllFiles(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-    	
+    ResponseEntity<String> deleteAllFiles(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	List<String> deletedList = new ArrayList<String>();
     	
     	Long idToDelete = Long.valueOf(id);
@@ -228,7 +233,7 @@ public class AdminController {
     			List<NEPAFile> nepaFileList = nepaFileRepository.findAllByEisdoc(foundDoc);
     			for(NEPAFile nepaFile : nepaFileList) {
     				
-    				// TODO: Delete from disk here
+    				// TODO: Delete from disk here?
     				
     				// if matching (single file link), delete filename from record.
     				if(nepaFile.getFilename().contentEquals(foundDoc.getFilename())) {
@@ -266,7 +271,7 @@ public class AdminController {
     // TODO: Test
     @CrossOrigin
     @RequestMapping(path = "/deleteDoc", method = RequestMethod.POST)
-    ResponseEntity<String> deleteDoc(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+    ResponseEntity<String> deleteDoc(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	
     	// First, ensure we delete the associated files, or they will be orphaned
     	ResponseEntity<String> deleteAllResponse = this.deleteAllFiles(id, headers);

@@ -230,20 +230,17 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/nepafiles", method = RequestMethod.GET)
 	public ResponseEntity<List<NEPAFile>> getAllNEPAFilesByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-
 		List<NEPAFile> filesList = nepaFileRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
 		return new ResponseEntity<List<NEPAFile>>(filesList, HttpStatus.OK);
-		
 	}
 	
 	/** Return all document texts for an eisdoc */
 	@CrossOrigin
 	@RequestMapping(path = "/doc_texts", method = RequestMethod.GET)
 	public ResponseEntity<List<DocumentText>> getAllTextsByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-	
-		List<DocumentText> docList = textRepository.findAllByEisdoc(docRepository.getOne(Long.parseLong(id)));
+		System.out.println(id);
+		List<DocumentText> docList = textRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
 		return new ResponseEntity<List<DocumentText>>(docList, HttpStatus.OK);
-	
 	}
 	
 	
@@ -464,26 +461,15 @@ public class FileController {
 
 			    if(results[1]) {
 			    	// Save NEPAFile
-			    	handleNEPAFileSave(origFilename, savedDoc, dto.document);
+			    	NEPAFile savedNepaFile = handleNEPAFileSave(origFilename, savedDoc, dto.document);
 		    		uploadLog.setErrorType("Uploaded");
 		    		uploadLog.setFilename(origFilename);
 				    
 			    	// Run Tika on file, record if 200 or not
-				    if(origFilename.length() > 4
-			    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
-				    {
-			    		int status = this.convertPDF(savedDoc).getStatusCodeValue();
-				    	results[2] = (status == 200);
-			    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
-				    	int status = this.convertRecordSmart(savedDoc).getStatusCodeValue();
-				    	results[2] = (status == 200);
-				    	// Note: 200 doesn't necessarily mean tika was able to convert anything
-			    	}
+				    results[2] = (this.convertNEPAFile(savedNepaFile).getStatusCodeValue() == 200);
 				    
 			    	// converted to fulltext?  Or at least no Tika errors converting
-			    	if(results[2]) {
-					    uploadLog.setImported(true);
-			    	}
+				    uploadLog.setImported(results[2]);
 			    }
 		    	
 		    } else {
@@ -638,7 +624,7 @@ public class FileController {
 			    // If file uploaded, proceed to saving to table and logging
 			    if(uploaded) {
 			    	// Save NEPAFile
-			    	handleNEPAFileSave(origFilename, savedDoc, dto.document);
+			    	NEPAFile savedNepaFile = handleNEPAFileSave(origFilename, savedDoc, dto.document);
 			    	
 			    	// Save FileLog
 				    uploadLog.setFilename(origFilename);
@@ -648,14 +634,7 @@ public class FileController {
 				    uploadLog.setDocumentId(savedDoc.getId());
 				    
 			    	// Run Tika on file, record if 200 or not
-			    	if(origFilename.length() > 4
-			    			&& origFilename.substring(origFilename.length()-4).equalsIgnoreCase(".pdf")) 
-			    	{
-			    		converted = (this.convertPDF(savedDoc).getStatusCodeValue() == 200);
-			    	} else { // Archive or image case (not set up to attempt image conversion, may have issues with non-.zip archives)
-			    		converted = (this.convertRecordSmart(savedDoc).getStatusCodeValue() == 200);
-				    	// Note: 200 doesn't necessarily mean tika was able to convert anything
-			    	}
+				    converted = (this.convertNEPAFile(savedNepaFile).getStatusCodeValue() == 200);
 			    	
 			    	if(converted) {
 					    uploadLog.setImported(true);
@@ -1036,12 +1015,12 @@ public class FileController {
 	 *  Uses getFilenameWithoutPath() to set filename and getUniqueFolderName() to set folder, uses identical logic 
 	 *  for giving Express service the relative path to use (thus ensuring the download path is consistent for
 	 *  both database and file directory on DBFS). */
-	private void handleNEPAFileSave(String relativePath, EISDoc savedDoc, String document_type) {
+	private NEPAFile handleNEPAFileSave(String relativePath, EISDoc savedDoc, String document_type) {
 		boolean duplicate = true;
 		duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(getFilenameOnly(relativePath), savedDoc);
 		
 		if(duplicate) {
-			return;
+			return null;
 		} else {
 	    	NEPAFile fileToSave = new NEPAFile();
 	    	fileToSave.setEisdoc(savedDoc);
@@ -1056,7 +1035,7 @@ public class FileController {
 	        	fileToSave.setRelativePath(getPathOnly(relativePath)); 
 	    	}
 	    	fileToSave.setDocumentType(document_type);
-	    	nepaFileRepository.save(fileToSave);
+	    	return nepaFileRepository.save(fileToSave);
 		}
 	}
 
@@ -1158,10 +1137,8 @@ public class FileController {
 		return idx >= 0 ? pathWithFilename.substring(idx + 1) : pathWithFilename;
 	}
 
+	// Never used locally and probably useless (legacy code for converting a pdf based on an eis with a filename, before folder column)
 	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
-		if(testing) {
-			System.out.println("Converting PDF");
-		}
 		if(eis == null) {
 			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 		}
@@ -1218,6 +1195,9 @@ public class FileController {
 			} 
 			else 
 			{
+				if(testing) {
+					System.out.println("Converting PDF");
+				}
 				DocumentText docText = new DocumentText();
 				docText.setEisdoc(eis);
 				docText.setFilename(filename);
