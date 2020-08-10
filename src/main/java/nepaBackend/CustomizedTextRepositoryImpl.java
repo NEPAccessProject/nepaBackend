@@ -200,7 +200,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //	@SuppressWarnings({ "unchecked", "deprecation" })
 	@Override
 	public List<MetadataWithContext> metaContext(String terms, int limit, int offset, SearchType searchType) {
-		if(Globals.TESTING) { long startTime = System.currentTimeMillis(); }
+		long startTime = System.currentTimeMillis();
 		
 		terms = escapeSpecialCharacters(terms);
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
