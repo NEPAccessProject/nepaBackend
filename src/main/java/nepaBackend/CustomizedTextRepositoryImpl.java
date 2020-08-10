@@ -228,8 +228,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					.sentence(terms)
 //					.createQuery();
 			
-			// all-word?
-
+			// all-word
 			luceneQuery = queryBuilder
 					.simpleQueryString()
 					.onField("plaintext")
@@ -272,7 +271,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		String[] words = terms.split(" ");
 		if(searchType == SearchType.ALL) { // .equals uses == internally
 			if(fuzzy) {
-				// New search code
+				// Fuzzy search code
 //				FuzzyLikeThisQuery fuzzyQuery = new FuzzyLikeThisQuery(32, new StandardAnalyzer());
 //				fuzzyQuery.addTerms(terms, "f", fuzzyLevel, 0);
 //				scorer = new QueryScorer(fuzzyQuery);
@@ -409,7 +408,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
 //			System.out.println(result);
 			if(result.length()>0) {
-				result = "<span class=\"fragment\">... " + (result.replaceAll("\\n+", " ")).strip().concat(" ...</span>");
+				result = "<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(result).strip().concat(" ...</span>");
 //				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {
