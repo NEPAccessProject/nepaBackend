@@ -200,6 +200,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //	@SuppressWarnings({ "unchecked", "deprecation" })
 	@Override
 	public List<MetadataWithContext> metaContext(String terms, int limit, int offset, SearchType searchType) {
+		if(Globals.TESTING) { long startTime = System.currentTimeMillis(); }
 		
 		terms = escapeSpecialCharacters(terms);
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
@@ -285,11 +286,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				scorer = new QueryScorer(query);
 				
 				// all-word
-				BooleanQuery bq = new BooleanQuery();
-				for (String word: words) {
-					bq.add(new TermQuery(new Term("f", word)), Occur.MUST);
-				}
-				scorer = new QueryScorer(bq);
+//				BooleanQuery bq = new BooleanQuery();
+//				for (String word: words) {
+//					bq.add(new TermQuery(new Term("f", word)), Occur.MUST);
+//				}
+//				scorer = new QueryScorer(bq);
+				
+				// all-word using exact same query logic
+				scorer = new QueryScorer(luceneQuery);
 			}
 		} else {
 			// Oldest code (most precision required)
@@ -303,8 +307,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 		
 		
-		
-		// Use PhraseQuery or TermQuery to get results for matching records
 		for (DocumentText doc: docList) {
 			try {
 				String highlight = getHighlightString(doc.getPlaintext(), highlighter);
@@ -312,11 +314,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
 				}
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} finally {
 				fullTextEntityManager.close();
 			}
+		}
+		
+		if(Globals.TESTING) {
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println(elapsedTime);
 		}
 		
 		return highlightList;
@@ -394,7 +401,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		
 		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
-		TokenStream tokenStream = stndrdAnalyzer.tokenStream("f", new StringReader(text));
+		TokenStream tokenStream = stndrdAnalyzer.tokenStream("plaintext", new StringReader(text));
 		String result = "";
 		
 		try {
@@ -402,7 +409,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
 //			System.out.println(result);
 			if(result.length()>0) {
-				result = "<span class=\"fragment\">... " + (result.replaceAll("\\n+", " ")).trim().concat(" ...</span>");
+				result = "<span class=\"fragment\">... " + (result.replaceAll("\\n+", " ")).strip().concat(" ...</span>");
 //				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {
@@ -456,7 +463,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Lucene supports case-sensitiev inpput, but I'm indexing only lowercase words and no punctuation
 		inputString = inputString.toLowerCase();
 		//+ - && || ! ( ) { } [ ] ^ \" ~ * ? : \\ /
-		final String[] metaCharacters = {"+","-","&&","||","!","(",")","{","}","[","]","^","\"","~","*","?",":","/","  "};
+//		final String[] metaCharacters = {"+","-","&&","||","!","(",")","{","}","[","]","^","\"","~","*","?",":","/","  "};
+		// - allows searching for exclusions, " allows exact phrase search, * allows wildcard search...
+		final String[] metaCharacters = {"+","&&","||","!","(",")","{","}","[","]","^","~","?",":","/","  "};
 		
 		for (int i = 0 ; i < metaCharacters.length ; i++){
 			if(inputString.contains(metaCharacters[i])){
