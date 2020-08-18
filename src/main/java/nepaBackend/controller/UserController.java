@@ -216,7 +216,7 @@ public class UserController {
                             MimeMessageHelper helper = new MimeMessageHelper(message);
                         	// TODO: Log some email details to database?
         					helper.setTo(user.getEmail());
-        	                helper.setText("An account has been created for you at http://mis-jvinalappl1.microagelab.arizona.edu "
+        	                helper.setText("An account has been created for you at http://nepaccess.org "
         	                		+ "and your credentials are:\n"
         	                		+ "\nUsername: " + user.getUsername()
         	                		+ "\nPassword: " + password
