@@ -2,53 +2,43 @@ package nepaBackend;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
-import org.hibernate.search.query.dsl.QueryBuilder;
-import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.queries.TermsQuery;
-import org.apache.lucene.queryparser.surround.parser.QueryParser;
-import org.apache.lucene.queryparser.surround.query.BasicQueryFactory;
-import org.apache.lucene.queryparser.surround.query.SrndQuery;
-import org.apache.lucene.sandbox.queries.FuzzyLikeThisQuery;
-import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.BooleanClause.Occur;
-import org.apache.lucene.search.BooleanQuery;
-import org.apache.lucene.search.FuzzyQuery;
-import org.apache.lucene.search.MultiPhraseQuery;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.highlight.Fragmenter;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleFragmenter;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
-import org.apache.lucene.search.spans.SpanMultiTermQueryWrapper;
-import org.apache.lucene.search.spans.SpanNearQuery;
-import org.apache.lucene.search.spans.SpanQuery;
-import org.apache.lucene.util.Version;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
+import org.hibernate.search.query.dsl.QueryBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.pojo.SearchInputs;
 
 // TODO: Probably want a way to search for many/expanded highlights/context from one archive only
 public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@PersistenceContext
 	private EntityManager em;
+
+	@Autowired
+	JdbcTemplate jdbcTemplate;
 
 	private static int numberOfFragmentsMax = 5;
 	private static int fragmentSize = 250;
@@ -251,6 +241,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 			
 		// wrap Lucene query in a javax.persistence.Query
+		// TODO: Test org.hibernate.search.jpa.FullTextQuery instead
+//		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 		javax.persistence.Query jpaQuery =
 		fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
 		
@@ -443,7 +435,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			fullTextEntityManager.createIndexer().startAndWait();
 			return true;
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
+			// TODO log interruption?
 			e.printStackTrace();
 			return false;
 		}
@@ -459,6 +451,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	 *  searching for "Duwamish-Green" at all and instead search for "duwamish green".  This could change if a different 
 	 *  analyzer is used.  */
 	private String escapeSpecialCharacters(String inputString) {
+		
+		// Note: For now, we'll try just allowing people to use the Lucene characters.
+		boolean escapeLuceneParsedCharacters = false;
+		if(!escapeLuceneParsedCharacters) {
+			return inputString;
+		}
+		
 		// Lucene supports case-sensitiev inpput, but I'm indexing only lowercase words and no punctuation
 		inputString = inputString.toLowerCase();
 		//+ - && || ! ( ) { } [ ] ^ \" ~ * ? : \\ /
@@ -476,4 +475,475 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 		return inputString;
 	}
+
+	
+	/** TODO: Complete; test
+	 * 1. Verify/trigger Lucene indexing on Title (Added @Indexed for EISDoc and @Field for title, need to make sure it's indexed)
+	 * 2. Lucene-friendly Hibernate/JPA-wrapped query based on my custom, dynamically created query 
+	 * 3. Ultimately, goal is to then create a combination title/fulltext query including the metadata parameters like agency/state/...
+	 * and make that the default search
+	 * */
+	@Override
+	public List<EISDoc> metadataSearch(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
+		try {
+			// Init parameter lists
+			ArrayList<String> inputList = new ArrayList<String>();
+			ArrayList<String> whereList = new ArrayList<String>();
+
+//			ArrayList<Long> new_ids = new ArrayList<Long>();
+			
+//			boolean saneTitle = false;
+			
+			// TODO: if searchInputs isn't null but title is null or blank, we can return a simple query with no text searching
+//			if(searchInputs != null && searchInputs.title != null && !searchInputs.title.isBlank()) {
+//				String formattedTitle = org.apache.commons.lang3.StringUtils.normalizeSpace(searchInputs.title.strip());
+//
+//				FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+//
+//				QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//						.buildQueryBuilder().forEntity(EISDoc.class).get();
+//				
+//				String[] arrKeywords = formattedTitle.split(" ");
+//				
+//				List<Query> queryList = new LinkedList<Query>();
+//		        Query query = null;
+//
+//		        for (String keyword : arrKeywords) {
+//		            query = queryBuilder.keyword().onField("title").matching(keyword).createQuery();
+//		            queryList.add(query);
+//		        }
+//
+//		        BooleanQuery finalQuery = new BooleanQuery();
+//		        for (Query q : queryList) {
+//		            finalQuery.add(q, Occur.MUST);
+//		        }
+//
+//				org.hibernate.search.jpa.FullTextQuery jpaQuery =
+//						fullTextEntityManager.createFullTextQuery(finalQuery, EISDoc.class);
+//		        
+//				
+////				Query luceneQuery = queryBuilder
+////						.keyword()
+////						.onField("title")
+//////						.withAndAsDefaultOperator()
+////						.matching(formattedTitle)
+////						.createQuery();
+//
+//				// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
+////				org.hibernate.search.jpa.FullTextQuery jpaQuery =
+////						fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
+//				
+//				// project only IDs in order to reduce RAM usage (heap outgrows max memory if we pull the full DocumentText list in)
+//				// we can't directly pull the EISDoc field here with projection because it isn't indexed by Lucene
+//				jpaQuery.setProjection(ProjectionConstants.ID);
+//
+//				jpaQuery.setMaxResults(limit);
+//				jpaQuery.setFirstResult(offset);
+//				
+//				
+//				List<Object[]> ids = jpaQuery.getResultList();
+//				for(Object[] id : ids) {
+//					System.out.println(id[0].toString());
+//					new_ids.add((Long) id[0]);
+//				}
+//				
+//				saneTitle = true;
+//				
+//				// use the foreign key list from Lucene to make a normal query to get all associated metadata tuples from DocumentText
+//				// Note: Need distinct here because multiple files inside of archives are associated with the same metadata tuples
+//				// TODO: Can get filenames also, display those on frontend and no longer need DISTINCT (would require a new POJO, different structure than List<EISDoc>)
+////				javax.persistence.Query query = em.createQuery("SELECT DISTINCT doc.eisdoc FROM DocumentText doc WHERE doc.id IN :ids");
+////				query.setParameter("ids", new_ids);
+//			}
+			
+//			Query luceneQuery = queryBuilder
+//					.simpleQueryString()
+//					.onField("plaintext")
+//					.withAndAsDefaultOperator()
+//					.matching(searchInputs.title)
+//					.createQuery();
+
+			// wrap Lucene query in a javax.persistence.Query
+//			FullTextQuery jpaQuery =
+//			javax.persistence.Query jpaQuery =
+//			fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
+//			
+//			jpaQuery.setMaxResults(limit);
+//			jpaQuery.setFirstResult(offset);
+			
+			// TODO: Convert this to JPA like so:??
+//			Collection<Professor> c =  
+//				    em.createQuery("SELECT e " +
+//				                   "FROM Professor e " +
+//				                   "WHERE e.startDate BETWEEN :start AND :end")
+//				      .setParameter("start", new Date(), TemporalType.DATE)
+//				      .setParameter("end", new Date(), TemporalType.DATE)
+//				      .getResultList();
+			// So basically, your whereList probably has to change its inputs to :namedParam from ?, and your inputList
+			// probably has to become an int position/object value pair or a string name/object value pair:
+//			jpaQuery.setParameter(position, value)
+//			jpaQuery.setParameter(name, value)
+			// or something; have to review logic and syntax
+			// depending on which variables are in play, probably need to build the parameters at the end after knowing
+			// which ones to build, after the .createQuery
+			// Note: Might actually be more complicated.  Maybe setHint helps?
+			// If we can somehow use a native query, then we can even use the String we've already built in the original logic,
+			// and as a bonus it'll actually work
+			// If we can just set the Criteria a la FullTextQuery.setCriteriaQuery(Criteria critera)
+			// https://docs.jboss.org/hibernate/search/5.4/api/org/hibernate/search/jpa/FullTextQuery.html
+			// then I think we can do it.  This requires then building Criteria instead of a query string below.
+			// Do we need a Hibernate session for Criteria? I don't have that
+			// CriteriaBuilder is the absolute worst thing, so we'll do our best to avoid that.
+			// Next solution to investigate is using the lucene queryparser to build the query from custom params.
+			// https://lucene.apache.org/core/4_8_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description
+			// https://stackoverflow.com/questions/60205647/how-to-construct-a-lucene-search-query-with-multiple-parameters
+
+//			List<Predicate> predicates = new ArrayList<Predicate>();
+//			List<SimpleExpression> expressionList = new ArrayList<SimpleExpression>();
+//			List<Criterion> expressionList = new ArrayList<Criterion>();
+
+//			CriteriaBuilder cb = fullTextEntityManager.getCriteriaBuilder();
+			
+//			CriteriaQuery q = cb.createQuery(EISDoc.class);
+//			Root<EISDoc> root = q.from(EISDoc.class);
+//			q.select(root);
+//			
+//			ParameterExpression<Integer> p = cb.parameter(Integer.class);
+//			ParameterExpression<Integer> a = cb.parameter(Integer.class);
+//			q.where(
+//			    cb.ge(root.get("population"), p),
+//			    cb.le(root.get("area"), a)
+//			);
+
+//			StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
+//			QueryParser luceneQueryParser = new QueryParser("plaintext", stndrdAnalyzer);
+			
+			// Select tables, columns
+			String sQuery = "SELECT * FROM eisdoc";
+			
+			// If we have a valid title then search on new_ids
+			// If we don't have a valid title then ignore new_ids and therefore run on entire database
+//			if(saneTitle) {
+//				if(new_ids.isEmpty()) {
+//					// if valid title and new_ids is empty we can just return an empty list immediately
+//					return new ArrayList<EISDoc>();
+//				}
+//				StringBuilder query = new StringBuilder(" id IN (");
+//				for (int i = 0; i < new_ids.size(); i++) {
+//					if (i > 0) {
+//						query.append(",");
+//					}
+//					query.append("?");
+//				}
+//				query.append(")");
+//	
+//				for (int i = 0; i < new_ids.size(); i++) {
+//					inputList.add(new_ids.get(i).toString());
+//				}
+//				whereList.add(query.toString());
+//			}
+			
+			// Populate lists
+			if(Globals.saneInput(searchInputs.startPublish)) {
+				// I think this is right?
+//				criteria.add(Restrictions.ge("register_date", searchInputs.startPublish));
+//				q.select(root).where(cb.ge(root.get("register_date"), searchInputs.startPublish));
+//				predicates.add(cb.ge(root.get("register_date"), searchInputs.startPublish));
+//				expressionList.add(Restrictions.ge("register_date", searchInputs.startPublish));
+				inputList.add(searchInputs.startPublish);
+				whereList.add(" ((register_date) >= ?)");
+			}
+			
+			if(Globals.saneInput(searchInputs.endPublish)) {
+//				criteria.add(Restrictions.le("register_date", searchInputs.endPublish));
+				inputList.add(searchInputs.endPublish);
+				whereList.add(" ((register_date) <= ?)");
+			}
+	
+			if(Globals.saneInput(searchInputs.startComment)) {
+				inputList.add(searchInputs.startComment);
+				whereList.add(" ((comment_date) >= ?)");
+			}
+			
+			if(Globals.saneInput(searchInputs.endComment)) {
+				inputList.add(searchInputs.endComment);
+				whereList.add(" ((comment_date) <= ?)");
+			}
+			
+			if(Globals.saneInput(searchInputs.typeAll)) { 
+				// do nothing
+			} else {
+				
+				ArrayList<String> typesList = new ArrayList<>();
+				StringBuilder query = new StringBuilder(" document_type IN (");
+				if(Globals.saneInput(searchInputs.typeFinal)) {
+					typesList.add("Final");
+				}
+	
+				if(Globals.saneInput(searchInputs.typeDraft)) {
+					typesList.add("Draft");
+				}
+				
+				if(Globals.saneInput(searchInputs.typeOther)) {
+					typesList.addAll(Globals.EIS_TYPES);
+				}
+				String[] docTypes = typesList.toArray(new String[0]);
+				for (int i = 0; i < docTypes.length; i++) {
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
+				}
+				query.append(")");
+	
+				for (int i = 0; i < docTypes.length; i++) {
+					inputList.add(docTypes[i]);
+				}
+				
+				if(docTypes.length>0) {
+					whereList.add(query.toString());
+				}
+	
+			}
+	
+			// TODO: Temporary logic, filenames should each have their own field in the database later 
+			// and they may also be a different format
+			// (this will eliminate the need for the _% LIKE logic also)
+			// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
+			if(Globals.saneInput(searchInputs.needsComments)) {
+	//			whereList.add(" (documents LIKE 'CommentLetters-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
+				whereList.add(" (comments_filename<>'')");
+			}
+	
+			if(Globals.saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
+	//			whereList.add(" (documents LIKE 'EisDocuments-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
+				whereList.add(" (filename<>'')");
+			}
+			
+			if(Globals.saneInput(searchInputs.state)) {
+				StringBuilder query = new StringBuilder(" state IN (");
+				for (int i = 0; i < searchInputs.state.length; i++) {
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
+				}
+				query.append(")");
+	
+				for (int i = 0; i < searchInputs.state.length; i++) {
+					inputList.add(searchInputs.state[i]);
+				}
+				whereList.add(query.toString());
+			}
+	
+			if(Globals.saneInput(searchInputs.agency)) {
+				StringBuilder query = new StringBuilder(" agency IN (");
+				for (int i = 0; i < searchInputs.agency.length; i++) {
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
+				}
+				query.append(")");
+	
+				for (int i = 0; i < searchInputs.agency.length; i++) {
+					inputList.add(searchInputs.agency[i]);
+				}
+				whereList.add(query.toString());
+			}
+			
+			boolean addAnd = false;
+			for (String i : whereList) {
+				if(addAnd) { // Not first conditional, append AND
+					sQuery += " AND";
+				} else { // First conditional, append WHERE
+					sQuery += " WHERE";
+				}
+				sQuery += i; // Append conditional
+				
+				addAnd = true; // Raise AND flag for future iterations
+			}
+			
+			// Order by Lucene score, not title, also we need a way to order the title results first for one of the A|B tests
+//			sQuery += " ORDER BY title";
+			
+			
+			// This is unfortunately the only way to preserve Lucene's order
+//			if(saneTitle) {
+//				StringBuilder query = new StringBuilder(" ORDER BY FIELD(id, ");
+//				for (int i = 0; i < new_ids.size(); i++) {
+//					if (i > 0) {
+//						query.append(",");
+//					}
+//					query.append("?");
+//				}
+//				query.append(")");
+//	
+//				for (int i = 0; i < new_ids.size(); i++) {
+//					inputList.add(new_ids.get(i).toString());
+//				}
+//				whereList.add(query.toString());
+//			}
+			
+			
+			// Finalize query
+			int queryLimit = 100000;
+			if(Globals.saneInput(searchInputs.limit)) {
+				if(searchInputs.limit <= 100000) {
+					queryLimit = searchInputs.limit;
+				}
+			}
+			sQuery += " LIMIT " + String.valueOf(queryLimit);
+
+//			jpaQuery.setCriteriaQuery(criteria);
+
+			// TODO: Is this usable?
+//			org.apache.lucene.search.Query finalQuery = luceneQueryParser.parse(sQuery);
+			
+//			javax.persistence.Query query = em.createQuery("SELECT DISTINCT doc.eisdoc FROM DocumentText doc WHERE doc.id IN :ids");
+			// Finalize query
+//			javax.persistence.Query finalQuery = em.createQuery(sQuery);
+//			finalQuery.setMaxResults(limit);
+//			finalQuery.setFirstResult(offset);
+			
+			// execute search
+//			List<EISDoc> docList = finalQuery.getResultList();
+			
+			
+			
+			// Run query
+			List<EISDoc> records = jdbcTemplate.query
+			(
+				sQuery, 
+				inputList.toArray(new Object[] {}),
+				(rs, rowNum) -> new EISDoc(
+					rs.getLong("id"), 
+					rs.getString("title"), 
+					rs.getString("document_type"),
+					rs.getObject("comment_date", LocalDate.class), 
+					rs.getObject("register_date", LocalDate.class), 
+					rs.getString("agency"),
+					rs.getString("state"), 
+					rs.getString("filename"),
+					rs.getString("comments_filename"),
+					rs.getString("folder"),
+					rs.getString("web_link"),
+					rs.getString("notes")
+				)
+			);
+			
+			// debugging
+			if(Globals.TESTING && searchInputs.endPublish != null) {
+//				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
+//				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+//				System.out.println(validator.isValid(searchInputs.endPublish));
+				System.out.println(sQuery); 
+//				System.out.println(searchInputs.endPublish);
+				System.out.println(searchInputs.title);
+			}
+
+			// If we have a title then take the JDBC results and run a Lucene query on just them
+			// (this is the simplest way to return the results in the scored order from Lucene)
+			// Unfortunately, this low-level garbage breaks things like ~proximity matching and "exact phrase" searches.
+			// TODO: Therefore, we have to run the lucene query on everything and manually join the results instead,
+			// excluding anything that doesn't appear in BOTH result sets
+//			if(searchInputs != null && searchInputs.title != null && !searchInputs.title.isBlank()) {
+//				String formattedTitle = org.apache.commons.lang3.StringUtils.normalizeSpace(searchInputs.title.strip());
+//
+//				FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+//
+//				QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//						.buildQueryBuilder().forEntity(EISDoc.class).get();
+//				
+//				String[] arrKeywords = formattedTitle.split(" ");
+//				
+//				List<Query> queryList = new LinkedList<Query>();
+//		        Query query = null;
+//	
+//				// Add keyword queries for each word
+//		        for (String keyword : arrKeywords) {
+//		            query = queryBuilder.keyword().onField("title").matching(keyword).createQuery();
+//		            queryList.add(query);
+//		        }
+//
+//		        BooleanQuery.setMaxClauseCount(200000);
+//		        BooleanQuery finalQuery = new BooleanQuery();
+//		        for (Query q : queryList) {
+//		            finalQuery.add(q, Occur.MUST);
+//		        }
+//				for(EISDoc record: records) {
+//		            finalQuery.add(
+//		            		new TermQuery(new Term("ID", record.getId().toString())), Occur.SHOULD);
+//				}
+//	
+//				org.hibernate.search.jpa.FullTextQuery jpaQuery =
+//						fullTextEntityManager.createFullTextQuery(finalQuery, EISDoc.class);
+//				
+//				jpaQuery.setMaxResults(limit);
+//				jpaQuery.setFirstResult(offset);
+//				
+//				List<EISDoc> results = jpaQuery.getResultList();
+//				
+//				return results;
+//			} else {
+//				return records;
+//			}
+			
+			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			if(searchInputs != null && searchInputs.title != null && !searchInputs.title.isBlank()) {
+				String formattedTitle = org.apache.commons.lang3.StringUtils.normalizeSpace(searchInputs.title.strip());
+
+				FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+				QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+						.buildQueryBuilder().forEntity(EISDoc.class).get();
+				
+
+				Query luceneQuery = queryBuilder
+						.simpleQueryString()
+						.onField("title")
+						.withAndAsDefaultOperator()
+						.matching(formattedTitle)
+						.createQuery();
+	
+				org.hibernate.search.jpa.FullTextQuery jpaQuery =
+						fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
+				
+				jpaQuery.setMaxResults(limit);
+				jpaQuery.setFirstResult(offset);
+				
+				List<EISDoc> results = jpaQuery.getResultList();
+				
+				List<Long> justRecordIds = new ArrayList<Long>();
+				for(EISDoc record: records) {
+					justRecordIds.add(record.getId());
+				}
+				
+				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+				List<EISDoc> finalResults = new ArrayList<EISDoc>();
+				for(EISDoc result : results) {
+					if(justRecordIds.contains(result.getId())) {
+						finalResults.add(result);
+					}
+				}
+				
+				if(Globals.TESTING) {
+					System.out.println("Records 1 " + records.size());
+					System.out.println("Records 2 " + results.size());
+				}
+				
+				// TODO: Final step is now to stop excluding special characters on the frontend.
+				
+				return finalResults;
+			} else { // no title: simply return JDBC results
+				return records;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	
+	}
+
 }

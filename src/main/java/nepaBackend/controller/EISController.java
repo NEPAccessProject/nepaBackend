@@ -252,11 +252,11 @@ public class EISController {
 			boolean no_title = false;
 			if(saneInput(searchInputs.title)) { // Good to put this last
 				inputList.add(searchInputs.title);
-				if(searchInputs.searchMode.equals("boolean")) {
+//				if(searchInputs.searchMode.equals("boolean")) {
 					whereList.add(" MATCH(title) AGAINST(? IN BOOLEAN MODE)");
-				} else {
-					whereList.add(" MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)");
-				}
+//				} else {
+//					whereList.add(" MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)");
+//				}
 			} else {
 				no_title = true;
 			}

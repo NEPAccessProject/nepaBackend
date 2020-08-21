@@ -9,8 +9,12 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
+import org.hibernate.search.annotations.Field;
+import org.hibernate.search.annotations.Indexed;
+
 @Entity
-@Table(name="eisdoc") // TODO: Rename table everywhere
+@Table(name="eisdoc") 
+@Indexed
 public class EISDoc {
     @Id
     @Column(name="id")
@@ -18,6 +22,7 @@ public class EISDoc {
     private Long id;  // TODO: ID/PK?
 	
     @Column(name="title",columnDefinition="text") // Note: Had to do ALTER TABLE `eis-meta` ADD FULLTEXT(title) for search
+    @Field
     private String title;
   
     @Column(name="document_type")

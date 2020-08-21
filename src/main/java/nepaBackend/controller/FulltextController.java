@@ -1,21 +1,29 @@
 package nepaBackend.controller;
 
 import java.math.BigInteger;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
@@ -29,14 +37,14 @@ import nepaBackend.SearchLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.model.EISDocDAO;
+import nepaBackend.model.SearchLog;
+import nepaBackend.pojo.SearchInputs;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/text")
 public class FulltextController {
-
-	@Autowired
-	JdbcTemplate jdbcTemplate;
 	
 	@Autowired
 	private TextRepository textRepository;
@@ -55,6 +63,30 @@ public class FulltextController {
 	}
 	
 	private boolean testing = Globals.TESTING;
+	
+
+//	@CrossOrigin
+//	@GetMapping(path = "/search_A", 
+//	consumes = "application/json", 
+//	produces = "application/json", 
+//	headers = "Accept=application/json")
+//	public @ResponseBody List<EISDoc> searchA(@RequestBody SearchInputs searchInputs, Pageable pageable) {
+//        Page page = EISDocDAO.findAll(new Specification<EISDoc>() {
+//            @Override
+//            public Predicate toPredicate(Root<Employee> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
+//                List<Predicate> predicates = new ArrayList<>();
+//                if(searchInputs.title!=null) {
+//                    predicates.add(criteriaBuilder.and(criteriaBuilder.equal(root.get("title"), searchInputs.title)));
+//                }
+//                return criteriaBuilder.and(predicates.toArray(new Predicate[predicates.size()]));
+//            }
+//        }, pageable);
+//
+//        page.getTotalElements();        // get total elements
+//        page.getTotalPages();           // get total pages
+//        return page.getContent();       // get List of Employee
+//    }
+	
 
 	/** TODO: Log search terms */
 	/** Get DocumentText matches across entire database for fulltext search term(s) */
@@ -113,8 +145,30 @@ public class FulltextController {
 		}
 	}
 	
+	// Metadata search using Lucene (and JDBC) returns ArrayList of EISDoc
+	@CrossOrigin
+	@PostMapping(path = "/search")
+	public ResponseEntity<List<EISDoc>> search(@RequestBody SearchInputs searchInputs)
+	{
+		saveSearchLog(searchInputs);
+
+		try { 
+			List<EISDoc> highlightsMeta = new ArrayList<EISDoc>(
+					(textRepository.metadataSearch(searchInputs, 1000000, 0, SearchType.ALL)));
+			return new ResponseEntity<List<EISDoc>>(highlightsMeta, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 	
-	/** Refresh Lucene index so that searching works (adds MySQL document_text table to Lucene via denormalization) */
+	
+	/** Refresh Lucene index so that searching works 
+	 * (adds MySQL document_text table to Lucene with denormalization) 
+	 * Now also adds eisdoc because it's set to @Indexed and the title field is set to @Field 
+	 * Shouldn't need to be run again unless adding entirely new fields or tables to Lucene */
 	@CrossOrigin
 	@RequestMapping(path = "/sync", method = RequestMethod.GET)
 	public boolean sync(@RequestHeader Map<String, String> headers) {
@@ -244,6 +298,133 @@ public class FulltextController {
 		return result;
 
 	}
+
+	private void saveSearchLog(SearchInputs searchInputs) {
+			try {
+				SearchLog searchLog = new SearchLog();
+				
+				// TODO: For the future, load Dates of format yyyy-MM=dd into db.
+				// This will change STR_TO_DATE(register_date, '%m/%d/%Y') >= ?
+				// to just register_date >= ?
+				// Right now the db has Strings of MM/dd/yyyy
+				
+				// Populate lists
+				if(Globals.saneInput(searchInputs.startPublish)) {
+					searchLog.setStartPublish(searchInputs.startPublish);
+				}
+				
+				if(Globals.saneInput(searchInputs.endPublish)) {
+					searchLog.setEndPublish(searchInputs.endPublish);
+				}
+	
+				if(Globals.saneInput(searchInputs.startComment)) {
+					searchLog.setStartComment(searchInputs.startComment);
+				}
+				
+				if(Globals.saneInput(searchInputs.endComment)) {
+					searchLog.setEndComment(searchInputs.endComment);
+				}
+	
+				searchLog.setDocumentTypes("All"); // handles all or blank (equivalent to all)
+				if(Globals.saneInput(searchInputs.typeAll)) { 
+					// do nothing
+				} else {
+					ArrayList<String> typesList = new ArrayList<>();
+					if(Globals.saneInput(searchInputs.typeFinal)) {
+						typesList.add("Final");
+					}
+	
+					if(Globals.saneInput(searchInputs.typeDraft)) {
+						typesList.add("Draft");
+					}
+					
+					if(Globals.saneInput(searchInputs.typeOther)) {
+						List<String> typesListOther = Arrays.asList("Draft Supplement",
+								"Final Supplement",
+								"Second Draft Supplemental",
+								"Second Draft",
+								"Adoption",
+								"LF",
+								"Revised Final",
+								"LD",
+								"Third Draft Supplemental",
+								"Second Final",
+								"Second Final Supplemental",
+								"DC",
+								"FC",
+								"RF",
+								"RD",
+								"Third Final Supplemental",
+								"DD",
+								"Revised Draft",
+								"NF",
+								"F2",
+								"D2",
+								"F3",
+								"DE",
+								"FD",
+								"DF",
+								"FE",
+								"A3",
+								"A1");
+						typesList.addAll(typesListOther);
+					}
+					if(typesList.size() > 0) {
+						searchLog.setDocumentTypes( String.join(",", typesList) );
+					}
+	
+				}
+	
+				// TODO: Temporary logic, filenames should each have their own field in the database later 
+				// and they may also be a different format
+				// (this will eliminate the need for the _% LIKE logic also)
+				// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
+				if(Globals.saneInput(searchInputs.needsComments)) {
+					searchLog.setNeedsComments(searchInputs.needsComments);
+				}
+	
+				if(Globals.saneInput(searchInputs.needsDocument)) { 
+					searchLog.setNeedsDocument(searchInputs.needsDocument);
+				}
+				
+				if(Globals.saneInput(searchInputs.state)) {
+					searchLog.setState(String.join(",", searchInputs.state));
+				}
+	
+				if(Globals.saneInput(searchInputs.agency)) {
+					searchLog.setAgency(String.join(",", searchInputs.agency));
+				}
+				
+				if(Globals.saneInput(searchInputs.title)) {
+					searchLog.setTitle(searchInputs.title);
+				}
+				
+				if(Globals.saneInput(searchInputs.searchMode)) {
+					searchLog.setSearchMode(searchInputs.searchMode);
+				}
+				
+				searchLog.setHowMany(1000); 
+				if(Globals.saneInput(searchInputs.limit)) {
+					if(searchInputs.limit > 100000) {
+						searchLog.setHowMany(100000); // TODO: Review 100k as upper limit
+					} else {
+						searchLog.setHowMany(searchInputs.limit);
+					}
+				}
+				
+				searchLog.setUserId(null); // TODO: Non-anonymous user IDs
+				searchLog.setSavedTime(LocalDateTime.now());
+	
+				searchLogRepository.save(searchLog);
+				
+			} catch (Exception e) {
+	//			if (log.isDebugEnabled()) {
+	//				log.debug(e);
+	//			}
+	//			System.out.println(e);
+			}
+		
+		}
 	
 	
 }

@@ -1,6 +1,5 @@
 package nepaBackend.model;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -38,7 +37,7 @@ public class DocumentText {
 	private EISDoc eisdoc;
 
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
-	@Column(name="plaintext") // Hopefully longtext
+	@Column(name="plaintext") // Need to manually change to longtext
     @Field
 	private String plaintext;
 	
@@ -50,7 +49,6 @@ public class DocumentText {
 	public Long getId() {
 		return id;
 	}
-
 	
 	public EISDoc getEisdoc() {
 		return eisdoc;
@@ -59,7 +57,6 @@ public class DocumentText {
 	public void setEisdoc(EISDoc eisdoc) {
 		this.eisdoc = eisdoc;
 	}
-	
 	
 	public String getPlaintext() {
 		return plaintext;
