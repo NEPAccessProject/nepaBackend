@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -158,7 +159,7 @@ public class FileController {
 
 			// Get full folder path from nepafile for eis (or path would work) and then zip that folder's contents
 			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
-			System.out.println(nepaFiles.size());
+//			System.out.println(nepaFiles.size());
 			if(nepaFiles.size() == 0) {
 				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 			}
@@ -243,7 +244,7 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/doc_texts", method = RequestMethod.GET)
 	public ResponseEntity<List<DocumentText>> getAllTextsByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-		System.out.println(id);
+//		System.out.println(id);
 		List<DocumentText> docList = textRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
 		return new ResponseEntity<List<DocumentText>>(docList, HttpStatus.OK);
 	}
@@ -1883,14 +1884,46 @@ public class FileController {
 		return docToReturn;
 	}
 
-
-
 	public long getFileSize(URL url) {
 		HttpURLConnection conn = null;
 		try {
 			conn = (HttpURLConnection) url.openConnection();
 			conn.setRequestMethod("HEAD");
 			return conn.getContentLengthLong();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		} finally {
+			if (conn != null) {
+				conn.disconnect();
+			}
+		}
+	}
+	
+
+	/** 
+	 * Returns file size if available (likely only for archives, may want to store size value somewhere for folders and handle separately)
+	 **/
+	@CrossOrigin
+	@RequestMapping(path = "/file_size", method = RequestMethod.GET)
+	public ResponseEntity<Long> getFileSizeFromFilename(@RequestParam String filename) {
+		
+		HttpURLConnection conn = null;
+		URL url = null;
+		
+		try {
+			url = new URL(dbURL + filename);
+			if(testing) {
+				url = new URL(testURL + filename);
+			}
+		} catch (MalformedURLException e1) {
+			throw new RuntimeException(e1);
+		}
+		
+		try {
+			conn = (HttpURLConnection) url.openConnection();
+			conn.setRequestMethod("HEAD");
+			
+			return new ResponseEntity<Long>(conn.getContentLengthLong(), HttpStatus.OK);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		} finally {
