@@ -49,11 +49,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<EISDoc> search(String terms, int limit, int offset) {
+		
+		terms = mutateTermModifiers(terms);
+		
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
 			
 		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
 				.buildQueryBuilder().forEntity(DocumentText.class).get();
-
+		
 		// Old code: Only good for single terms, even encapsulated in double quotes.  For multiple terms, it splits them by spaces and will basically OR them together.
 //		Query luceneQuery = queryBuilder
 //				.keyword()
@@ -192,7 +195,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	public List<MetadataWithContext> metaContext(String terms, int limit, int offset, SearchType searchType) {
 		long startTime = System.currentTimeMillis();
 		
-		terms = escapeSpecialCharacters(terms);
+		terms = mutateTermModifiers(terms);
+		
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
 		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
@@ -446,35 +450,39 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		return true;
 //	}
 	
+	// escapeSpecialCharacters is now useless as we analyze/parse search terms more intelligently.
 	/** Escape what Lucene defines as special characters to prevent things like unintentionally excluding the word "green" 
 	 * 	when searching for "Duwamish-Green".  At the same time, Lucene does not index characters like "-", so prevent
 	 *  searching for "Duwamish-Green" at all and instead search for "duwamish green".  This could change if a different 
 	 *  analyzer is used.  */
-	private String escapeSpecialCharacters(String inputString) {
-		
-		// Note: For now, we'll try just allowing people to use the Lucene characters.
-		boolean escapeLuceneParsedCharacters = false;
-		if(!escapeLuceneParsedCharacters) {
-			return inputString;
-		}
-		
-		// Lucene supports case-sensitiev inpput, but I'm indexing only lowercase words and no punctuation
-		inputString = inputString.toLowerCase();
-		//+ - && || ! ( ) { } [ ] ^ \" ~ * ? : \\ /
-//		final String[] metaCharacters = {"+","-","&&","||","!","(",")","{","}","[","]","^","\"","~","*","?",":","/","  "};
-		// - allows searching for exclusions, " allows exact phrase search, * allows wildcard search...
-		final String[] metaCharacters = {"+","&&","||","!","(",")","{","}","[","]","^","~","?",":","/","  "};
-		
-		for (int i = 0 ; i < metaCharacters.length ; i++){
-			if(inputString.contains(metaCharacters[i])){
-				// Lucene can use special characters, but until we decide how to handle that power just remove them all
-//				inputString = inputString.replace(metaCharacters[i],"\\"+metaCharacters[i]);
-				inputString = inputString.replace(metaCharacters[i]," ") // replace special characters with spaces
-						.trim(); // extra spaces may mean no results when looking for an exact phrase
-			}
-		}
-		return inputString;
-	}
+//	private String escapeSpecialCharacters(String inputString) {
+//		
+//		// Lucene supports case-sensitive inpput, but I'm indexing only lowercase words and no punctuation
+//		inputString = inputString.toLowerCase();
+//		//+ - && || ! ( ) { } [ ] ^ \" ~ * ? : \\ /
+////		final String[] metaCharacters = {"+","-","&&","||","!","(",")","{","}","[","]","^","\"","~","*","?",":","/","  "};
+//		// - allows searching for exclusions, " allows exact phrase search, * allows wildcard search...
+//		final String[] metaCharacters = {"+","&&","||","!","(",")","{","}","[","]","^","~","?",":","/","  "};
+//		
+//		for (int i = 0 ; i < metaCharacters.length ; i++){
+//			if(inputString.contains(metaCharacters[i])){
+//				// Lucene can use special characters, but until we decide how to handle that power just remove them all
+////				inputString = inputString.replace(metaCharacters[i],"\\"+metaCharacters[i]);
+//				inputString = inputString.replace(metaCharacters[i]," ") // replace special characters with spaces
+//						.trim(); // extra spaces may mean no results when looking for an exact phrase
+//			}
+//		}
+//		return inputString;
+//	}
+
+    private String mutateTermModifiers(String terms){
+    	if(terms != null && terms.strip().length() > 0) {
+    		// + and - must immediately precede the next term (no space), therefore match the space also.
+    		return terms.replace("OR", "|").replace("AND ", "+").replace("NOT ", "-");
+    	} else {
+    		return "";
+    	}
+    }
 
 	
 	/** TODO: Complete; test
