@@ -494,6 +494,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Override
 	public List<EISDoc> metadataSearch(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
 		try {
+			
+			searchInputs.title = mutateTermModifiers(searchInputs.title);
+			
 			// Init parameter lists
 			ArrayList<String> inputList = new ArrayList<String>();
 			ArrayList<String> whereList = new ArrayList<String>();
