@@ -42,6 +42,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	private static int numberOfFragmentsMax = 5;
 	private static int fragmentSize = 250;
+	private static int bigFragmentSize = 1500;
+	private static SimpleHTMLFormatter globalFormatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 	
 //	private static int fuzzyLevel = 1;
 
@@ -256,11 +258,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// execute search
 		List<DocumentText> docList = jpaQuery.getResultList();
 		List<MetadataWithContext> highlightList = new ArrayList<MetadataWithContext>();
-		
-
-		
-		
-		SimpleHTMLFormatter formatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 
 		// Logic for exact phrase vs. all-word query
 		QueryScorer scorer = null;
@@ -296,7 +293,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			scorer = new QueryScorer(query);
 		}
 
-		Highlighter highlighter = new Highlighter(formatter, scorer);
+		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
 		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
@@ -304,9 +301,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		for (DocumentText doc: docList) {
 			try {
-				String highlight = getHighlightString(doc.getPlaintext(), highlighter);
-				if(highlight.length() > 0) { // Length 0 shouldn't be possible since we are working on matching results already
-					highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
+				if(Globals.TESTING) {
+					String highlight = getCustomSizeHighlightString(doc.getPlaintext(), scorer, bigFragmentSize, 1);
+					if(highlight.length() > 0) { // Length 0 shouldn't be possible since we are working on matching results already
+						highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
+					}
+				} else {
+					String highlight = getHighlightString(doc.getPlaintext(), highlighter);
+					if(highlight.length() > 0) { // Length 0 shouldn't be possible since we are working on matching results already
+						highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
+					}
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -390,6 +394,39 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 ////			return ( writer.toString() );
 //		return result;
 //	 }
+	
+
+	// Given text, fragment size, num fragments, queryscorer, return highlight(s)
+	private static String getCustomSizeHighlightString (String text, QueryScorer scorer, int fragmentSize, int numberOfFragments) throws IOException {
+		
+
+		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
+		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
+		highlighter.setTextFragmenter(fragmenter);
+		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
+		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
+		TokenStream tokenStream = stndrdAnalyzer.tokenStream("plaintext", new StringReader(text));
+		String result = "";
+		
+		try {
+			// Add ellipses to denote that these are text fragments within the string
+			result = highlighter.getBestFragments(tokenStream, text, numberOfFragments, " ...</span><br /><span class=\"fragment\">... ");
+//			System.out.println(result);
+			if(result.length()>0) {
+				result = "<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(result).strip().concat(" ...</span>");
+//				System.out.println(result);
+			}
+		} catch (InvalidTokenOffsetsException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {
+			stndrdAnalyzer.close();
+			tokenStream.close();
+			text = "";
+		}
+		
+		return result;
+	 }
 	
 	// Given text and highlighter, return highlights (fragments) for text
 	private static String getHighlightString (String text, Highlighter highlighter) throws IOException {
