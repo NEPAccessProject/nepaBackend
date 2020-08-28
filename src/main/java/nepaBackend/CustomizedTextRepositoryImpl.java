@@ -477,8 +477,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
     private String mutateTermModifiers(String terms){
     	if(terms != null && terms.strip().length() > 0) {
-    		// + and - must immediately precede the next term (no space), therefore match the space also.
-    		return terms.replace("OR", "|").replace("AND ", "+").replace("NOT ", "-");
+    		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
+    		return terms.replace(" OR ", " | ").replace(" AND ", " +").replace(" NOT ", " -");
     	} else {
     		return "";
     	}
@@ -901,7 +901,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //			}
 			
 			// Run Lucene query on title if we have one, join with JDBC results, return final results
-			if(searchInputs != null && searchInputs.title != null && !searchInputs.title.isBlank()) {
+			if(!searchInputs.title.isBlank()) {
 				String formattedTitle = org.apache.commons.lang3.StringUtils.normalizeSpace(searchInputs.title.strip());
 
 				FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
