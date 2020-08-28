@@ -477,7 +477,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	/** Returns search terms after enforcing two rules:  Proximity matching limited to 1 billion, just under absolute upper limit 
 	 * (when going beyond the limit, proximity matching stops working at all).  
-	 * Also, support for AND/NOT/OR is added by covnerting these to +/-/||. */
+	 * Also, support for AND/NOT/OR is added by covnerting these to +/-/|. */
     private String mutateTermModifiers(String terms){
     	if(terms != null && terms.strip().length() > 0) {
     		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
