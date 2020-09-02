@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -40,6 +42,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 
+	private static int numberOfFragmentsMin = 1;
 	private static int numberOfFragmentsMax = 5;
 	private static int fragmentSize = 250;
 	private static int bigFragmentSize = 1500;
@@ -302,7 +305,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		for (DocumentText doc: docList) {
 			try {
 				if(Globals.TESTING) {
-					String highlight = getCustomSizeHighlightString(doc.getPlaintext(), scorer, bigFragmentSize, 1);
+					String highlight = getCustomSizeHighlightString(doc.getPlaintext(), scorer, bigFragmentSize, numberOfFragmentsMin);
 					if(highlight.length() > 0) { // Length 0 shouldn't be possible since we are working on matching results already
 						highlightList.add(new MetadataWithContext(doc.getEisdoc(), highlight, doc.getFilename()));
 					}
@@ -526,8 +529,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     }
 
 	
-	/** TODO: Complete; test
-	 * 1. Verify/trigger Lucene indexing on Title (Added @Indexed for EISDoc and @Field for title, need to make sure it's indexed)
+	/**1. Verify/trigger Lucene indexing on Title (Added @Indexed for EISDoc and @Field for title, need to make sure it's indexed)
 	 * 2. Lucene-friendly Hibernate/JPA-wrapped query based on my custom, dynamically created query 
 	 * 3. Ultimately, goal is to then create a combination title/fulltext query including the metadata parameters like agency/state/...
 	 * and make that the default search
@@ -984,8 +986,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					System.out.println("Records 2 " + results.size());
 				}
 				
-				// TODO: Final step is now to stop excluding special characters on the frontend.
-				
 				return finalResults;
 			} else { // no title: simply return JDBC results
 				return records;
@@ -997,5 +997,143 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 	
 	}
+	
+	/** "A/B testing" search functions: */
+	
+	private List<EISDoc> getFulltextMetaResults(String field, int limit, int offset){
+
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+				.buildQueryBuilder().forEntity(EISDoc.class).get();
+
+		Query luceneQuery = queryBuilder
+				.simpleQueryString()
+				.onField("title")
+				.withAndAsDefaultOperator()
+				.matching(field)
+				.createQuery();
+		
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+				fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
+		
+		jpaQuery.setMaxResults(limit);
+		jpaQuery.setFirstResult(offset);
+		
+		List<EISDoc> results = jpaQuery.getResultList();
+		
+		return results;
+		
+	}
+
+	
+	private List<DocumentText> getFulltextResults(String field, int limit, int offset){
+		
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+				.buildQueryBuilder().forEntity(DocumentText.class).get();
+
+		Query luceneQuery = queryBuilder
+				.simpleQueryString()
+				.onField("plaintext")
+				.withAndAsDefaultOperator()
+				.matching(field)
+				.createQuery();
+		
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
+		
+		jpaQuery.setMaxResults(limit);
+		jpaQuery.setFirstResult(offset);
+		
+		List<DocumentText> results = jpaQuery.getResultList();
+		
+		return results;
+		
+	}
+	
+	// (probably O(n)) list merge
+	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList) throws IOException {
+    	// metadatawithcontext results so we can have a text field with all combined text results
+		// LinkedHashMap should retain the order of the Lucene-scored results while also using advantages of a hashmap
+	    final Map<Long, MetadataWithContext> combinedMap = new LinkedHashMap<Long, MetadataWithContext>();
+
+	    for (final EISDoc metaDoc : metadataList) {
+	    	final MetadataWithContext translatedDoc = new MetadataWithContext(metaDoc, "", "");
+	        combinedMap.put(metaDoc.getId(), translatedDoc);
+	    }
+	    
+
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+				.buildQueryBuilder().forEntity(DocumentText.class).get();
+
+		Query luceneQuery = queryBuilder
+				.simpleQueryString()
+				.onField("plaintext")
+				.withAndAsDefaultOperator()
+				.matching(field)
+				.createQuery();
+		QueryScorer scorer = new QueryScorer(luceneQuery);
+
+		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
+
+    	// Note: Rather than write temporary logic to combine text results from different files, just use the first one per metadata record.
+	    // This will change later when we know what we actually want
+	    for (final DocumentText docText : textList) {
+	    	final MetadataWithContext existingRecord = combinedMap.get(docText.getEisdoc().getId());
+	    	
+	    	// If this is a new EISDoc entirely or if it's an EISDoc without relevant text added to it, then get and add highlight
+	    	if(existingRecord == null || existingRecord.getHighlight().isBlank()) {
+	    		final String highlights = getHighlightString(docText.getPlaintext(), highlighter);
+		    	final MetadataWithContext translatedDoc = new MetadataWithContext(docText.getEisdoc(), highlights, docText.getFilename());
+		        combinedMap.put(docText.getEisdoc().getId(), translatedDoc);
+	    	} else {
+	    		// else do nothing
+	    	}
+	    }
+
+	    return new ArrayList<MetadataWithContext>(combinedMap.values());
+	}
+	
+	// TODO: Add route, test, paginate
+	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset) {
+		if(terms.isBlank()) {
+			return null;
+		}
+		
+		// 0: Normalize whitespace and support all term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+	    
+		// 1: Search title; now have result list in scored order
+		List<EISDoc> titleResults = getFulltextMetaResults(formattedTerms, limit, offset);
+		// 2: Search file texts
+		List<DocumentText> fileTextResults = getFulltextResults(formattedTerms, limit, offset);
+
+		// 3: Add texts to existing objects in list if matching, otherwise append (like a right outer join with left results ordered first)
+		try {
+			List<MetadataWithContext> combinedResults = mergeResultsWithHighlights(formattedTerms, titleResults, fileTextResults);
+
+			// 4: Return list
+			return combinedResults;
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return new ArrayList<MetadataWithContext>();
+		}
+		
+	}
+	
+	public void lucenePrioritySearch(SearchInputs searchInputs) {
+		// Search both fields at once, connect fragments and return
+		// - Since each field is in a different table, maybe impossible.
+		// - If impossible, one option is to arbitrarily combine file texts and add them to the metadata table, then index those.
+		// This would mean losing knowledge of which file what text fragment is coming from.  This is annoying to a user
+		// who has 9 PDFs and doesn't know which one is relevant.
+	}
+	
+	/** */
 
 }
