@@ -98,7 +98,7 @@ public class FulltextController {
 			return textRepository.search(terms, 100000, 0);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return null;
-		} catch(Exception e) {
+		} catch(Exception e) { // ParseException, etc.
 			e.printStackTrace();
 			return null;
 		}

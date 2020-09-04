@@ -13,6 +13,8 @@ import javax.persistence.PersistenceContext;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.highlight.Fragmenter;
@@ -50,17 +52,24 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 //	private static int fuzzyLevel = 1;
 
-	/** Return all records matching terms (no highlights/context) */
+	/** Return all records matching terms in "plaintext" field (no highlights/context) 
+	 * @throws ParseException */
 	@SuppressWarnings("unchecked")
 	@Override
-	public List<EISDoc> search(String terms, int limit, int offset) {
+	public List<EISDoc> search(String terms, int limit, int offset) throws ParseException {
 		
 		terms = mutateTermModifiers(terms);
 		
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
 			
-		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-				.buildQueryBuilder().forEntity(DocumentText.class).get();
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+
+		// this may throw a ParseException which the caller has to deal with
+		Query luceneQuery = qp.parse(terms);
+		
+		// Note: QueryBuilder, for whatever reason, doesn't treat ? like a single wildcard character.  queryparser.classic.QueryParser does.
+//		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//				.buildQueryBuilder().forEntity(DocumentText.class).get();
 		
 		// Old code: Only good for single terms, even encapsulated in double quotes.  For multiple terms, it splits them by spaces and will basically OR them together.
 //		Query luceneQuery = queryBuilder
@@ -88,12 +97,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Let's try an all-word search.
 //		SrndQuery q = QueryParser.parse(terms);
 		
-		Query luceneQuery = queryBuilder
-				.simpleQueryString()
-				.onField("plaintext")
-				.withAndAsDefaultOperator()
-				.matching(terms)
-				.createQuery();
+//		Query luceneQuery = queryBuilder
+//				.simpleQueryString()
+//				.onField("plaintext")
+//				.withAndAsDefaultOperator()
+//				.matching(terms)
+//				.createQuery();
 
 //		String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
 //		String allWordTerms = "";
@@ -118,7 +127,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
-				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
+			fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
 		
 		// project only IDs in order to reduce RAM usage (heap outgrows max memory if we pull the full DocumentText list in)
 		// we can't directly pull the EISDoc field here with projection because it isn't indexed by Lucene
@@ -194,22 +203,27 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		return highlightList;
 //	}
 	
-	/** Return all highlights with context and document ID for matching terms (term phrase?) */
+	/** Return all highlights with context and document ID for matching terms from "plaintext" field
+	 * @throws ParseException */
 //	@SuppressWarnings({ "unchecked", "deprecation" })
 	@Override
-	public List<MetadataWithContext> metaContext(String terms, int limit, int offset, SearchType searchType) {
+	public List<MetadataWithContext> metaContext(String terms, int limit, int offset, SearchType searchType) throws ParseException {
 		long startTime = System.currentTimeMillis();
 		
 		terms = mutateTermModifiers(terms);
 		
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
-		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-				.buildQueryBuilder().forEntity(DocumentText.class).get();
-		Query luceneQuery = null;
+//		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//				.buildQueryBuilder().forEntity(DocumentText.class).get();
+
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
 		
-		boolean fuzzy = false;
-		if(fuzzy) {
+		// this may throw a ParseException which the caller has to deal with
+		Query luceneQuery = qp.parse(terms);
+		
+//		boolean fuzzy = false;
+//		if(fuzzy) {
 //			luceneQuery = queryBuilder
 //					.keyword()
 //					.fuzzy()
@@ -218,7 +232,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					.matching(terms)
 //					.createQuery();
 			
-		} else {
+//		} else {
 			// for phrases
 //			luceneQuery = queryBuilder
 //					.phrase()
@@ -227,13 +241,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					.sentence(terms)
 //					.createQuery();
 			
-			// all-word
-			luceneQuery = queryBuilder
-					.simpleQueryString()
-					.onField("plaintext")
-					.withAndAsDefaultOperator()
-					.matching(terms)
-					.createQuery();
+			// all-word (newest querybuilder logic)
+//			luceneQuery = queryBuilder
+//					.simpleQueryString()
+//					.onField("plaintext")
+//					.withAndAsDefaultOperator()
+//					.matching(terms)
+//					.createQuery();
 			
 //			String[] termsArray = org.apache.commons.lang3.StringUtils.normalizeSpace(terms).split(" ");
 //			String allWordTerms = "";
@@ -247,7 +261,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					.onField("plaintext")
 //					.matching(allWordTerms)
 //					.createQuery();
-		}
+//		}
 			
 		// wrap Lucene query in a javax.persistence.Query
 		// TODO: Test org.hibernate.search.jpa.FullTextQuery instead
@@ -262,16 +276,17 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		List<DocumentText> docList = jpaQuery.getResultList();
 		List<MetadataWithContext> highlightList = new ArrayList<MetadataWithContext>();
 
+		QueryScorer scorer = new QueryScorer(luceneQuery);
+
 		// Logic for exact phrase vs. all-word query
-		QueryScorer scorer = null;
-		String[] words = terms.split(" ");
-		if(searchType == SearchType.ALL) { // .equals uses == internally
-			if(fuzzy) {
+//		String[] words = terms.split(" ");
+//		if(searchType == SearchType.ALL) { // .equals uses == internally
+//			if(fuzzy) {
 				// Fuzzy search code
 //				FuzzyLikeThisQuery fuzzyQuery = new FuzzyLikeThisQuery(32, new StandardAnalyzer());
 //				fuzzyQuery.addTerms(terms, "f", fuzzyLevel, 0);
 //				scorer = new QueryScorer(fuzzyQuery);
-			} else {
+//			} else {
 				// Old search code: any-word
 //				List<Term> termWords = new ArrayList<Term>();
 //				for (String word: words) {
@@ -288,13 +303,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				scorer = new QueryScorer(bq);
 				
 				// all-word using exact same query logic
-				scorer = new QueryScorer(luceneQuery);
-			}
-		} else {
+//				scorer = new QueryScorer(luceneQuery);
+//			}
+//		} else {
 			// Oldest code (most precision required)
-			PhraseQuery query = new PhraseQuery("f", words);
-			scorer = new QueryScorer(query);
-		}
+//			PhraseQuery query = new PhraseQuery("f", words);
+//			scorer = new QueryScorer(query);
+//		}
 
 		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
 		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
@@ -949,16 +964,21 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 				FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
-				QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-						.buildQueryBuilder().forEntity(EISDoc.class).get();
+//				QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//						.buildQueryBuilder().forEntity(EISDoc.class).get();
 				
+				
+				QueryParser qp = new QueryParser("title", new StandardAnalyzer());
 
-				Query luceneQuery = queryBuilder
-						.simpleQueryString()
-						.onField("title")
-						.withAndAsDefaultOperator()
-						.matching(formattedTitle)
-						.createQuery();
+				// this may throw a ParseException which the caller has to deal with
+				Query luceneQuery = qp.parse(formattedTitle);
+
+//				Query luceneQuery = queryBuilder
+//						.simpleQueryString()
+//						.onField("title")
+//						.withAndAsDefaultOperator()
+//						.matching(formattedTitle)
+//						.createQuery();
 	
 				org.hibernate.search.jpa.FullTextQuery jpaQuery =
 						fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
@@ -998,22 +1018,28 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	}
 	
-	/** "A/B testing" search functions: */
+	/** "A/B testing" search functions: 
+	 * @throws ParseException */
 	
-	private List<EISDoc> getFulltextMetaResults(String field, int limit, int offset){
+	private List<EISDoc> getFulltextMetaResults(String field, int limit, int offset) throws ParseException{
 
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
-
-		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-				.buildQueryBuilder().forEntity(EISDoc.class).get();
-
-		Query luceneQuery = queryBuilder
-				.simpleQueryString()
-				.onField("title")
-				.withAndAsDefaultOperator()
-				.matching(field)
-				.createQuery();
 		
+		QueryParser qp = new QueryParser("title", new StandardAnalyzer());
+
+		// this may throw a ParseException which the caller has to deal with
+		Query luceneQuery = qp.parse(field);
+
+//		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//				.buildQueryBuilder().forEntity(EISDoc.class).get();
+//
+//		Query luceneQuery = queryBuilder
+//				.simpleQueryString()
+//				.onField("title")
+//				.withAndAsDefaultOperator()
+//				.matching(field)
+//				.createQuery();
+//		
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
 		
@@ -1027,19 +1053,24 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 
 	
-	private List<DocumentText> getFulltextResults(String field, int limit, int offset){
+	private List<DocumentText> getFulltextResults(String field, int limit, int offset) throws ParseException{
 		
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
-		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-				.buildQueryBuilder().forEntity(DocumentText.class).get();
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
 
-		Query luceneQuery = queryBuilder
-				.simpleQueryString()
-				.onField("plaintext")
-				.withAndAsDefaultOperator()
-				.matching(field)
-				.createQuery();
+		// this may throw a ParseException which the caller has to deal with
+		Query luceneQuery = qp.parse(field);
+		
+//		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//				.buildQueryBuilder().forEntity(DocumentText.class).get();
+//
+//		Query luceneQuery = queryBuilder
+//				.simpleQueryString()
+//				.onField("plaintext")
+//				.withAndAsDefaultOperator()
+//				.matching(field)
+//				.createQuery();
 		
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
@@ -1054,7 +1085,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	// (probably O(n)) list merge
-	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList) throws IOException {
+	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList) throws IOException, ParseException {
     	// metadatawithcontext results so we can have a text field with all combined text results
 		// LinkedHashMap should retain the order of the Lucene-scored results while also using advantages of a hashmap
 	    final Map<Long, MetadataWithContext> combinedMap = new LinkedHashMap<Long, MetadataWithContext>();
@@ -1064,18 +1095,22 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	        combinedMap.put(metaDoc.getId(), translatedDoc);
 	    }
 	    
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+
+		// this may throw a ParseException which the caller has to deal with
+		Query luceneQuery = qp.parse(field);
 
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
-		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-				.buildQueryBuilder().forEntity(DocumentText.class).get();
-
-		Query luceneQuery = queryBuilder
-				.simpleQueryString()
-				.onField("plaintext")
-				.withAndAsDefaultOperator()
-				.matching(field)
-				.createQuery();
+//		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
+//				.buildQueryBuilder().forEntity(DocumentText.class).get();
+//
+//		Query luceneQuery = queryBuilder
+//				.simpleQueryString()
+//				.onField("plaintext")
+//				.withAndAsDefaultOperator()
+//				.matching(field)
+//				.createQuery();
 		QueryScorer scorer = new QueryScorer(luceneQuery);
 
 		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
@@ -1099,7 +1134,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	// TODO: Add route, test, paginate
-	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset) {
+	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset) throws ParseException {
 		if(terms.isBlank()) {
 			return null;
 		}
