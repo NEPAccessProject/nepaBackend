@@ -188,19 +188,19 @@ public class FulltextController {
 	// Metadata with context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext, prioritizes title matches
 	@CrossOrigin
 	@PostMapping(path = "/search_lucene_priority")
-	public ResponseEntity<List<Object>> searchPriorityLucene(@RequestBody SearchInputs searchInputs)
+	public ResponseEntity<List<MetadataWithContext>> searchPriorityLucene(@RequestBody SearchInputs searchInputs)
 	{
 		saveSearchLog(searchInputs);
 
 		try { 
-			List<Object> highlightsMeta = new ArrayList<Object>(
+			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchLucenePriority(searchInputs, 1000000, 0, SearchType.ALL)));
-			return new ResponseEntity<List<Object>>(highlightsMeta, HttpStatus.OK);
+			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<Object>>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	

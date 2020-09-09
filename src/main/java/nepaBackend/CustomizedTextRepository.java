@@ -22,5 +22,5 @@ public interface CustomizedTextRepository {
 	
 	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, int limit, int offset,
 			SearchType searchType);
-	List<Object> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType);
+	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType);
 }

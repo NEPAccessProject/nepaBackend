@@ -1027,12 +1027,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	 * @throws ParseException */
 	
 	@Override
-	public List<Object> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
+	public List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
 		try {
 			return lucenePrioritySearch(searchInputs.title, limit, offset);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ArrayList<Object>();
+			return new ArrayList<MetadataWithContext>();
 		}
 	}
 
@@ -1391,51 +1391,74 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 	}
 	
-	// TODO: First, see if this even works (should work if Lucene flattened (normalized)), then figure out what we're returning
-	// (possibly something weird or a DAO that's just an EISDoc as well as a DocumentText, or it's just a DocumentText)
-	public List<Object> lucenePrioritySearch(String terms, int limit, int offset) throws ParseException {
-		
-		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+	
+	public List<MetadataWithContext> lucenePrioritySearch(String terms, int limit, int offset) throws ParseException {
+		long startTime = System.currentTimeMillis();
+		// 0: Normalize whitespace and support all term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
 
 		// objective: Search both fields at once, connect fragments and return
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, but the results will contain both
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
 					new StandardAnalyzer());
 		mfqp.setDefaultOperator(Operator.AND);
 
-		Query luceneQuery = mfqp.parse(terms);
+		Query luceneQuery = mfqp.parse(formattedTerms);
 		
 //		org.hibernate.search.jpa.FullTextQuery jpaQuery =
-//				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
-		
-
+//				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class); // filters only DocumentText results
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery);
 		
 		jpaQuery.setMaxResults(limit);
 		jpaQuery.setFirstResult(offset);
 
+		// Returns a list containing both EISDoc and DocumentText objects.
 		List<Object> results = jpaQuery.getResultList();
 		
-		// TODO: Get highlights instead of plaintexts.  Basically, should be able to translate the DocumentText to a MetadataWithContext and return that insetad.
+		// init final result list
+		List<MetadataWithContext> combinedResultsWithHighlights = new ArrayList<MetadataWithContext>();
 		
-		// TODO: Remove this later; for now remove the plaintexts so we don't have to move so much data in testing
-//		for (Object result : results) {
-//			System.out.println(result.getEisdoc().getTitle());
-//			System.out.println(result.getFilename());
-//			if(result.getPlaintext().isBlank()) {
-//				System.out.println("Empty plaintext: Title only result");
-//			}
-//			result.setPlaintext("");
-//		}
+		// build highlighter
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
+		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
+		QueryScorer scorer = new QueryScorer(luceneTextOnlyQuery);
+		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
+		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
+		highlighter.setTextFragmenter(fragmenter);
+		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
+		
+		for (Object result : results) {
+			System.out.println(result.getClass());
+			if(result.getClass().equals(DocumentText.class)) {
+				// Get highlights
+				try {
+					combinedResultsWithHighlights.add( new MetadataWithContext(
+							((DocumentText) result).getEisdoc(),
+							getHighlightString(((DocumentText) result).getPlaintext(), highlighter),
+							((DocumentText) result).getFilename()) );
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} else if(result.getClass().equals(EISDoc.class)) {
+				combinedResultsWithHighlights.add(new MetadataWithContext(((EISDoc) result),"",""));
+			}
+		}
 		
 		if(Globals.TESTING) {
 			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println(elapsedTime);
 		}
-		
-		return results;
-		
-		
+
+		return combinedResultsWithHighlights;
 	}
 	
 	/** */
