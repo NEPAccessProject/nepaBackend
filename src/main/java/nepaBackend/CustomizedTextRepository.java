@@ -19,4 +19,8 @@ public interface CustomizedTextRepository {
 	List<EISDoc> metadataSearch(SearchInputs searchInputs, int i, int j, SearchType all);
 
 	boolean sync();
+	
+	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, int limit, int offset,
+			SearchType searchType);
+	List<Object> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType);
 }

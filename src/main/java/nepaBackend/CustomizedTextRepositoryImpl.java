@@ -13,9 +13,11 @@ import javax.persistence.PersistenceContext;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.PhraseQuery;
+import org.apache.lucene.queryparser.classic.QueryParser.Operator;
+//import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.highlight.Fragmenter;
 import org.apache.lucene.search.highlight.Highlighter;
@@ -26,7 +28,7 @@ import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
-import org.hibernate.search.query.dsl.QueryBuilder;
+//import org.hibernate.search.query.dsl.QueryBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -63,6 +65,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
 			
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
 
 		// this may throw a ParseException which the caller has to deal with
 		Query luceneQuery = qp.parse(terms);
@@ -218,6 +221,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.buildQueryBuilder().forEntity(DocumentText.class).get();
 
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
 		
 		// this may throw a ParseException which the caller has to deal with
 		Query luceneQuery = qp.parse(terms);
@@ -457,7 +461,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		try {
 			// Add ellipses to denote that these are text fragments within the string
 			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
-//			System.out.println(result);
+			
 			if(result.length()>0) {
 				result = "<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(result).strip().concat(" ...</span>");
 //				System.out.println(result);
@@ -969,6 +973,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				
 				
 				QueryParser qp = new QueryParser("title", new StandardAnalyzer());
+				qp.setDefaultOperator(Operator.AND);
 
 				// this may throw a ParseException which the caller has to deal with
 				Query luceneQuery = qp.parse(formattedTitle);
@@ -1021,11 +1026,233 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	/** "A/B testing" search functions: 
 	 * @throws ParseException */
 	
+	@Override
+	public List<Object> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
+		try {
+			return lucenePrioritySearch(searchInputs.title, limit, offset);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ArrayList<Object>();
+		}
+	}
+
+	@Override
+	public List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
+		long startTime = System.currentTimeMillis();
+		try {
+			
+			searchInputs.title = mutateTermModifiers(searchInputs.title);
+			
+			ArrayList<String> inputList = new ArrayList<String>();
+			ArrayList<String> whereList = new ArrayList<String>();
+
+			// Select tables, columns
+			String sQuery = "SELECT * FROM eisdoc";
+			
+			// Populate lists
+			if(Globals.saneInput(searchInputs.startPublish)) {
+				inputList.add(searchInputs.startPublish);
+				whereList.add(" ((register_date) >= ?)");
+			}
+			
+			if(Globals.saneInput(searchInputs.endPublish)) {
+				inputList.add(searchInputs.endPublish);
+				whereList.add(" ((register_date) <= ?)");
+			}
+	
+			if(Globals.saneInput(searchInputs.startComment)) {
+				inputList.add(searchInputs.startComment);
+				whereList.add(" ((comment_date) >= ?)");
+			}
+			
+			if(Globals.saneInput(searchInputs.endComment)) {
+				inputList.add(searchInputs.endComment);
+				whereList.add(" ((comment_date) <= ?)");
+			}
+			
+			if(Globals.saneInput(searchInputs.typeAll)) { 
+				// do nothing
+			} else {
+				
+				ArrayList<String> typesList = new ArrayList<>();
+				StringBuilder query = new StringBuilder(" document_type IN (");
+				if(Globals.saneInput(searchInputs.typeFinal)) {
+					typesList.add("Final");
+				}
+	
+				if(Globals.saneInput(searchInputs.typeDraft)) {
+					typesList.add("Draft");
+				}
+				
+				if(Globals.saneInput(searchInputs.typeOther)) {
+					typesList.addAll(Globals.EIS_TYPES);
+				}
+				String[] docTypes = typesList.toArray(new String[0]);
+				for (int i = 0; i < docTypes.length; i++) {
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
+				}
+				query.append(")");
+	
+				for (int i = 0; i < docTypes.length; i++) {
+					inputList.add(docTypes[i]);
+				}
+				
+				if(docTypes.length>0) {
+					whereList.add(query.toString());
+				}
+	
+			}
+	
+			if(Globals.saneInput(searchInputs.needsComments)) { // Don't need an input for this right now
+				whereList.add(" (comments_filename<>'')");
+			}
+	
+			if(Globals.saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
+				whereList.add(" (filename<>'')");
+			}
+			
+			if(Globals.saneInput(searchInputs.state)) {
+				StringBuilder query = new StringBuilder(" state IN (");
+				for (int i = 0; i < searchInputs.state.length; i++) {
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
+				}
+				query.append(")");
+	
+				for (int i = 0; i < searchInputs.state.length; i++) {
+					inputList.add(searchInputs.state[i]);
+				}
+				whereList.add(query.toString());
+			}
+	
+			if(Globals.saneInput(searchInputs.agency)) {
+				StringBuilder query = new StringBuilder(" agency IN (");
+				for (int i = 0; i < searchInputs.agency.length; i++) {
+					if (i > 0) {
+						query.append(",");
+					}
+					query.append("?");
+				}
+				query.append(")");
+	
+				for (int i = 0; i < searchInputs.agency.length; i++) {
+					inputList.add(searchInputs.agency[i]);
+				}
+				whereList.add(query.toString());
+			}
+			
+			boolean addAnd = false;
+			for (String i : whereList) {
+				if(addAnd) { // Not first conditional, append AND
+					sQuery += " AND";
+				} else { // First conditional, append WHERE
+					sQuery += " WHERE";
+				}
+				sQuery += i; // Append conditional
+				
+				addAnd = true; // Raise AND flag for future iterations
+			}
+			
+			
+			// Finalize query
+			int queryLimit = 100000;
+			if(Globals.saneInput(searchInputs.limit)) {
+				if(searchInputs.limit <= 100000) {
+					queryLimit = searchInputs.limit;
+				}
+			}
+			sQuery += " LIMIT " + String.valueOf(queryLimit);
+
+			// Run query
+			List<EISDoc> records = jdbcTemplate.query
+			(
+				sQuery, 
+				inputList.toArray(new Object[] {}),
+				(rs, rowNum) -> new EISDoc(
+					rs.getLong("id"), 
+					rs.getString("title"), 
+					rs.getString("document_type"),
+					rs.getObject("comment_date", LocalDate.class), 
+					rs.getObject("register_date", LocalDate.class), 
+					rs.getString("agency"),
+					rs.getString("state"), 
+					rs.getString("filename"),
+					rs.getString("comments_filename"),
+					rs.getString("folder"),
+					rs.getString("web_link"),
+					rs.getString("notes")
+				)
+			);
+			
+			// debugging
+			if(Globals.TESTING && searchInputs.endPublish != null) {
+//				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
+//				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+//				System.out.println(validator.isValid(searchInputs.endPublish));
+				System.out.println(sQuery); 
+//				System.out.println(searchInputs.endPublish);
+				System.out.println(searchInputs.title);
+			}
+			
+			
+			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			if(!searchInputs.title.isBlank()) {
+				String formattedTitle = org.apache.commons.lang3.StringUtils.normalizeSpace(searchInputs.title.strip());
+
+				List<MetadataWithContext> results = titlePrioritySearch(formattedTitle, 100000, 0);
+				
+				List<Long> justRecordIds = new ArrayList<Long>();
+				for(EISDoc record: records) {
+					justRecordIds.add(record.getId());
+				}
+
+				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				for(int i = 0; i < results.size(); i++) {
+					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+						finalResults.add(results.get(i));
+					}
+				}
+				
+				if(Globals.TESTING) {
+					System.out.println("Records 1 " + records.size());
+					System.out.println("Records 2 " + results.size());
+				}
+
+				if(Globals.TESTING) {
+					long stopTime = System.currentTimeMillis();
+					long elapsedTime = stopTime - startTime;
+					System.out.println(elapsedTime);
+				}
+				return finalResults;
+			} else { // no title: simply return JDBC results...  however they have to be translated
+				// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
+				// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
+				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				for(EISDoc record : records) {
+					finalResults.add(new MetadataWithContext(record, "", ""));
+				}
+				return finalResults;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+	
+	}
+	
 	private List<EISDoc> getFulltextMetaResults(String field, int limit, int offset) throws ParseException{
 
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 		
 		QueryParser qp = new QueryParser("title", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
 
 		// this may throw a ParseException which the caller has to deal with
 		Query luceneQuery = qp.parse(field);
@@ -1058,6 +1285,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
 
 		// this may throw a ParseException which the caller has to deal with
 		Query luceneQuery = qp.parse(field);
@@ -1094,26 +1322,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    	final MetadataWithContext translatedDoc = new MetadataWithContext(metaDoc, "", "");
 	        combinedMap.put(metaDoc.getId(), translatedDoc);
 	    }
-	    
-		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
 
+		// build highlighter
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
+		
 		// this may throw a ParseException which the caller has to deal with
 		Query luceneQuery = qp.parse(field);
-
-		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
-
-//		QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-//				.buildQueryBuilder().forEntity(DocumentText.class).get();
-//
-//		Query luceneQuery = queryBuilder
-//				.simpleQueryString()
-//				.onField("plaintext")
-//				.withAndAsDefaultOperator()
-//				.matching(field)
-//				.createQuery();
 		QueryScorer scorer = new QueryScorer(luceneQuery);
-
 		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
+		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
+		highlighter.setTextFragmenter(fragmenter);
+		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 
     	// Note: Rather than write temporary logic to combine text results from different files, just use the first one per metadata record.
 	    // This will change later when we know what we actually want
@@ -1124,9 +1344,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    	if(existingRecord == null || existingRecord.getHighlight().isBlank()) {
 	    		final String highlights = getHighlightString(docText.getPlaintext(), highlighter);
 		    	final MetadataWithContext translatedDoc = new MetadataWithContext(docText.getEisdoc(), highlights, docText.getFilename());
-		        combinedMap.put(docText.getEisdoc().getId(), translatedDoc);
+		    	if(!highlights.isBlank()) {
+			    	combinedMap.put(docText.getEisdoc().getId(), translatedDoc);
+		    	} else {
+		    		// shouldn't be possible since we matched
+		    		System.out.println("Blank highlight for " + docText.getFilename() + " for term " + field + " text length " + docText.getPlaintext().length());
+		    	}
 	    	} else {
-	    		// else do nothing
+	    		// else do nothing, we already have at least one highlight (or one cluster of highlights) for this document
 	    	}
 	    }
 
@@ -1136,7 +1361,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	// TODO: Add route, test, paginate
 	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset) throws ParseException {
 		if(terms.isBlank()) {
-			return null;
+			return new ArrayList<MetadataWithContext>();
 		}
 		
 		// 0: Normalize whitespace and support all term modifiers
@@ -1151,22 +1376,66 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		try {
 			List<MetadataWithContext> combinedResults = mergeResultsWithHighlights(formattedTerms, titleResults, fileTextResults);
 
+			if(Globals.TESTING) {
+				System.out.println("Title results " + titleResults.size());
+				System.out.println("Text results " + fileTextResults.size());
+				System.out.println("Combined results " + combinedResults.size());
+			}
+
 			// 4: Return list
 			return combinedResults;
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return new ArrayList<MetadataWithContext>();
+			return null;
 		}
 		
 	}
 	
-	public void lucenePrioritySearch(SearchInputs searchInputs) {
-		// Search both fields at once, connect fragments and return
-		// - Since each field is in a different table, maybe impossible.
-		// - If impossible, one option is to arbitrarily combine file texts and add them to the metadata table, then index those.
-		// This would mean losing knowledge of which file what text fragment is coming from.  This is annoying to a user
-		// who has 9 PDFs and doesn't know which one is relevant.
+	// TODO: First, see if this even works (should work if Lucene flattened (normalized)), then figure out what we're returning
+	// (possibly something weird or a DAO that's just an EISDoc as well as a DocumentText, or it's just a DocumentText)
+	public List<Object> lucenePrioritySearch(String terms, int limit, int offset) throws ParseException {
+		
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		// objective: Search both fields at once, connect fragments and return
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+
+		Query luceneQuery = mfqp.parse(terms);
+		
+//		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+//				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class);
+		
+
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+				fullTextEntityManager.createFullTextQuery(luceneQuery);
+		
+		jpaQuery.setMaxResults(limit);
+		jpaQuery.setFirstResult(offset);
+
+		List<Object> results = jpaQuery.getResultList();
+		
+		// TODO: Get highlights instead of plaintexts.  Basically, should be able to translate the DocumentText to a MetadataWithContext and return that insetad.
+		
+		// TODO: Remove this later; for now remove the plaintexts so we don't have to move so much data in testing
+//		for (Object result : results) {
+//			System.out.println(result.getEisdoc().getTitle());
+//			System.out.println(result.getFilename());
+//			if(result.getPlaintext().isBlank()) {
+//				System.out.println("Empty plaintext: Title only result");
+//			}
+//			result.setPlaintext("");
+//		}
+		
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+		}
+		
+		return results;
+		
+		
 	}
 	
 	/** */

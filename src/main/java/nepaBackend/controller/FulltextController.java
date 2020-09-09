@@ -164,6 +164,46 @@ public class FulltextController {
 		}
 	}
 	
+
+	// Metadata with context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext, prioritizes title matches
+	@CrossOrigin
+	@PostMapping(path = "/search_title_priority")
+	public ResponseEntity<List<MetadataWithContext>> searchPriorityTitle(@RequestBody SearchInputs searchInputs)
+	{
+		saveSearchLog(searchInputs);
+
+		try { 
+			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
+					(textRepository.CombinedSearchTitlePriority(searchInputs, 1000000, 0, SearchType.ALL)));
+			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+
+	// Metadata with context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext, prioritizes title matches
+	@CrossOrigin
+	@PostMapping(path = "/search_lucene_priority")
+	public ResponseEntity<List<Object>> searchPriorityLucene(@RequestBody SearchInputs searchInputs)
+	{
+		saveSearchLog(searchInputs);
+
+		try { 
+			List<Object> highlightsMeta = new ArrayList<Object>(
+					(textRepository.CombinedSearchLucenePriority(searchInputs, 1000000, 0, SearchType.ALL)));
+			return new ResponseEntity<List<Object>>(highlightsMeta, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
 	
 	/** Refresh Lucene index so that searching works 
 	 * (adds MySQL document_text table to Lucene with denormalization) 
