@@ -534,14 +534,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		return inputString;
 //	}
 
-	/** Returns search terms after enforcing two rules:  Proximity matching limited to 1 billion, just under absolute upper limit 
-	 * (when going beyond the limit, proximity matching stops working at all).  
-	 * Also, support for AND/NOT/OR is added by covnerting these to +/-/|. */
+	/** Returns search terms after enforcing two rules:  Proximity matching was limited to 1 billion, just under absolute upper limit 
+	 * (when going beyond the limit, proximity matching stopped working at all).  
+	 * Support for | is added by converting to ||. */
     private String mutateTermModifiers(String terms){
     	if(terms != null && terms.strip().length() > 0) {
     		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
-    		return terms.replace(" OR ", " | ").replace(" AND ", " +").replace(" NOT ", " -")
-    				.replaceAll("(~\\d{10}\\d*)", "~999999999"); 
+    		return terms.replace(" | ",  " || "); // QueryParser doesn't support |, does support ?, OR, NOT
+//    				.replaceAll("(~\\d{10}\\d*)", "~999999999"); // this was necessary with QueryBuilder (broke after limit)
     	} else {
     		return "";
     	}
@@ -1433,7 +1433,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 		
 		for (Object result : results) {
-			System.out.println(result.getClass());
 			if(result.getClass().equals(DocumentText.class)) {
 				// Get highlights
 				try {
