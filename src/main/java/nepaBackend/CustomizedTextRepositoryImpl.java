@@ -540,7 +540,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     private String mutateTermModifiers(String terms){
     	if(terms != null && terms.strip().length() > 0) {
     		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
-    		return terms.replace(" | ",  " || "); // QueryParser doesn't support |, does support ?, OR, NOT
+    		return org.apache.commons.lang3.StringUtils.normalizeSpace(terms).replace(" | ",  " || ").strip(); // QueryParser doesn't support |, does support ?, OR, NOT
 //    				.replaceAll("(~\\d{10}\\d*)", "~999999999"); // this was necessary with QueryBuilder (broke after limit)
     	} else {
     		return "";
@@ -1023,13 +1023,220 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	}
 	
+	private List<EISDoc> getFilteredRecords(SearchInputs searchInputs, int limmit, int offset) {
+		searchInputs.title = mutateTermModifiers(searchInputs.title);
+		
+		ArrayList<String> inputList = new ArrayList<String>();
+		ArrayList<String> whereList = new ArrayList<String>();
+
+		// Select tables, columns
+		String sQuery = "SELECT * FROM eisdoc";
+		
+		// Populate lists
+		if(Globals.saneInput(searchInputs.startPublish)) {
+			inputList.add(searchInputs.startPublish);
+			whereList.add(" ((register_date) >= ?)");
+		}
+		
+		if(Globals.saneInput(searchInputs.endPublish)) {
+			inputList.add(searchInputs.endPublish);
+			whereList.add(" ((register_date) <= ?)");
+		}
+
+		if(Globals.saneInput(searchInputs.startComment)) {
+			inputList.add(searchInputs.startComment);
+			whereList.add(" ((comment_date) >= ?)");
+		}
+		
+		if(Globals.saneInput(searchInputs.endComment)) {
+			inputList.add(searchInputs.endComment);
+			whereList.add(" ((comment_date) <= ?)");
+		}
+		
+		if(Globals.saneInput(searchInputs.typeAll)) { 
+			// do nothing
+		} else {
+			
+			ArrayList<String> typesList = new ArrayList<>();
+			StringBuilder query = new StringBuilder(" document_type IN (");
+			if(Globals.saneInput(searchInputs.typeFinal)) {
+				typesList.add("Final");
+			}
+
+			if(Globals.saneInput(searchInputs.typeDraft)) {
+				typesList.add("Draft");
+			}
+			
+			if(Globals.saneInput(searchInputs.typeOther)) {
+				typesList.addAll(Globals.EIS_TYPES);
+			}
+			String[] docTypes = typesList.toArray(new String[0]);
+			for (int i = 0; i < docTypes.length; i++) {
+				if (i > 0) {
+					query.append(",");
+				}
+				query.append("?");
+			}
+			query.append(")");
+
+			for (int i = 0; i < docTypes.length; i++) {
+				inputList.add(docTypes[i]);
+			}
+			
+			if(docTypes.length>0) {
+				whereList.add(query.toString());
+			}
+
+		}
+
+		if(Globals.saneInput(searchInputs.needsComments)) { // Don't need an input for this right now
+			whereList.add(" (comments_filename<>'')");
+		}
+
+		if(Globals.saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
+			whereList.add(" (filename<>'')");
+		}
+		
+		if(Globals.saneInput(searchInputs.state)) {
+			StringBuilder query = new StringBuilder(" state IN (");
+			for (int i = 0; i < searchInputs.state.length; i++) {
+				if (i > 0) {
+					query.append(",");
+				}
+				query.append("?");
+			}
+			query.append(")");
+
+			for (int i = 0; i < searchInputs.state.length; i++) {
+				inputList.add(searchInputs.state[i]);
+			}
+			whereList.add(query.toString());
+		}
+
+		if(Globals.saneInput(searchInputs.agency)) {
+			StringBuilder query = new StringBuilder(" agency IN (");
+			for (int i = 0; i < searchInputs.agency.length; i++) {
+				if (i > 0) {
+					query.append(",");
+				}
+				query.append("?");
+			}
+			query.append(")");
+
+			for (int i = 0; i < searchInputs.agency.length; i++) {
+				inputList.add(searchInputs.agency[i]);
+			}
+			whereList.add(query.toString());
+		}
+		
+		boolean addAnd = false;
+		for (String i : whereList) {
+			if(addAnd) { // Not first conditional, append AND
+				sQuery += " AND";
+			} else { // First conditional, append WHERE
+				sQuery += " WHERE";
+			}
+			sQuery += i; // Append conditional
+			
+			addAnd = true; // Raise AND flag for future iterations
+		}
+		
+		
+		// Finalize query
+		int queryLimit = 100000;
+		if(Globals.saneInput(searchInputs.limit)) {
+			if(searchInputs.limit <= 100000) {
+				queryLimit = searchInputs.limit;
+			}
+		}
+		sQuery += " LIMIT " + String.valueOf(queryLimit);
+
+		// Run query
+		List<EISDoc> records = jdbcTemplate.query
+		(
+			sQuery, 
+			inputList.toArray(new Object[] {}),
+			(rs, rowNum) -> new EISDoc(
+				rs.getLong("id"), 
+				rs.getString("title"), 
+				rs.getString("document_type"),
+				rs.getObject("comment_date", LocalDate.class), 
+				rs.getObject("register_date", LocalDate.class), 
+				rs.getString("agency"),
+				rs.getString("state"), 
+				rs.getString("filename"),
+				rs.getString("comments_filename"),
+				rs.getString("folder"),
+				rs.getString("web_link"),
+				rs.getString("notes")
+			)
+		);
+
+		// debugging
+		if(Globals.TESTING && searchInputs.endPublish != null) {
+//			DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
+//			DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+//			System.out.println(validator.isValid(searchInputs.endPublish));
+			System.out.println(sQuery); 
+//			System.out.println(searchInputs.endPublish);
+			System.out.println(searchInputs.title);
+		}
+		
+		return records;
+	}
+	
 	/** "A/B testing" search functions: 
 	 * @throws ParseException */
 	
 	@Override
 	public List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
 		try {
-			return lucenePrioritySearch(searchInputs.title, limit, offset);
+			long startTime = System.currentTimeMillis();
+			List<EISDoc> records = getFilteredRecords(searchInputs, limit, offset);
+			
+			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			if(!searchInputs.title.isBlank()) {
+				String formattedTitle = mutateTermModifiers(searchInputs.title);
+
+				
+				List<Long> justRecordIds = new ArrayList<Long>();
+				for(EISDoc record: records) {
+					justRecordIds.add(record.getId());
+				}
+
+				// TODO: This will include highlights that potentially should have been filtered out, unnecessarily slowing down the search
+				List<MetadataWithContext> results = lucenePrioritySearch(formattedTitle, 100000, 0, justRecordIds);
+				
+				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				for(int i = 0; i < results.size(); i++) {
+					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+						finalResults.add(results.get(i));
+					}
+				}
+				
+				if(Globals.TESTING) {
+					System.out.println("Records 1 " + records.size());
+					System.out.println("Records 2 " + results.size());
+				}
+
+				if(Globals.TESTING) {
+					long stopTime = System.currentTimeMillis();
+					long elapsedTime = stopTime - startTime;
+					System.out.println("Lucene search time: " + elapsedTime);
+				}
+				return finalResults;
+			} else { // no title: simply return JDBC results...  however they have to be translated
+				// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
+				// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
+				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				for(EISDoc record : records) {
+					finalResults.add(new MetadataWithContext(record, "", ""));
+				}
+				return finalResults;
+			}
+			
+//			return lucenePrioritySearch(searchInputs.title, limit, offset);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ArrayList<MetadataWithContext>();
@@ -1038,171 +1245,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	@Override
 	public List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
-		long startTime = System.currentTimeMillis();
 		try {
-			
-			searchInputs.title = mutateTermModifiers(searchInputs.title);
-			
-			ArrayList<String> inputList = new ArrayList<String>();
-			ArrayList<String> whereList = new ArrayList<String>();
-
-			// Select tables, columns
-			String sQuery = "SELECT * FROM eisdoc";
-			
-			// Populate lists
-			if(Globals.saneInput(searchInputs.startPublish)) {
-				inputList.add(searchInputs.startPublish);
-				whereList.add(" ((register_date) >= ?)");
-			}
-			
-			if(Globals.saneInput(searchInputs.endPublish)) {
-				inputList.add(searchInputs.endPublish);
-				whereList.add(" ((register_date) <= ?)");
-			}
-	
-			if(Globals.saneInput(searchInputs.startComment)) {
-				inputList.add(searchInputs.startComment);
-				whereList.add(" ((comment_date) >= ?)");
-			}
-			
-			if(Globals.saneInput(searchInputs.endComment)) {
-				inputList.add(searchInputs.endComment);
-				whereList.add(" ((comment_date) <= ?)");
-			}
-			
-			if(Globals.saneInput(searchInputs.typeAll)) { 
-				// do nothing
-			} else {
-				
-				ArrayList<String> typesList = new ArrayList<>();
-				StringBuilder query = new StringBuilder(" document_type IN (");
-				if(Globals.saneInput(searchInputs.typeFinal)) {
-					typesList.add("Final");
-				}
-	
-				if(Globals.saneInput(searchInputs.typeDraft)) {
-					typesList.add("Draft");
-				}
-				
-				if(Globals.saneInput(searchInputs.typeOther)) {
-					typesList.addAll(Globals.EIS_TYPES);
-				}
-				String[] docTypes = typesList.toArray(new String[0]);
-				for (int i = 0; i < docTypes.length; i++) {
-					if (i > 0) {
-						query.append(",");
-					}
-					query.append("?");
-				}
-				query.append(")");
-	
-				for (int i = 0; i < docTypes.length; i++) {
-					inputList.add(docTypes[i]);
-				}
-				
-				if(docTypes.length>0) {
-					whereList.add(query.toString());
-				}
-	
-			}
-	
-			if(Globals.saneInput(searchInputs.needsComments)) { // Don't need an input for this right now
-				whereList.add(" (comments_filename<>'')");
-			}
-	
-			if(Globals.saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
-				whereList.add(" (filename<>'')");
-			}
-			
-			if(Globals.saneInput(searchInputs.state)) {
-				StringBuilder query = new StringBuilder(" state IN (");
-				for (int i = 0; i < searchInputs.state.length; i++) {
-					if (i > 0) {
-						query.append(",");
-					}
-					query.append("?");
-				}
-				query.append(")");
-	
-				for (int i = 0; i < searchInputs.state.length; i++) {
-					inputList.add(searchInputs.state[i]);
-				}
-				whereList.add(query.toString());
-			}
-	
-			if(Globals.saneInput(searchInputs.agency)) {
-				StringBuilder query = new StringBuilder(" agency IN (");
-				for (int i = 0; i < searchInputs.agency.length; i++) {
-					if (i > 0) {
-						query.append(",");
-					}
-					query.append("?");
-				}
-				query.append(")");
-	
-				for (int i = 0; i < searchInputs.agency.length; i++) {
-					inputList.add(searchInputs.agency[i]);
-				}
-				whereList.add(query.toString());
-			}
-			
-			boolean addAnd = false;
-			for (String i : whereList) {
-				if(addAnd) { // Not first conditional, append AND
-					sQuery += " AND";
-				} else { // First conditional, append WHERE
-					sQuery += " WHERE";
-				}
-				sQuery += i; // Append conditional
-				
-				addAnd = true; // Raise AND flag for future iterations
-			}
-			
-			
-			// Finalize query
-			int queryLimit = 100000;
-			if(Globals.saneInput(searchInputs.limit)) {
-				if(searchInputs.limit <= 100000) {
-					queryLimit = searchInputs.limit;
-				}
-			}
-			sQuery += " LIMIT " + String.valueOf(queryLimit);
-
-			// Run query
-			List<EISDoc> records = jdbcTemplate.query
-			(
-				sQuery, 
-				inputList.toArray(new Object[] {}),
-				(rs, rowNum) -> new EISDoc(
-					rs.getLong("id"), 
-					rs.getString("title"), 
-					rs.getString("document_type"),
-					rs.getObject("comment_date", LocalDate.class), 
-					rs.getObject("register_date", LocalDate.class), 
-					rs.getString("agency"),
-					rs.getString("state"), 
-					rs.getString("filename"),
-					rs.getString("comments_filename"),
-					rs.getString("folder"),
-					rs.getString("web_link"),
-					rs.getString("notes")
-				)
-			);
-			
-			// debugging
-			if(Globals.TESTING && searchInputs.endPublish != null) {
-//				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
-//				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-//				System.out.println(validator.isValid(searchInputs.endPublish));
-				System.out.println(sQuery); 
-//				System.out.println(searchInputs.endPublish);
-				System.out.println(searchInputs.title);
-			}
-			
+			long startTime = System.currentTimeMillis();
+			List<EISDoc> records = getFilteredRecords(searchInputs, limit, offset);
 			
 			// Run Lucene query on title if we have one, join with JDBC results, return final results
 			if(!searchInputs.title.isBlank()) {
-				String formattedTitle = org.apache.commons.lang3.StringUtils.normalizeSpace(searchInputs.title.strip());
+				String formattedTitle = mutateTermModifiers(searchInputs.title);
 
 				List<MetadataWithContext> results = titlePrioritySearch(formattedTitle, 100000, 0);
 				
@@ -1227,7 +1276,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				if(Globals.TESTING) {
 					long stopTime = System.currentTimeMillis();
 					long elapsedTime = stopTime - startTime;
-					System.out.println(elapsedTime);
+					System.out.println("Manual search time: " + elapsedTime);
 				}
 				return finalResults;
 			} else { // no title: simply return JDBC results...  however they have to be translated
@@ -1316,10 +1365,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList) throws IOException, ParseException {
     	// metadatawithcontext results so we can have a text field with all combined text results
 		// LinkedHashMap should retain the order of the Lucene-scored results while also using advantages of a hashmap
-	    final Map<Long, MetadataWithContext> combinedMap = new LinkedHashMap<Long, MetadataWithContext>();
+	    Map<Long, MetadataWithContext> combinedMap = new LinkedHashMap<Long, MetadataWithContext>();
 
 	    for (final EISDoc metaDoc : metadataList) {
-	    	final MetadataWithContext translatedDoc = new MetadataWithContext(metaDoc, "", "");
+	    	MetadataWithContext translatedDoc = new MetadataWithContext(metaDoc, "", "");
 	        combinedMap.put(metaDoc.getId(), translatedDoc);
 	    }
 
@@ -1337,6 +1386,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
     	// Note: Rather than write temporary logic to combine text results from different files, just use the first one per metadata record.
 	    // This will change later when we know what we actually want
+		// TODO: This is probably not what we want.  What we may want is to add filename, highlights to EISDoc if it has none already.
+		// Else append to list.  What we're doing is only adding highlights if it's associated with a new EISDoc or if it's the first
+		// highlight match for an EISDoc.  This is fine with a 1:1 doc:file-text, but this is one-to-many.
+		// The reason we're doing it the wrong way right now is because we're using a hashmap which expects unique EISDoc IDs.
 	    for (final DocumentText docText : textList) {
 	    	final MetadataWithContext existingRecord = combinedMap.get(docText.getEisdoc().getId());
 	    	
@@ -1392,7 +1445,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	
-	public List<MetadataWithContext> lucenePrioritySearch(String terms, int limit, int offset) throws ParseException {
+	public List<MetadataWithContext> lucenePrioritySearch(String terms, int limit, int offset, List<Long> justRecordIds) throws ParseException {
 		long startTime = System.currentTimeMillis();
 		// 0: Normalize whitespace and support all term modifiers
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
@@ -1433,7 +1486,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 		
 		for (Object result : results) {
-			if(result.getClass().equals(DocumentText.class)) {
+			// TODO: more efficient way to do this (hashset.contains of IDs is O(1), list.contains is O(n))
+			if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
 				// Get highlights
 				try {
 					combinedResultsWithHighlights.add( new MetadataWithContext(
