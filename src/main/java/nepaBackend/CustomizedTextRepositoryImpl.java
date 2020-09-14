@@ -1253,12 +1253,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			if(!searchInputs.title.isBlank()) {
 				String formattedTitle = mutateTermModifiers(searchInputs.title);
 
-				List<MetadataWithContext> results = titlePrioritySearch(formattedTitle, 100000, 0);
-				
 				List<Long> justRecordIds = new ArrayList<Long>();
 				for(EISDoc record: records) {
 					justRecordIds.add(record.getId());
 				}
+				
+				List<MetadataWithContext> results = titlePrioritySearch(formattedTitle, 100000, 0, justRecordIds);
 
 				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
 				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
@@ -1362,15 +1362,21 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	// (probably O(n)) list merge
-	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList) throws IOException, ParseException {
+	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList, final List<Long> justRecordIds) throws IOException, ParseException {
     	// metadatawithcontext results so we can have a text field with all combined text results
 		// LinkedHashMap should retain the order of the Lucene-scored results while also using advantages of a hashmap
-	    Map<Long, MetadataWithContext> combinedMap = new LinkedHashMap<Long, MetadataWithContext>();
+//	    Map<Long, MetadataWithContext> combinedMap = new LinkedHashMap<Long, MetadataWithContext>();
 
-	    for (final EISDoc metaDoc : metadataList) {
-	    	MetadataWithContext translatedDoc = new MetadataWithContext(metaDoc, "", "");
-	        combinedMap.put(metaDoc.getId(), translatedDoc);
-	    }
+//	    for (final EISDoc metaDoc : metadataList) {
+//	    	MetadataWithContext translatedDoc = new MetadataWithContext(metaDoc, "", "");
+//	        combinedMap.put(metaDoc.getId(), translatedDoc);
+//	    }
+		
+		List<MetadataWithContext> combinedResults = new ArrayList<MetadataWithContext>();
+		
+		for(EISDoc item: metadataList) {
+			combinedResults.add(new MetadataWithContext(item, "", ""));
+		}
 
 		// build highlighter
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
@@ -1384,35 +1390,28 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 
-    	// Note: Rather than write temporary logic to combine text results from different files, just use the first one per metadata record.
-	    // This will change later when we know what we actually want
 		// TODO: This is probably not what we want.  What we may want is to add filename, highlights to EISDoc if it has none already.
-		// Else append to list.  What we're doing is only adding highlights if it's associated with a new EISDoc or if it's the first
-		// highlight match for an EISDoc.  This is fine with a 1:1 doc:file-text, but this is one-to-many.
-		// The reason we're doing it the wrong way right now is because we're using a hashmap which expects unique EISDoc IDs.
+		// Else append to list.  Figure out how to either "boost" title results or "sort" or "order" by title.
+		// Preferably we don't have to go back to the QueryBuilder to do this because then we have to figure out how to support "?" term modifier
 	    for (final DocumentText docText : textList) {
-	    	final MetadataWithContext existingRecord = combinedMap.get(docText.getEisdoc().getId());
-	    	
-	    	// If this is a new EISDoc entirely or if it's an EISDoc without relevant text added to it, then get and add highlight
-	    	if(existingRecord == null || existingRecord.getHighlight().isBlank()) {
+
+	    	// justRecordIds is our filter, if this doesn't join then don't add it
+	    	if(justRecordIds.contains(docText.getEisdoc().getId())) {
 	    		final String highlights = getHighlightString(docText.getPlaintext(), highlighter);
-		    	final MetadataWithContext translatedDoc = new MetadataWithContext(docText.getEisdoc(), highlights, docText.getFilename());
 		    	if(!highlights.isBlank()) {
-			    	combinedMap.put(docText.getEisdoc().getId(), translatedDoc);
+		    		combinedResults.add(new MetadataWithContext(docText.getEisdoc(), highlights, docText.getFilename()));
 		    	} else {
 		    		// shouldn't be possible since we matched
 		    		System.out.println("Blank highlight for " + docText.getFilename() + " for term " + field + " text length " + docText.getPlaintext().length());
 		    	}
-	    	} else {
-	    		// else do nothing, we already have at least one highlight (or one cluster of highlights) for this document
-	    	}
+	    	} 
 	    }
 
-	    return new ArrayList<MetadataWithContext>(combinedMap.values());
+	    return new ArrayList<MetadataWithContext>(combinedResults);
 	}
 	
 	// TODO: Add route, test, paginate
-	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset) throws ParseException {
+	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset, List<Long> justRecordIds) throws ParseException {
 		if(terms.isBlank()) {
 			return new ArrayList<MetadataWithContext>();
 		}
@@ -1427,7 +1426,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		// 3: Add texts to existing objects in list if matching, otherwise append (like a right outer join with left results ordered first)
 		try {
-			List<MetadataWithContext> combinedResults = mergeResultsWithHighlights(formattedTerms, titleResults, fileTextResults);
+			List<MetadataWithContext> combinedResults = mergeResultsWithHighlights(formattedTerms, titleResults, fileTextResults, justRecordIds);
 
 			if(Globals.TESTING) {
 				System.out.println("Title results " + titleResults.size());
