@@ -16,11 +16,10 @@ public interface CustomizedTextRepository {
 //	List<String> searchContext(String term, int limit, int offset);
 	List<MetadataWithContext> metaContext(String term, int limit, int offset, SearchType searchType) throws ParseException;
 
-	List<EISDoc> metadataSearch(SearchInputs searchInputs, int i, int j, SearchType all);
+	List<EISDoc> metadataSearch(SearchInputs searchInputs, int limit, int offset, SearchType searchType);
 
 	boolean sync();
 	
-	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, int limit, int offset,
-			SearchType searchType);
-	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType);
+	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType);
+	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType);
 }

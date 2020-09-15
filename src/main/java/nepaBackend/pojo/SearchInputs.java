@@ -22,6 +22,7 @@ public class SearchInputs {
 	public boolean needsComments;
 	public boolean needsDocument;
 	public int limit;
+	public int offset;
 	
 	public SearchInputs() {
 	}

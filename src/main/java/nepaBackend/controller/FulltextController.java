@@ -151,11 +151,13 @@ public class FulltextController {
 	public ResponseEntity<List<EISDoc>> search(@RequestBody SearchInputs searchInputs)
 	{
 		saveSearchLog(searchInputs);
+		
+		System.out.println("LIMIT: " + searchInputs.limit);
 
 		try { 
-			List<EISDoc> highlightsMeta = new ArrayList<EISDoc>(
+			List<EISDoc> metaList = new ArrayList<EISDoc>(
 					(textRepository.metadataSearch(searchInputs, 1000000, 0, SearchType.ALL)));
-			return new ResponseEntity<List<EISDoc>>(highlightsMeta, HttpStatus.OK);
+			return new ResponseEntity<List<EISDoc>>(metaList, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
@@ -174,7 +176,7 @@ public class FulltextController {
 
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-					(textRepository.CombinedSearchTitlePriority(searchInputs, 1000000, 0, SearchType.ALL)));
+					(textRepository.CombinedSearchTitlePriority(searchInputs, SearchType.ALL)));
 			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
@@ -194,7 +196,29 @@ public class FulltextController {
 
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-					(textRepository.CombinedSearchLucenePriority(searchInputs, 1000000, 0, SearchType.ALL)));
+					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
+			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+
+
+
+	// Testing getting data offset# results at a time
+	@CrossOrigin
+	@PostMapping(path = "/search_test")
+	public ResponseEntity<List<MetadataWithContext>> searchTest(@RequestBody SearchInputs searchInputs)
+	{
+		saveSearchLog(searchInputs);
+
+		try { 
+			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
+					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
 			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);

@@ -860,10 +860,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			
 			// Finalize query
-			int queryLimit = 100000;
-			if(Globals.saneInput(searchInputs.limit)) {
-				if(searchInputs.limit <= 100000) {
-					queryLimit = searchInputs.limit;
+			int queryLimit = 1000000;
+			if(Globals.saneInput(limit)) {
+				if(limit <= 1000000) {
+					queryLimit = limit;
 				}
 			}
 			sQuery += " LIMIT " + String.valueOf(queryLimit);
@@ -1023,7 +1023,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	}
 	
-	private List<EISDoc> getFilteredRecords(SearchInputs searchInputs, int limmit, int offset) {
+	private List<EISDoc> getFilteredRecords(SearchInputs searchInputs) {
 		searchInputs.title = mutateTermModifiers(searchInputs.title);
 		
 		ArrayList<String> inputList = new ArrayList<String>();
@@ -1143,12 +1143,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		
 		// Finalize query
-		int queryLimit = 100000;
-		if(Globals.saneInput(searchInputs.limit)) {
-			if(searchInputs.limit <= 100000) {
-				queryLimit = searchInputs.limit;
-			}
-		}
+		int queryLimit = 1000000;
+//		if(Globals.saneInput(searchInputs.limit)) {
+//			if(searchInputs.limit <= 100000) {
+//				queryLimit = searchInputs.limit;
+//			}
+//		}
 		sQuery += " LIMIT " + String.valueOf(queryLimit);
 
 		// Run query
@@ -1189,10 +1189,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	 * @throws ParseException */
 	
 	@Override
-	public List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
+	public List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType) {
 		try {
 			long startTime = System.currentTimeMillis();
-			List<EISDoc> records = getFilteredRecords(searchInputs, limit, offset);
+			System.out.println("Offset: " + searchInputs.offset);
+			List<EISDoc> records = getFilteredRecords(searchInputs);
 			
 			// Run Lucene query on title if we have one, join with JDBC results, return final results
 			if(!searchInputs.title.isBlank()) {
@@ -1205,7 +1206,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 
 				// TODO: This will include highlights that potentially should have been filtered out, unnecessarily slowing down the search
-				List<MetadataWithContext> results = lucenePrioritySearch(formattedTitle, 100000, 0, justRecordIds);
+				List<MetadataWithContext> results = lucenePrioritySearch(formattedTitle, searchInputs.limit, searchInputs.offset, justRecordIds);
 				
 				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
 				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
@@ -1244,10 +1245,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 
 	@Override
-	public List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
+	public List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType) {
 		try {
 			long startTime = System.currentTimeMillis();
-			List<EISDoc> records = getFilteredRecords(searchInputs, limit, offset);
+			List<EISDoc> records = getFilteredRecords(searchInputs);
 			
 			// Run Lucene query on title if we have one, join with JDBC results, return final results
 			if(!searchInputs.title.isBlank()) {
@@ -1258,7 +1259,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					justRecordIds.add(record.getId());
 				}
 				
-				List<MetadataWithContext> results = titlePrioritySearch(formattedTitle, 100000, 0, justRecordIds);
+				List<MetadataWithContext> results = titlePrioritySearch(formattedTitle, searchInputs.limit, searchInputs.offset, justRecordIds);
 
 				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
 				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
