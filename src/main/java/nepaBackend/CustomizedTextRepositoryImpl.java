@@ -861,11 +861,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			// Finalize query
 			int queryLimit = 1000000;
-			if(Globals.saneInput(limit)) {
-				if(limit <= 1000000) {
-					queryLimit = limit;
-				}
-			}
+//			if(Globals.saneInput(limit)) {
+//				if(limit <= 1000000) {
+//					queryLimit = limit;
+//				}
+//			}
 			sQuery += " LIMIT " + String.valueOf(queryLimit);
 
 //			jpaQuery.setCriteriaQuery(criteria);
@@ -1144,11 +1144,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		// Finalize query
 		int queryLimit = 1000000;
+
+		// Note: For the metadata results, query is very fast and since we use this dataset for a join/comparison later
+		// we do not want to limit it (for now, 1 million is fine)
 //		if(Globals.saneInput(searchInputs.limit)) {
 //			if(searchInputs.limit <= 100000) {
 //				queryLimit = searchInputs.limit;
 //			}
 //		}
+		
+		
 		sQuery += " LIMIT " + String.valueOf(queryLimit);
 
 		// Run query
@@ -1469,6 +1474,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		jpaQuery.setMaxResults(limit);
 		jpaQuery.setFirstResult(offset);
 
+		System.out.println("Query using limit " + limit);
+		
 		// Returns a list containing both EISDoc and DocumentText objects.
 		List<Object> results = jpaQuery.getResultList();
 		
