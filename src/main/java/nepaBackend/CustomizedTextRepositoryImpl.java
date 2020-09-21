@@ -536,11 +536,17 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	/** Returns search terms after enforcing two rules:  Proximity matching was limited to 1 billion, just under absolute upper limit 
 	 * (when going beyond the limit, proximity matching stopped working at all).  
-	 * Support for | is added by converting to ||. */
+	 * Support for | is added by converting to ||. 
+	 * Supprt added for lowercase or, not */
     private String mutateTermModifiers(String terms){
     	if(terms != null && terms.strip().length() > 0) {
     		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
-    		return org.apache.commons.lang3.StringUtils.normalizeSpace(terms).replace(" | ",  " || ").strip(); // QueryParser doesn't support |, does support ?, OR, NOT
+    		return org.apache.commons.lang3.StringUtils.normalizeSpace(terms).replace(" | ",  " || ")
+//    				.replace("and", "AND") // support for AND is implicit currently
+    				.replace("or", "OR")
+    				.replace("not", "NOT")
+//    				.replace("&", "AND")
+    				.strip(); // QueryParser doesn't support |, does support ?, OR, NOT
 //    				.replaceAll("(~\\d{10}\\d*)", "~999999999"); // this was necessary with QueryBuilder (broke after limit)
     	} else {
     		return "";
