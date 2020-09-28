@@ -47,8 +47,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	JdbcTemplate jdbcTemplate;
 
 	private static int numberOfFragmentsMin = 1;
-	private static int numberOfFragmentsMax = 5;
-	private static int fragmentSize = 250;
+	private static int numberOfFragmentsMax = 1;
+//	private static int numberOfFragmentsMax = 5;
+//	private static int fragmentSize = 250;
+	private static int fragmentSize = 500;
 	private static int bigFragmentSize = 1500;
 	private static SimpleHTMLFormatter globalFormatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 	
@@ -545,6 +547,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //    				.replace("or", "OR") // Lowercase term modifiers could easily trip people up accidentally
 //    				.replace("not", "NOT")
 //    				.replace("&", "AND")
+//    				.replace("!", "*")
+//    				.replace("%", "-")
+//    				.replace("/", "~") // westlaw? options, can also add confusion
     				.strip(); // QueryParser doesn't support |, does support ?, OR, NOT
 //    				.replaceAll("(~\\d{10}\\d*)", "~999999999"); // this was necessary with QueryBuilder (broke after limit)
     	} else {
