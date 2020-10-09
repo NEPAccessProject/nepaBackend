@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -454,7 +455,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	// Given text and highlighter, return highlights (fragments) for text
 	private static String getHighlightString (String text, Highlighter highlighter) throws IOException {
-		
 		
 		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
 		TokenStream tokenStream = stndrdAnalyzer.tokenStream("plaintext", new StringReader(text));
@@ -1502,22 +1502,73 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 		
+		// TODO: When we get a DocumentText and combinedResults already has that EISDoc ID:
+		// - If the combined result has no highlight string:  Give it one
+		// - Else add it as a new record
+		// TODO: Reverse case (although much more uncommon because titles tend to be scored
+		// higher)
+		
+		// Method: Unfortunately we have to iterate over the entire result list every time
+		// unless we change the design.
+		// Quick fix: Create and add to a new list of just IDs.
+		
+		// What we're doing:
+		// The first time we get a DocumentText that matches an existing result without a
+		// highlight string, we are adding a highlight to it for the file from the
+		// DocumentText result instead of adding a new row based on the DocumentText result.
+		// This consolidates the results a little bit
+
+		// Quickly build a HashMap of EISDoc (AKA metadata) IDs; these are unique
+		// (we'll use these to condense the results on pass 2)
+		HashMap<Long, Integer> metaIds = new HashMap<Long, Integer>(results.size());
+		int position = 0;
+		for (Object result : results) {
+			if(result.getClass().equals(EISDoc.class)) {
+				metaIds.put(((EISDoc) result).getId(), position);
+			}
+			position++;
+		}
+		
+		HashMap<Long, Boolean> skipThese = new HashMap<Long, Boolean>();
+		
+		position = 0;
 		for (Object result : results) {
 			// TODO: more efficient way to do this (hashset.contains of IDs is O(1), list.contains is O(n))
 			if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
-				// Get highlights
+				long key = ((DocumentText) result).getEisdoc().getId();
+
 				try {
-					combinedResultsWithHighlights.add( new MetadataWithContext(
+					// Get highlights
+					MetadataWithContext combinedResult = new MetadataWithContext(
 							((DocumentText) result).getEisdoc(),
 							getHighlightString(((DocumentText) result).getPlaintext(), highlighter),
-							((DocumentText) result).getFilename()) );
+							((DocumentText) result).getFilename());
+
+					// If we have a companion result:
+					if(metaIds.containsKey(key)) {
+						// If this Text result comes before the Meta result:
+						if(metaIds.get(key) > position) {
+							// Flag to skip over the Meta result later
+							skipThese.put(key, true);
+							// Add this combinedResult to List
+							combinedResultsWithHighlights.add( combinedResult );
+						} else {
+							// We already have a companion meta result in the table, so 
+							// "update" that instead of adding this result
+							combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
+						}
+					}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			} else if(result.getClass().equals(EISDoc.class)) {
-				combinedResultsWithHighlights.add(new MetadataWithContext(((EISDoc) result),"",""));
+				// Add metadata result unless it's flagged for skipping
+				if(!skipThese.containsKey(((EISDoc) result).getId())) {
+					combinedResultsWithHighlights.add(new MetadataWithContext(((EISDoc) result),"",""));
+				}
 			}
+			position++;
 		}
 		
 		if(Globals.TESTING) {
