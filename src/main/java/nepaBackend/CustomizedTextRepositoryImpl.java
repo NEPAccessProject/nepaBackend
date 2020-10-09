@@ -1502,21 +1502,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 		
-		// TODO: When we get a DocumentText and combinedResults already has that EISDoc ID:
-		// - If the combined result has no highlight string:  Give it one
-		// - Else add it as a new record
-		// TODO: Reverse case (although much more uncommon because titles tend to be scored
-		// higher)
-		
-		// Method: Unfortunately we have to iterate over the entire result list every time
-		// unless we change the design.
-		// Quick fix: Create and add to a new list of just IDs.
-		
-		// What we're doing:
-		// The first time we get a DocumentText that matches an existing result without a
-		// highlight string, we are adding a highlight to it for the file from the
-		// DocumentText result instead of adding a new row based on the DocumentText result.
-		// This consolidates the results a little bit
+		// Condense results:
+		// If we have companion results (same EISDoc.ID), combine
 
 		// Quickly build a HashMap of EISDoc (AKA metadata) IDs; these are unique
 		// (we'll use these to condense the results on pass 2)
@@ -1535,10 +1522,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		for (Object result : results) {
 			// TODO: more efficient way to do this (hashset.contains of IDs is O(1), list.contains is O(n))
 			if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
-				long key = ((DocumentText) result).getEisdoc().getId();
-				System.out.println("KEY: "+key);
-
+				
 				try {
+					long key = ((DocumentText) result).getEisdoc().getId();
+
 					// Get highlights
 					MetadataWithContext combinedResult = new MetadataWithContext(
 							((DocumentText) result).getEisdoc(),
@@ -1553,12 +1540,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							skipThese.put(key, true);
 							// Add this combinedResult to List
 							combinedResultsWithHighlights.add( combinedResult );
-							System.out.println ("ADDING: " + combinedResult.getHighlight());
 						} else {
-							// We already have a companion meta result in the table, so 
-							// "update" that instead of adding this result
-							combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
-							System.out.println ("SETTING: " + combinedResult.getHighlight());
+							// We already have a companion meta result in the table
+							// If existing result has no highlight:
+							if(combinedResultsWithHighlights.get(metaIds.get(key)).getHighlight().isBlank()) {
+								// "update" that instead of adding this result
+								combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
+							} else {
+								// Add this combinedResult to List
+								combinedResultsWithHighlights.add( combinedResult );
+							}
 						}
 					} else {
 						// Add this companionless combinedResult to List
