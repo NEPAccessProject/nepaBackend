@@ -1536,6 +1536,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			// TODO: more efficient way to do this (hashset.contains of IDs is O(1), list.contains is O(n))
 			if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
 				long key = ((DocumentText) result).getEisdoc().getId();
+				System.out.println("KEY: "+key);
 
 				try {
 					// Get highlights
@@ -1552,11 +1553,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							skipThese.put(key, true);
 							// Add this combinedResult to List
 							combinedResultsWithHighlights.add( combinedResult );
+							System.out.println ("ADDING: " + combinedResult.getHighlight());
 						} else {
 							// We already have a companion meta result in the table, so 
 							// "update" that instead of adding this result
 							combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
+							System.out.println ("SETTING: " + combinedResult.getHighlight());
 						}
+					} else {
+						// Add this companionless combinedResult to List
+						combinedResultsWithHighlights.add( combinedResult );
 					}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
