@@ -5,6 +5,7 @@ import java.io.StringReader;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,6 +59,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //	private static int fuzzyLevel = 1;
 
 	/** Return all records matching terms in "plaintext" field (no highlights/context) 
+	 * (This function is basically unused since the card format changes in Oct. '20)
 	 * @throws ParseException */
 	@SuppressWarnings("unchecked")
 	@Override
@@ -151,7 +153,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		// use the foreign key list from Lucene to make a normal query to get all associated metadata tuples from DocumentText
 		// Note: Need distinct here because multiple files inside of archives are associated with the same metadata tuples
-		// TODO: Can get filenames also, display those on frontend and no longer need DISTINCT (would require a new POJO, different structure than List<EISDoc>)
+		// TODO: Can get filenames also, display those on frontend and no longer need DISTINCT (would require a new POJO, different structure than List<EISDoc>
+		// or just use metadatawithcontext with blank highlight strings as very mild overhead)
+		// Alternative: Because title and therefore eisdoc ID is indexed by Lucene, we could simplify
+		// the above section to projecting EISDoc IDs directly and save the second query
 		javax.persistence.Query query = em.createQuery("SELECT DISTINCT doc.eisdoc FROM DocumentText doc WHERE doc.id IN :ids");
 		query.setParameter("ids", new_ids);
 
@@ -558,11 +563,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     }
 
 	
-	/**1. Verify/trigger Lucene indexing on Title (Added @Indexed for EISDoc and @Field for title, need to make sure it's indexed)
-	 * 2. Lucene-friendly Hibernate/JPA-wrapped query based on my custom, dynamically created query 
-	 * 3. Ultimately, goal is to then create a combination title/fulltext query including the metadata parameters like agency/state/...
-	 * and make that the default search
+	/**1. Triggered, verified Lucene indexing on Title (Added @Indexed for EISDoc and @Field for title)
+	 * 2. Lucene-friendly Hibernate/JPA-wrapped query based on custom, dynamically created query
 	 * */
+    /** Title-only search */
 	@Override
 	public List<EISDoc> metadataSearch(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
 		try {
@@ -916,13 +920,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			);
 			
 			// debugging
-			if(Globals.TESTING && searchInputs.endPublish != null) {
+			if(Globals.TESTING) {
+//				if(searchInputs.endPublish != null){
 //				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
 //				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
 //				System.out.println(validator.isValid(searchInputs.endPublish));
+//				System.out.println(searchInputs.endPublish);}
 				System.out.println(sQuery); 
-//				System.out.println(searchInputs.endPublish);
-				System.out.println(searchInputs.title);
+//				System.out.println(searchInputs.title);
 			}
 
 			// If we have a title then take the JDBC results and run a Lucene query on just them
@@ -1003,7 +1008,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				
 				List<EISDoc> results = jpaQuery.getResultList();
 				
-				List<Long> justRecordIds = new ArrayList<Long>();
+				HashSet<Long> justRecordIds = new HashSet<Long>();
 				for(EISDoc record: records) {
 					justRecordIds.add(record.getId());
 				}
@@ -1200,9 +1205,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return records;
 	}
 	
-	/** "A/B testing" search functions: 
-	 * @throws ParseException */
-	
+	/** "A/B testing" search functions: */
+
+	/** Combination title/fulltext query including the metadata parameters like agency/state/...
+	 * and this is currently the default search; returns metadata plus filename and highlights
+	 * using Lucene's internal default scoring algorithm
+	 * @throws ParseException
+	 * */
 	@Override
 	public List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType) {
 		try {
@@ -1214,8 +1223,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			if(!searchInputs.title.isBlank()) {
 				String formattedTitle = mutateTermModifiers(searchInputs.title);
 
-				
-				List<Long> justRecordIds = new ArrayList<Long>();
+				HashSet<Long> justRecordIds = new HashSet<Long>();
 				for(EISDoc record: records) {
 					justRecordIds.add(record.getId());
 				}
@@ -1259,6 +1267,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 	}
 
+	/** Title matches brought to top
+	 * @throws ParseException*/
 	@Override
 	public List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType) {
 		try {
@@ -1269,7 +1279,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			if(!searchInputs.title.isBlank()) {
 				String formattedTitle = mutateTermModifiers(searchInputs.title);
 
-				List<Long> justRecordIds = new ArrayList<Long>();
+				HashSet<Long> justRecordIds = new HashSet<Long>();
 				for(EISDoc record: records) {
 					justRecordIds.add(record.getId());
 				}
@@ -1378,7 +1388,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	// (probably O(n)) list merge
-	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList, final List<Long> justRecordIds) throws IOException, ParseException {
+	private List<MetadataWithContext> mergeResultsWithHighlights(String field, final List<EISDoc> metadataList, final List<DocumentText> textList, final HashSet<Long> justRecordIds) throws IOException, ParseException {
     	// metadatawithcontext results so we can have a text field with all combined text results
 		// LinkedHashMap should retain the order of the Lucene-scored results while also using advantages of a hashmap
 //	    Map<Long, MetadataWithContext> combinedMap = new LinkedHashMap<Long, MetadataWithContext>();
@@ -1426,8 +1436,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    return new ArrayList<MetadataWithContext>(combinedResults);
 	}
 	
-	// TODO: Add route, test, paginate
-	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset, List<Long> justRecordIds) throws ParseException {
+	public List<MetadataWithContext> titlePrioritySearch(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
 		if(terms.isBlank()) {
 			return new ArrayList<MetadataWithContext>();
 		}
@@ -1459,16 +1468,17 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 	}
 	
-	
-	public List<MetadataWithContext> lucenePrioritySearch(String terms, int limit, int offset, List<Long> justRecordIds) throws ParseException {
+
+	// objective: Search both fields at once, connect fragments and return
+	public List<MetadataWithContext> lucenePrioritySearch(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
 		long startTime = System.currentTimeMillis();
-		// 0: Normalize whitespace and support all term modifiers
+		// Normalize whitespace and support added term modifiers
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
 
-		// objective: Search both fields at once, connect fragments and return
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
-		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, but the results will contain both
+		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+		// but the results will contain both types mixed together
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
 					new StandardAnalyzer());
@@ -1520,7 +1530,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		position = 0;
 		for (Object result : results) {
-			// TODO: more efficient way to do this (hashset.contains of IDs is O(1), list.contains is O(n))
+
 			if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
 				
 				try {
