@@ -48,8 +48,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 
-	private static int numberOfFragmentsMin = 1;
-	private static int numberOfFragmentsMax = 1;
+	private static int numberOfFragmentsMin = 3;
+	private static int numberOfFragmentsMax = 3;
 //	private static int numberOfFragmentsMax = 5;
 //	private static int fragmentSize = 250;
 	private static int fragmentSize = 500;
@@ -467,7 +467,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		try {
 			// Add ellipses to denote that these are text fragments within the string
-			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><br /><span class=\"fragment\">... ");
+			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><span class=\"fragment\">... ");
 			
 			if(result.length()>0) {
 				result = "<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(result).strip().concat(" ...</span>");
@@ -1228,7 +1228,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					justRecordIds.add(record.getId());
 				}
 
-				// TODO: This will include highlights that potentially should have been filtered out, unnecessarily slowing down the search
 				List<MetadataWithContext> results = lucenePrioritySearch(formattedTitle, searchInputs.limit, searchInputs.offset, justRecordIds);
 				
 				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
@@ -1583,7 +1582,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
-			System.out.println(elapsedTime);
+			System.out.println("Time elapsed: " + elapsedTime);
 		}
 
 		return combinedResultsWithHighlights;
