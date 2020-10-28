@@ -30,6 +30,14 @@ public interface TextRepository extends JpaRepository<DocumentText, Long>, Custo
 
 	boolean existsByEisdocAndFilenameIn(EISDoc foundDoc, String filename);
 
+	Optional<DocumentText> findByEisdocAndFilenameIn(EISDoc eisDoc, String filename);
+
+	@Query(value = "SELECT filename FROM document_text WHERE " +
+			"(document_text.document_id = :document_id) " +
+			"LIMIT 100",
+			nativeQuery = true)
+	List<String> findFilenameByDocumentId(@Param("document_id") long document_id);
+
 	@Query(value = "SELECT id FROM document_text WHERE " +
 			"(length(document_text.plaintext) = :len) " +
 			"LIMIT 100",
@@ -41,6 +49,4 @@ public interface TextRepository extends JpaRepository<DocumentText, Long>, Custo
 			"LIMIT 1",
 			nativeQuery = true)
 	int findPlaintextLengthById(@Param("id") long id);
-
-	Optional<DocumentText> findByEisdocAndFilenameIn(EISDoc eisDoc, String filename);
 }

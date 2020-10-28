@@ -114,6 +114,17 @@ public class FileController {
 	
 	private static String testURL = "http://localhost:5000/";
 	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
+	
+	@CrossOrigin
+	@RequestMapping(path = "/filenames", method = RequestMethod.GET)
+	public ResponseEntity<List<String>> filenames(@RequestParam long document_id) {
+		try {
+			List<String> filenames = textRepository.findFilenameByDocumentId(document_id);
+			return new ResponseEntity<List<String>>(filenames, HttpStatus.ACCEPTED);
+		} catch (Exception e) {
+			return new ResponseEntity<List<String>>(HttpStatus.NOT_FOUND);
+		}
+	}
 
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
