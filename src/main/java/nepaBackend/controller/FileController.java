@@ -219,6 +219,8 @@ public class FileController {
 				zip.close();
 			} catch (IOException e2) {
 				if(testing) {e2.printStackTrace();}
+			} catch (NullPointerException e3) {
+				// No such folder
 			}
 		}
 	}
@@ -247,8 +249,13 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/nepafiles", method = RequestMethod.GET)
 	public ResponseEntity<List<NEPAFile>> getAllNEPAFilesByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-		List<NEPAFile> filesList = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
-		return new ResponseEntity<List<NEPAFile>>(filesList, HttpStatus.OK);
+		try {
+			List<NEPAFile> filesList = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
+			return new ResponseEntity<List<NEPAFile>>(filesList, HttpStatus.OK);
+		} catch (Exception e) {
+			// no file(s)
+			return new ResponseEntity<List<NEPAFile>>(HttpStatus.NOT_FOUND);
+		}
 	}
 	
 	/** Return all document texts for an eisdoc */
@@ -1902,7 +1909,8 @@ public class FileController {
 			conn.setRequestMethod("HEAD");
 			return conn.getContentLengthLong();
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			return 0; // Consumer has to regard 0-size file as no file at all
+//			throw new RuntimeException(e);
 		} finally {
 			if (conn != null) {
 				conn.disconnect();
