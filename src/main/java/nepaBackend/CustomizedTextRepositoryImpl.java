@@ -874,12 +874,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			
 			// Finalize query
+			
+			// No reason to limit metadata-only search
 			int queryLimit = 1000000;
-//			if(Globals.saneInput(limit)) {
-//				if(limit <= 1000000) {
-//					queryLimit = limit;
-//				}
-//			}
+			
 			sQuery += " LIMIT " + String.valueOf(queryLimit);
 
 //			jpaQuery.setCriteriaQuery(criteria);
@@ -921,13 +919,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			// debugging
 			if(Globals.TESTING) {
-//				if(searchInputs.endPublish != null){
-//				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
-//				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-//				System.out.println(validator.isValid(searchInputs.endPublish));
-//				System.out.println(searchInputs.endPublish);}
 				System.out.println(sQuery); 
-//				System.out.println(searchInputs.title);
 			}
 
 			// If we have a title then take the JDBC results and run a Lucene query on just them
@@ -1193,13 +1185,15 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		);
 
 		// debugging
-		if(Globals.TESTING && searchInputs.endPublish != null) {
-//			DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
-//			DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-//			System.out.println(validator.isValid(searchInputs.endPublish));
-			System.out.println(sQuery); 
-//			System.out.println(searchInputs.endPublish);
-			System.out.println(searchInputs.title);
+		if(Globals.TESTING) {
+//			if(searchInputs.endPublish != null) {
+//				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
+//				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
+//				System.out.println(validator.isValid(searchInputs.endPublish));
+//				System.out.println(searchInputs.endPublish);
+//			}
+//			System.out.println(sQuery); 
+//			System.out.println(searchInputs.title);
 		}
 		
 		return records;
@@ -1493,7 +1487,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		jpaQuery.setMaxResults(limit);
 		jpaQuery.setFirstResult(offset);
 
-		System.out.println("Query using limit " + limit);
+		if(Globals.TESTING) {System.out.println("Query using limit " + limit);}
 		
 		// Returns a list containing both EISDoc and DocumentText objects.
 		List<Object> results = jpaQuery.getResultList();

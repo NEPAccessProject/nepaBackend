@@ -146,25 +146,25 @@ public class FulltextController {
 	}
 	
 	// Metadata search using Lucene (and JDBC) returns ArrayList of EISDoc
-	@CrossOrigin
-	@PostMapping(path = "/search")
-	public ResponseEntity<List<EISDoc>> search(@RequestBody SearchInputs searchInputs)
-	{
-		saveSearchLog(searchInputs);
-		
-		System.out.println("LIMIT: " + searchInputs.limit);
-
-		try { 
-			List<EISDoc> metaList = new ArrayList<EISDoc>(
-					(textRepository.metadataSearch(searchInputs, 1000000, 0, SearchType.ALL)));
-			return new ResponseEntity<List<EISDoc>>(metaList, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<EISDoc>>(HttpStatus.BAD_REQUEST);
-		} catch(Exception e) {
-			e.printStackTrace();
-			return new ResponseEntity<List<EISDoc>>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-	}
+//	@CrossOrigin
+//	@PostMapping(path = "/search")
+//	public ResponseEntity<List<EISDoc>> search(@RequestBody SearchInputs searchInputs)
+//	{
+//		saveSearchLog(searchInputs);
+//		
+//		System.out.println("LIMIT: " + searchInputs.limit);
+//
+//		try { 
+//			List<EISDoc> metaList = new ArrayList<EISDoc>(
+//					(textRepository.metadataSearch(searchInputs, searchInputs.limit, 0, SearchType.ALL)));
+//			return new ResponseEntity<List<EISDoc>>(metaList, HttpStatus.OK);
+//		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+//			return new ResponseEntity<List<EISDoc>>(HttpStatus.BAD_REQUEST);
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			return new ResponseEntity<List<EISDoc>>(HttpStatus.INTERNAL_SERVER_ERROR);
+//		}
+//	}
 	
 
 	// Metadata with context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext, prioritizes title matches
