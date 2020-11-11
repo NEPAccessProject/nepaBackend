@@ -504,6 +504,92 @@ public class EISController {
 		}
 	}
 	
+	/** TODO: Test
+	 * Use additional heuristics for better matches.  
+	 * Logic:
+	 * For a given metadata ID (or each ID in a list of up to all IDs):
+	 * 1. Get the highest % matching pair including that ID (or all pairs above 50% threshold)
+	 * 2. Verify same state
+	 * 3. Verify same lead agency
+	 * 4. Verify different document type (or enforce draft + final pairs only if we don't
+	 * care about supplemental etc.) 
+	 * 5. Try to check that dates make sense: i.e. final date should be AFTER draft date 
+	 * 
+	 * This could be done in either the frontend, here or even in the SQL query */
+	@CrossOrigin
+	@PostMapping(path = "/match_advanced", 
+	consumes = "application/json", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<EISMatchData> matchAdvanced(@RequestBody Long _id) {
+		try {
+			System.out.println("ID " + _id);
+			
+			// Sanity check ID
+			if(_id < 0) {
+				// No negative IDs possible
+				return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
+			}
+
+			List<EISMatch> matches = matchService.getAllBy(_id, new BigDecimal("0.5"));
+
+			// Note: Could map eisdocs in the ORM so we don't have to do it this way
+			List<Integer> idList1 = matches.stream().map(EISMatch::getDocument1).collect(Collectors.toList());
+			List<Integer> idList2 = matches.stream().map(EISMatch::getDocument2).collect(Collectors.toList());
+			
+//			idList1.forEach(System.out::println);
+//			idList2.forEach(System.out::println);
+//			System.out.println(matches.get(0).getDocument1());
+//			System.out.println(matches.get(0).getDocument2());
+			if(idList1.isEmpty() || idList2.isEmpty()) { // No match
+				return new ResponseEntity<EISMatchData>(HttpStatus.OK);
+			}
+			List<EISDoc> docs = docService.getAllDistinctBy(_id, idList1, idList2);
+			EISDoc original = docService.findById(_id).get();
+			
+			if(original == null) {
+				return new ResponseEntity<EISMatchData>(HttpStatus.NOT_FOUND);
+			}
+			
+			// Other heuristics (could be optional?)
+			for(EISDoc doc : docs) {
+				// State (remove if different)
+				if(!original.getState().contentEquals(doc.getState())) {
+					docs.remove(doc);
+				// Agency (remove if different)
+				} else if (!original.getAgency().contentEquals(doc.getAgency())) {
+					docs.remove(doc);
+				// Type (remove if same)
+				} else if (original.getDocumentType().contentEquals(doc.getDocumentType())) {
+					docs.remove(doc);
+				// Date (we've verified they're different types by now,
+				// so if one of them is final and one is draft but the draft is later
+				// then remove it)
+				} else if (
+						(original.getDocumentType().contentEquals("Final")
+						&& doc.getDocumentType().contentEquals("Draft")
+						&& original.getRegisterDate().compareTo(doc.getRegisterDate()) == -1)
+						|| 
+						(original.getDocumentType().contentEquals("Draft")
+						&& doc.getDocumentType().contentEquals("Final")
+						&& original.getRegisterDate().compareTo(doc.getRegisterDate()) == -1)
+					) 
+				{
+					docs.remove(doc);
+				}
+			}
+			
+			EISMatchData matchData = new EISMatchData(matches, docs);
+
+			return new ResponseEntity<EISMatchData>(matchData, HttpStatus.OK);
+		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
+			return new ResponseEntity<EISMatchData>(HttpStatus.OK);
+		} catch (Exception e) {
+//			System.out.println(e);
+			return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
+		}
+	}
+	
 	/** Get a list of matches (only data from Match table: ID pair, percentage) */
 	@CrossOrigin
 	@PostMapping(path = "/matchTest", 

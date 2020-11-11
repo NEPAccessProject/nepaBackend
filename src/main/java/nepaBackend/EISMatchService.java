@@ -20,4 +20,8 @@ public class EISMatchService {
 	public void saveMatch(EISMatch match) {
 		matchRepository.save(match);
 	}
+
+	public List<EISMatch> getAllBy(Long _id, BigDecimal match_percent) {
+		return matchRepository.queryBy(_id, match_percent);
+	}
 }

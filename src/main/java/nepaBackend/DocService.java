@@ -34,4 +34,8 @@ public class DocService {
 	public Optional<EISDoc> findById(Long id) {
 		return docRepository.findById(id);
 	}
+
+	public List<EISDoc> getAllDistinctBy(Long _id, List<Integer> idList1, List<Integer> idList2) {
+		return docRepository.queryBy(_id, idList1, idList2);
+	}
 }
