@@ -119,7 +119,7 @@ public class AdminController {
     
     @CrossOrigin
     @RequestMapping(path = "/delete_nepa_file", method = RequestMethod.POST)
-    ResponseEntity<String> deleteFileById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
+    ResponseEntity<String> deleteNepaFileById(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	// TODO: Verify logic in this and in deleteAll with respect to zip files
     	// TODO: "Orphaned files" algorithm to list files we aren't using, which we could then feed to a new process to delete them all
     	// or delete manually
