@@ -581,11 +581,11 @@ public class EISController {
 				} else if (
 						(original.getDocumentType().contentEquals("Final")
 						&& docs.get(i).getDocumentType().contentEquals("Draft")
-						&& original.getRegisterDate().compareTo(docs.get(i).getRegisterDate()) == -1)
+						&& original.getRegisterDate().compareTo(docs.get(i).getRegisterDate()) < 0)
 						|| 
 						(original.getDocumentType().contentEquals("Draft")
 						&& docs.get(i).getDocumentType().contentEquals("Final")
-						&& original.getRegisterDate().compareTo(docs.get(i).getRegisterDate()) == -1)
+						&& original.getRegisterDate().compareTo(docs.get(i).getRegisterDate()) > 0)
 					) 
 				{
 					if(Globals.TESTING) {System.out.println("Removing because of date comparison: " + docs.get(i).getRegisterDate());}
