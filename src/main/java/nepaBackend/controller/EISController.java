@@ -605,11 +605,9 @@ public class EISController {
 						// if match i < i (returns -1, i is less of a match)
 						if(matches.get(i).getMatch_percent().compareTo(matches.get(j).getMatch_percent()) < 0) {
 							// remove at index i
-							System.out.println("Removing " + matches.get(i).getMatch_percent());
 							flags[i] = true;
 						} else {
 							// otherwise, remove j (j is less than or equal to i's match)
-							System.out.println("Removing " + matches.get(j).getMatch_percent());
 							flags[j] = true;
 						}
 					}
@@ -624,8 +622,6 @@ public class EISController {
 			}
 			
 			EISMatchData matchData = new EISMatchData(matches, docs);
-			System.out.println("Final size " + matchData.getDocs().size());
-			System.out.println("Final size " + matchData.getMatches().size());
 
 			return new ResponseEntity<EISMatchData>(matchData, HttpStatus.OK);
 		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
