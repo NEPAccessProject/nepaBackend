@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 //import java.sql.ResultSet;
 //import java.sql.SQLException;
 //import java.sql.PreparedStatement;
@@ -504,34 +505,37 @@ public class EISController {
 		}
 	}
 	
-	/** TODO: Test
+	/** 
 	 * Use additional heuristics for better matches.  
 	 * Logic:
 	 * For a given metadata ID (or each ID in a list of up to all IDs):
 	 * 1. Get the highest % matching pair including that ID (or all pairs above 50% threshold)
-	 * 2. Verify same state
-	 * 3. Verify same lead agency
-	 * 4. Verify different document type (or enforce draft + final pairs only if we don't
-	 * care about supplemental etc.) 
-	 * 5. Try to check that dates make sense: i.e. final date should be AFTER draft date 
+	 * 2. Verify same state;
+	 * 3. Verify same lead agency;
+	 * 4. Verify different document type
+	 * (option: could enforce draft + final pairs only if we don't care about supplemental etc.) 
+	 * 5. Try to check that dates make sense: i.e. final date should be AFTER draft date;
 	 * 
-	 * This could be done in either the frontend, here or even in the SQL query */
+	 * 6. At the end, can pick the highest matching type for each type.  For example,
+	 * we could stop showing two drafts if we have one match to a final at 51% and one at 95%.
+	 * (There's probably a more efficient way to do this, like only getting the highest types
+	 * in the original query.)
+	 * 
+	 * All of this can be done in either the frontend, here or in the SQL query. */
 	@CrossOrigin
 	@PostMapping(path = "/match_advanced", 
 	consumes = "application/json", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
-	public @ResponseBody ResponseEntity<EISMatchData> matchAdvanced(@RequestBody Long _id) {
+	public @ResponseBody ResponseEntity<EISMatchData> matchAdvanced(@RequestBody MatchParams matchParams) {
 		try {
-			System.out.println("ID " + _id);
-			
 			// Sanity check ID
-			if(_id < 0) {
+			if(matchParams.id < 0) {
 				// No negative IDs possible
 				return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
 			}
 
-			List<EISMatch> matches = matchService.getAllBy(_id, new BigDecimal("0.5"));
+			List<EISMatch> matches = matchService.getAllBy(matchParams.id, matchParams.matchPercent);
 
 			// Note: Could map eisdocs in the ORM so we don't have to do it this way
 			List<Integer> idList1 = matches.stream().map(EISMatch::getDocument1).collect(Collectors.toList());
@@ -544,42 +548,84 @@ public class EISController {
 			if(idList1.isEmpty() || idList2.isEmpty()) { // No match
 				return new ResponseEntity<EISMatchData>(HttpStatus.OK);
 			}
-			List<EISDoc> docs = docService.getAllDistinctBy(_id, idList1, idList2);
-			EISDoc original = docService.findById(_id).get();
+			List<EISDoc> docs = docService.getAllDistinctBy(matchParams.id, idList1, idList2);
+			if(Globals.TESTING) {System.out.println("Initial list length " + docs.size());}
+			EISDoc original = docService.findById((long) matchParams.id).get();
 			
 			if(original == null) {
 				return new ResponseEntity<EISMatchData>(HttpStatus.NOT_FOUND);
 			}
 			
+			// TODO: When removing from list, need to also remove from match list.
+			
 			// Other heuristics (could be optional?)
-			for(EISDoc doc : docs) {
+			for(int i = 0; i < docs.size(); i++) {
 				// State (remove if different)
-				if(!original.getState().contentEquals(doc.getState())) {
-					docs.remove(doc);
+				if(!original.getState().contentEquals(docs.get(i).getState())) {
+					if(Globals.TESTING) {System.out.println("Removing because state doesn't match: " + docs.get(i).getState());}
+					docs.remove(i);
+					matches.remove(i);
 				// Agency (remove if different)
-				} else if (!original.getAgency().contentEquals(doc.getAgency())) {
-					docs.remove(doc);
+				} else if (!original.getAgency().contentEquals(docs.get(i).getAgency())) {
+					if(Globals.TESTING) {System.out.println("Removing because state doesn't match: " + docs.get(i).getAgency());}
+					docs.remove(i);
+					matches.remove(i);
 				// Type (remove if same)
-				} else if (original.getDocumentType().contentEquals(doc.getDocumentType())) {
-					docs.remove(doc);
+				} else if (original.getDocumentType().contentEquals(docs.get(i).getDocumentType())) {
+					if(Globals.TESTING) {System.out.println("Removing because type identical: " + docs.get(i).getDocumentType());}
+					docs.remove(i);
+					matches.remove(i);
 				// Date (we've verified they're different types by now,
 				// so if one of them is final and one is draft but the draft is later
 				// then remove it)
 				} else if (
 						(original.getDocumentType().contentEquals("Final")
-						&& doc.getDocumentType().contentEquals("Draft")
-						&& original.getRegisterDate().compareTo(doc.getRegisterDate()) == -1)
+						&& docs.get(i).getDocumentType().contentEquals("Draft")
+						&& original.getRegisterDate().compareTo(docs.get(i).getRegisterDate()) == -1)
 						|| 
 						(original.getDocumentType().contentEquals("Draft")
-						&& doc.getDocumentType().contentEquals("Final")
-						&& original.getRegisterDate().compareTo(doc.getRegisterDate()) == -1)
+						&& docs.get(i).getDocumentType().contentEquals("Final")
+						&& original.getRegisterDate().compareTo(docs.get(i).getRegisterDate()) == -1)
 					) 
 				{
-					docs.remove(doc);
+					if(Globals.TESTING) {System.out.println("Removing because of date comparison: " + docs.get(i).getRegisterDate());}
+					docs.remove(i);
+					matches.remove(i);
+				}
+			}
+			
+			/** Comb through list, remove duplicate types of lower match percent */
+			final boolean flags[] = new boolean[docs.size()]; // default: "off" (0)
+			// for zero through size() - 1 docs...
+			for(int i = 0; i < docs.size() - 1; i++) {
+				// for i + 1 through size...
+				for(int j = 1; j < docs.size(); j++) {
+					// If type matches i + 1 AKA j...
+					if(docs.get(i).getDocumentType().contentEquals(docs.get(j).getDocumentType())) {
+						// if match i < i (returns -1, i is less of a match)
+						if(matches.get(i).getMatch_percent().compareTo(matches.get(j).getMatch_percent()) < 0) {
+							// remove at index i
+							System.out.println("Removing " + matches.get(i).getMatch_percent());
+							flags[i] = true;
+						} else {
+							// otherwise, remove j (j is less than or equal to i's match)
+							System.out.println("Removing " + matches.get(j).getMatch_percent());
+							flags[j] = true;
+						}
+					}
+				}
+			}
+
+			for(int i = 0; i < flags.length; i++) {
+				if(flags[i]) {
+					docs.remove(i);
+					matches.remove(i);
 				}
 			}
 			
 			EISMatchData matchData = new EISMatchData(matches, docs);
+			System.out.println("Final size " + matchData.getDocs().size());
+			System.out.println("Final size " + matchData.getMatches().size());
 
 			return new ResponseEntity<EISMatchData>(matchData, HttpStatus.OK);
 		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
