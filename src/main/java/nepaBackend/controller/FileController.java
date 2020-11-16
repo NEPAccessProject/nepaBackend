@@ -862,22 +862,23 @@ public class FileController {
 	 * */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFilesBulk", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<String> importFilesBulk(@RequestPart(name="files") MultipartFile[] files, 
+	private ResponseEntity<String[]> importFilesBulk(@RequestPart(name="files") MultipartFile[] files, 
 								@RequestHeader Map<String, String> headers) 
 										throws IOException 
 	{ 
 		/** Validation: Files; auth  */
 		
 		if(files == null || files.length == 0) { // 400
-			return new ResponseEntity<String>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<String[]>(HttpStatus.BAD_REQUEST);
 		}
 		
 		String token = headers.get("authorization");
 		if(!isCurator(token) && !isAdmin(token)) // 401
 		{
-			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+			return new ResponseEntity<String[]>(HttpStatus.UNAUTHORIZED);
 		} 
 		
+		String[] results = new String[files.length];
 		
 		/** If valid: Upload files, save to files table, add to existing records if possible, and log */
 		
@@ -886,7 +887,6 @@ public class FileController {
 	    	FileLog uploadLog = new FileLog();
 
 		    try {
-
 			    String origFilename = files[i].getOriginalFilename();
 			    String folderName = getUniqueFolderNameOrEmpty(origFilename);
 			    
@@ -923,6 +923,7 @@ public class FileController {
 				    // If file uploaded, see if we can link it, then proceed to saving to table and logging
 				    List<EISDoc> existingDocs = docRepository.findAllByFolder(folderName);
 				    if(uploaded) {
+				    	results[i] = "OK" + " __ " + files[i].getOriginalFilename();
 				    	// Save NEPAFile
 
 				    	// 1. Requires ability to link from previous CSV import
@@ -938,6 +939,7 @@ public class FileController {
 				    	// Save FileLog
 				    	
 				    	if(savedNEPAFile == null) {
+					    	results[i] = "Duplicate (File exists, nothing done)" + " __ " + origFilename;
 				    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 				    	} else {
 				    		uploadLog.setFilename(getPathOnly(origFilename) + getFilenameOnly(origFilename)); // full path incl. filename with agency base folder subbed in if needed
@@ -963,11 +965,13 @@ public class FileController {
 				    	}
 				    }
 			    } else {
-			    	// TODO: Inform user this file can't be linked to anything, and has been rejected
+			    	// Inform client this file can't be linked to anything, and has been rejected
+			    	results[i] = "Can't link file" + " __ " + origFilename;
 			    }
 	
 			} catch (Exception e) {
-				e.printStackTrace();
+//				e.printStackTrace();
+				results[i] = "Exception:: " + e.getMessage() + " __ " + files[i].getOriginalFilename();
 			} finally {
 			    files[i].getInputStream().close();
 			    if(uploadLog.getUser() != null) { 
@@ -976,7 +980,7 @@ public class FileController {
 			}
 		}
 		
-		return new ResponseEntity<String>("OK", HttpStatus.OK);
+		return new ResponseEntity<String[]>(results, HttpStatus.OK);
 	}
 
 	
