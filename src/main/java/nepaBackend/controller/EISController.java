@@ -560,25 +560,30 @@ public class EISController {
 				return new ResponseEntity<EISMatchData>(HttpStatus.NOT_FOUND);
 			}
 			
+//			for(int i = 0; i < docs.size(); i++) {
+//				System.out.println("Doc: " + docs.get(i).getId());
+//				System.out.print("Match 1: " + matches.get(i).getDocument1());
+//				System.out.println(" Match 2: " + matches.get(i).getDocument2());
+//			}
+
+			// Absolutely must sort matches by document2.
+			
 			// When removing from list, need to also remove from match list.
 			
 			// Other heuristics (could be optional?)
-			for(int i = 0; i < docs.size(); i++) {
+			for(int i = docs.size() - 1; i >= 0; i--) { // Decrementing because list shrinks
 				// State (remove if different)
 				if(!original.getState().contentEquals(docs.get(i).getState())) {
 					if(Globals.TESTING) {System.out.println("Removing because state doesn't match: " + docs.get(i).getState());}
 					docs.remove(i);
-					matches.remove(i);
 				// Agency (remove if different)
 				} else if (!original.getAgency().contentEquals(docs.get(i).getAgency())) {
 					if(Globals.TESTING) {System.out.println("Removing because state doesn't match: " + docs.get(i).getAgency());}
 					docs.remove(i);
-					matches.remove(i);
 				// Type (remove if same)
 				} else if (original.getDocumentType().contentEquals(docs.get(i).getDocumentType())) {
 					if(Globals.TESTING) {System.out.println("Removing because type identical: " + docs.get(i).getDocumentType());}
 					docs.remove(i);
-					matches.remove(i);
 				// Date (we've verified they're different types by now,
 				// so if one of them is final and one is draft but the draft is later
 				// then remove it)
@@ -594,48 +599,47 @@ public class EISController {
 				{
 					if(Globals.TESTING) {System.out.println("Removing because of date comparison: " + docs.get(i).getRegisterDate());}
 					docs.remove(i);
-					matches.remove(i);
 				}
 			}
 			
 			/** Comb through list, remove duplicate types of lower match percent */
 			// for zero through size() - 1 docs...
-			for(int i = 0; i < docs.size() - 1; i++) {
+//			for(int i = 0; i < docs.size() - 1; i++) {
 				// for 1 through size() docs...
-				for(int j = 1; j < docs.size(); j++) {
+//				for(int j = 1; j < docs.size(); j++) {
 					// If not a self-comparison...
-					if(j != i) {
+//					if(j != i) {
 						// If identical document type...
-						if(docs.get(i).getDocumentType().contentEquals(docs.get(j).getDocumentType())) {
+//						if(docs.get(i).getDocumentType().contentEquals(docs.get(j).getDocumentType())) {
 							// if match i < j (returns -1, i is less of a match)
-							if(matches.get(i).getMatch_percent().compareTo(matches.get(j).getMatch_percent()) < 0) {
-								// remove at index i
-								if(Globals.TESTING) {System.out.println("Removing lower match " + i + " of " + matches.get(i).getMatch_percent() + " vs " + j + " " + matches.get(j).getMatch_percent());}
-								docs.remove(i);
-								matches.remove(i);
-							} else {
-								// otherwise, remove j (j is less than or equal to i's match)
-								if(Globals.TESTING) {System.out.println("Removing lower match " + j + " of " + matches.get(j).getMatch_percent() + " vs " + i + " " + matches.get(i).getMatch_percent());}
-								docs.remove(j);
-								matches.remove(j);
-							}
-						}
-					} else {
-						if(Globals.TESTING) {System.out.println("Skipping " + i + " " + j);}
-					}
-				}
-			}
+							// Can't expect matches and docs to line up...  so we actually have to look through
+							// BOTH ID lists from the matching pairs.  Twice.  One for i, one for j.
+							// May need to redesign things in the database and also maybe then use SQL for this.
+//							if(!flags[i] && matches.get(i).getMatch_percent().compareTo(matches.get(j).getMatch_percent()) < 0) {
+//								// remove at index i
+//								if(Globals.TESTING) {System.out.println("Removing lower match " + i + " of " + matches.get(i).getMatch_percent() + " vs " + j + " " + matches.get(j).getMatch_percent());}
+//							} else if(!flags[j]){
+//								// otherwise, remove j (j is less than or equal to i's match)
+//								if(Globals.TESTING) {System.out.println("Removing lower match " + j + " of " + matches.get(j).getMatch_percent() + " vs " + i + " " + matches.get(i).getMatch_percent());}
+//							}
+//						}
+//					} else {
+//						if(Globals.TESTING) {System.out.println("Skipping " + i + " " + j);}
+//					}
+//				}
+//			}
 			
 			EISMatchData matchData = new EISMatchData(matches, docs);
 			
-			System.out.println(matchData.getDocs().size());
-			System.out.println(matchData.getMatches().size());
+//			System.out.println(matchData.getDocs().size());
+//			System.out.println(matchData.getMatches().size());
 
 			return new ResponseEntity<EISMatchData>(matchData, HttpStatus.OK);
 		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
+			System.out.println(e);
 			return new ResponseEntity<EISMatchData>(HttpStatus.OK);
 		} catch (Exception e) {
-//			System.out.println(e);
+			System.out.println(e);
 			return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
 		}
 	}
