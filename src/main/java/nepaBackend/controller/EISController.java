@@ -528,6 +528,10 @@ public class EISController {
 	produces = "application/json", 
 	headers = "Accept=application/json")
 	public @ResponseBody ResponseEntity<EISMatchData> matchAdvanced(@RequestBody MatchParams matchParams) {
+		
+		System.out.println(matchParams.id);
+		System.out.println(matchParams.matchPercent);
+		
 		try {
 			// Sanity check ID
 			if(matchParams.id < 0) {
@@ -556,7 +560,7 @@ public class EISController {
 				return new ResponseEntity<EISMatchData>(HttpStatus.NOT_FOUND);
 			}
 			
-			// TODO: When removing from list, need to also remove from match list.
+			// When removing from list, need to also remove from match list.
 			
 			// Other heuristics (could be optional?)
 			for(int i = 0; i < docs.size(); i++) {
@@ -595,33 +599,37 @@ public class EISController {
 			}
 			
 			/** Comb through list, remove duplicate types of lower match percent */
-			final boolean flags[] = new boolean[docs.size()]; // default: "off" (0)
 			// for zero through size() - 1 docs...
 			for(int i = 0; i < docs.size() - 1; i++) {
-				// for i + 1 through size...
+				// for 1 through size() docs...
 				for(int j = 1; j < docs.size(); j++) {
-					// If type matches i + 1 AKA j...
-					if(docs.get(i).getDocumentType().contentEquals(docs.get(j).getDocumentType())) {
-						// if match i < i (returns -1, i is less of a match)
-						if(matches.get(i).getMatch_percent().compareTo(matches.get(j).getMatch_percent()) < 0) {
-							// remove at index i
-							flags[i] = true;
-						} else {
-							// otherwise, remove j (j is less than or equal to i's match)
-							flags[j] = true;
+					// If not a self-comparison...
+					if(j != i) {
+						// If identical document type...
+						if(docs.get(i).getDocumentType().contentEquals(docs.get(j).getDocumentType())) {
+							// if match i < j (returns -1, i is less of a match)
+							if(matches.get(i).getMatch_percent().compareTo(matches.get(j).getMatch_percent()) < 0) {
+								// remove at index i
+								if(Globals.TESTING) {System.out.println("Removing lower match " + i + " of " + matches.get(i).getMatch_percent() + " vs " + j + " " + matches.get(j).getMatch_percent());}
+								docs.remove(i);
+								matches.remove(i);
+							} else {
+								// otherwise, remove j (j is less than or equal to i's match)
+								if(Globals.TESTING) {System.out.println("Removing lower match " + j + " of " + matches.get(j).getMatch_percent() + " vs " + i + " " + matches.get(i).getMatch_percent());}
+								docs.remove(j);
+								matches.remove(j);
+							}
 						}
+					} else {
+						if(Globals.TESTING) {System.out.println("Skipping " + i + " " + j);}
 					}
-				}
-			}
-
-			for(int i = 0; i < flags.length; i++) {
-				if(flags[i]) {
-					docs.remove(i);
-					matches.remove(i);
 				}
 			}
 			
 			EISMatchData matchData = new EISMatchData(matches, docs);
+			
+			System.out.println(matchData.getDocs().size());
+			System.out.println(matchData.getMatches().size());
 
 			return new ResponseEntity<EISMatchData>(matchData, HttpStatus.OK);
 		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
