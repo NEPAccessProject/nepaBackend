@@ -892,6 +892,7 @@ public class FileController {
 			    
 			    if(folderName.length() == 0) { // If no folder name
 			    	// Do nothing (reject file: no upload, no log)
+			    	results[i] = "No folder match" + " __ " + files[i].getOriginalFilename();
 			    } else if(metadataExists(folderName)){
 			    	// If metadata exists we can link this to something, therefore proceed with upload
 				    String savePath = getPathOnly(origFilename);
