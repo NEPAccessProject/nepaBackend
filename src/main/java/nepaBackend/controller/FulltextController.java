@@ -165,7 +165,29 @@ public class FulltextController {
 //			return new ResponseEntity<List<EISDoc>>(HttpStatus.INTERNAL_SERVER_ERROR);
 //		}
 //	}
-	
+
+	// Metadata search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
+	@CrossOrigin
+	@PostMapping(path = "/search")
+	public ResponseEntity<List<MetadataWithContext>> search(@RequestBody SearchInputs searchInputs)
+	{
+		saveSearchLog(searchInputs);
+
+		try { 
+			List<EISDoc> metaList = new ArrayList<EISDoc>(
+					(textRepository.metadataSearch(searchInputs, searchInputs.limit, 0, SearchType.ALL)));
+			List<MetadataWithContext> convertedList = new ArrayList<MetadataWithContext>();
+			for(EISDoc doc : metaList) {
+				convertedList.add(new MetadataWithContext(doc, "", ""));
+			}
+			return new ResponseEntity<List<MetadataWithContext>>(convertedList, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 
 	// Metadata with context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext, prioritizes title matches
 	@CrossOrigin
