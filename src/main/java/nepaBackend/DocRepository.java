@@ -92,5 +92,55 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<EISDoc> queryBy(@Param("id") Long id,
 			@Param("idList1") List<Integer> idList1, 
 			@Param("idList2") List<Integer> idList2);
+
+	/** Return count of each type */
+	@Query(value = "SELECT document_type, COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "GROUP BY document_type",
+			nativeQuery = true)
+	public List<Object> getTypeCount();
+	
+	/** Return count of filenames by document type */
+	@Query(value = "SELECT document_type, COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE LENGTH(filename)>0 "
+			+ "GROUP BY document_type;",
+			nativeQuery = true)
+	public List<Object> getDownloadableCountByType();
+	
+//	@Query(value = "SELECT document_type, YEAR(register_date), COUNT(*) "
+//			+ "FROM test.eisdoc "
+//			+ "GROUP BY YEAR(register_date), document_type "
+//			+ "ORDER BY document_type, YEAR(register_date);",
+//			nativeQuery = true)
+//	public List<Object> getCountByTypeAndYear();
+
+	/** Return count of drafts and finals by year */
+	@Query(value = "SELECT document_type, YEAR(register_date), COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE document_type='Final' OR document_type='Draft' "
+			+ "GROUP BY YEAR(register_date), document_type "
+			+ "ORDER BY document_type, YEAR(register_date);",
+			nativeQuery = true)
+	public List<Object> getDraftFinalCountByYear();
+
+	/** Return count of drafts and finals by state */
+	@Query(value = "SELECT document_type, state, COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE document_type='Final' OR document_type='Draft' "
+			+ "GROUP BY state, document_type "
+			+ "ORDER BY document_type, state;",
+			nativeQuery = true)
+	public List<Object> getDraftFinalCountByState();
+
+	/** Return count of drafts and finals by agency */
+	@Query(value = "SELECT document_type, agency, COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE document_type='Final' OR document_type='Draft' "
+			+ "GROUP BY agency, document_type "
+			+ "ORDER BY document_type, agency;",
+			nativeQuery = true)
+	public List<Object> getDraftFinalCountByAgency();
+	
 	
 }
