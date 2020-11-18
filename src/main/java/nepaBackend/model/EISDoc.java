@@ -48,12 +48,15 @@ public class EISDoc {
 
     @Column(name="folder")
     private String folder; // path to multiple associated files (optional)
+    
+    @Column(name="size")
+    private Long size; // size of folder or archive on disk (optional)
 
-    @Column(name="web_link")
-    private String link; // path to multiple associated files (optional)
+	@Column(name="web_link")
+    private String link; // source link (optional)
 
 	@Column(name="notes")
-    private String notes; // path to multiple associated files (optional)
+    private String notes; // (optional)
     
     // String location; // Location for proposed project is desired, but don't have metadata
     // String action; // Type of action is desired, but don't have metadata
@@ -63,9 +66,7 @@ public class EISDoc {
     public EISDoc() { }
 
 	public EISDoc(Long id, String title, String documentType, LocalDate commentDate, LocalDate registerDate, String agency, String state,
-			String filename, String commentsFilename, String folder, String link, String notes) {
-		//super();  // TODO: Do we need this for this project?
-		
+			String filename, String commentsFilename, String folder, Long size, String link, String notes) {
 		this.id = id;
 		this.title = title;
 		this.documentType = documentType;
@@ -76,6 +77,7 @@ public class EISDoc {
 		this.filename = filename;
 		this.commentsFilename = commentsFilename;
 		this.folder = folder;
+		this.size = size;
 		this.notes = notes;
 		this.link = link;
 	}
@@ -154,6 +156,14 @@ public class EISDoc {
 
 	public void setFolder(String folder) {
 		this.folder = folder;
+	}
+
+    public Long getSize() {
+		return size;
+	}
+
+	public void setSize(Long size) {
+		this.size = size;
 	}
 
     public String getLink() {

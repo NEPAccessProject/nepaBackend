@@ -114,6 +114,35 @@ public class FileController {
 	
 	private static String testURL = "http://localhost:5000/";
 	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
+
+	// TODO: Filesize check for folders (currently no folders are live)
+	/** Check all possible file sizes for entities with filenames */
+	@CrossOrigin
+	@RequestMapping(path = "/filesizes", method = RequestMethod.GET)
+	public ResponseEntity<String> filesizes() {
+		try {
+			List<EISDoc> files = docRepository.findAll();
+			
+			for(EISDoc doc : files) {
+				String filename = doc.getFilename();
+				if(filename != null && filename.strip().length() > 0) {
+					Long response = (getFileSizeFromFilename(doc.getFilename()).getBody());
+					if(response != null) {
+						doc.setSize(response);
+					} 
+//					else {
+						// If file isn't found, set size to 0? Or leave it as null?
+//						doc.setSize((long) 0);
+//					}
+					docRepository.save(doc);
+				}
+			}
+			
+			return new ResponseEntity<String>("OK", HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<String>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 	
 	@CrossOrigin
 	@RequestMapping(path = "/filenames", method = RequestMethod.GET)

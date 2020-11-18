@@ -304,6 +304,7 @@ public class EISController {
 					rs.getString("filename"),
 					rs.getString("comments_filename"),
 					rs.getString("folder"),
+					rs.getLong("size"),
 					rs.getString("web_link"),
 					rs.getString("notes")
 				)
