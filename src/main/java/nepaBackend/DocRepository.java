@@ -120,7 +120,8 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "FROM test.eisdoc "
 			+ "WHERE document_type='Final' OR document_type='Draft' "
 			+ "GROUP BY YEAR(register_date), document_type "
-			+ "ORDER BY document_type, YEAR(register_date);",
+			+ "ORDER BY document_type, YEAR(register_date) "
+			+ "DESC;",
 			nativeQuery = true)
 	public List<Object> getDraftFinalCountByYear();
 
@@ -141,6 +142,24 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "ORDER BY document_type, agency;",
 			nativeQuery = true)
 	public List<Object> getDraftFinalCountByAgency();
+
+	@Query(value = "SELECT DISTINCT document_type FROM test.eisdoc ORDER BY document_type;",
+			nativeQuery = true)
+	public List<String> getDocumentTypes();
+
+	@Query(value = "SELECT DISTINCT agency FROM test.eisdoc ORDER BY agency;",
+			nativeQuery = true)
+	public List<String> getAgencies();
 	
+	@Query(value = "SELECT DISTINCT state FROM test.eisdoc ORDER BY state;",
+			nativeQuery = true)
+	public List<String> getStates();
+
+	@Query(value = "SELECT DISTINCT YEAR(register_date) "
+			+ "FROM test.eisdoc "
+			+ "ORDER BY register_date "
+			+ "DESC;",
+			nativeQuery = true)
+	public List<String> getYears();
 	
 }

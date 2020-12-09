@@ -102,4 +102,52 @@ public class StatsController {
 		}
 	}
 	
+	@CrossOrigin
+	@GetMapping(path = "/agencies", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<String>> getAgencies() {
+		try {
+			return new ResponseEntity<List<String>>(docRepository.getAgencies(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+			//	e.printStackTrace();
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
+	@GetMapping(path = "/states", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<String>> getStates() {
+		try {
+			return new ResponseEntity<List<String>>(docRepository.getStates(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+			//	e.printStackTrace();
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
+	@GetMapping(path = "/years", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<String>> getYears() {
+		try {
+			return new ResponseEntity<List<String>>(docRepository.getYears(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+			//	e.printStackTrace();
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
 }
