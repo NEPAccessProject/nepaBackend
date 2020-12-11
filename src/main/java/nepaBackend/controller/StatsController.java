@@ -54,13 +54,31 @@ public class StatsController {
 		}
 	}
 
+	// Counts still restricted to final or draft but not grouped by type
 	@CrossOrigin
-	@GetMapping(path = "/draft_final_count_year_downloadable", 
+	@GetMapping(path = "/count_year_downloadable", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
-	public @ResponseBody ResponseEntity<List<Object>> getDownloadableDraftFinalCountByYear() {
+	public @ResponseBody ResponseEntity<List<Object>> getDownloadableCountByYear() {
 		try {
-			return new ResponseEntity<List<Object>>(docRepository.getDownloadableDraftFinalCountByYear(), HttpStatus.OK);
+			return new ResponseEntity<List<Object>>(docRepository.getDownloadableCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+//			e.printStackTrace();
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	// Counts still restricted to final or draft but not grouped by type
+	@CrossOrigin
+	@GetMapping(path = "/count_year", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getMetadataCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getMetadataCountByYear(), HttpStatus.OK);
 		} catch (Exception e) {
 			//	if (log.isDebugEnabled()) {
 			//		log.debug(e);
@@ -154,15 +172,15 @@ public class StatsController {
 	@GetMapping(path = "/years", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
-	public @ResponseBody ResponseEntity<List<String>> getYears() {
+	public @ResponseBody ResponseEntity<List<Integer>> getYears() {
 		try {
-			return new ResponseEntity<List<String>>(docRepository.getYears(), HttpStatus.OK);
+			return new ResponseEntity<List<Integer>>(docRepository.getYears(), HttpStatus.OK);
 		} catch (Exception e) {
 			//	if (log.isDebugEnabled()) {
 			//		log.debug(e);
 			//	}
 			//	e.printStackTrace();
-			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<Integer>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	

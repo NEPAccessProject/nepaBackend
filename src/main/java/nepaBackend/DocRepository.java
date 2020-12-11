@@ -126,16 +126,25 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getDraftFinalCountByYear();
 
 
-	/** Return downloadable counts of drafts and finals by year */
-	@Query(value = "SELECT document_type, YEAR(register_date), COUNT(*) "
+	/** Return metadata counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE (document_type='Final' OR document_type='Draft') "
+			+ "GROUP BY YEAR(register_date) "
+			+ "ORDER BY YEAR(register_date) "
+			+ "DESC;",
+			nativeQuery = true)
+	public List<Object> getMetadataCountByYear();
+	/** Return downloadable counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
 			+ "FROM test.eisdoc "
 			+ "WHERE (document_type='Final' OR document_type='Draft') "
 			+ "AND LENGTH(filename)>0 "
-			+ "GROUP BY YEAR(register_date), document_type "
-			+ "ORDER BY document_type, YEAR(register_date) "
+			+ "GROUP BY YEAR(register_date) "
+			+ "ORDER BY YEAR(register_date) "
 			+ "DESC;",
 			nativeQuery = true)
-	public List<Object> getDownloadableDraftFinalCountByYear();
+	public List<Object> getDownloadableCountByYear();
 
 	/** Return counts of drafts and finals by state */
 	@Query(value = "SELECT document_type, state, COUNT(*) "
@@ -172,7 +181,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "ORDER BY register_date "
 			+ "DESC;",
 			nativeQuery = true)
-	public List<String> getYears();
+	public List<Integer> getYears();
 
 	@Query(value = "SELECT COUNT(*) "
 			+ "FROM test.eisdoc "
