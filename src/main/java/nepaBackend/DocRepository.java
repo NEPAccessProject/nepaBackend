@@ -115,7 +115,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 //			nativeQuery = true)
 //	public List<Object> getCountByTypeAndYear();
 
-	/** Return count of drafts and finals by year */
+	/** Return counts of drafts and finals by year */
 	@Query(value = "SELECT document_type, YEAR(register_date), COUNT(*) "
 			+ "FROM test.eisdoc "
 			+ "WHERE document_type='Final' OR document_type='Draft' "
@@ -125,7 +125,19 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	public List<Object> getDraftFinalCountByYear();
 
-	/** Return count of drafts and finals by state */
+
+	/** Return downloadable counts of drafts and finals by year */
+	@Query(value = "SELECT document_type, YEAR(register_date), COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE (document_type='Final' OR document_type='Draft') "
+			+ "AND LENGTH(filename)>0 "
+			+ "GROUP BY YEAR(register_date), document_type "
+			+ "ORDER BY document_type, YEAR(register_date) "
+			+ "DESC;",
+			nativeQuery = true)
+	public List<Object> getDownloadableDraftFinalCountByYear();
+
+	/** Return counts of drafts and finals by state */
 	@Query(value = "SELECT document_type, state, COUNT(*) "
 			+ "FROM test.eisdoc "
 			+ "WHERE document_type='Final' OR document_type='Draft' "

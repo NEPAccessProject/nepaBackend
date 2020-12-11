@@ -55,6 +55,22 @@ public class StatsController {
 	}
 
 	@CrossOrigin
+	@GetMapping(path = "/draft_final_count_year_downloadable", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getDownloadableDraftFinalCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getDownloadableDraftFinalCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+//			e.printStackTrace();
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
 	@GetMapping(path = "/draft_final_count_year", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
