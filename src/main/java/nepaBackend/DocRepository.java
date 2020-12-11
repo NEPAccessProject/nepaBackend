@@ -178,10 +178,10 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	@Query(value = "SELECT DISTINCT YEAR(register_date) "
 			+ "FROM test.eisdoc "
-			+ "ORDER BY register_date "
+			+ "ORDER BY YEAR(register_date) "
 			+ "DESC;",
 			nativeQuery = true)
-	public List<Integer> getYears();
+	public List<Object> getYears();
 
 	@Query(value = "SELECT COUNT(*) "
 			+ "FROM test.eisdoc "

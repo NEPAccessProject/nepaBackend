@@ -1,5 +1,6 @@
 package nepaBackend.controller;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -174,7 +175,12 @@ public class StatsController {
 	headers = "Accept=application/json")
 	public @ResponseBody ResponseEntity<List<Integer>> getYears() {
 		try {
-			return new ResponseEntity<List<Integer>>(docRepository.getYears(), HttpStatus.OK);
+			List<Object> results = docRepository.getYears();
+			List<Integer> formattedResults = new ArrayList<Integer>();
+			for(Object result : results) {
+				formattedResults.add(Integer.parseInt(String.valueOf(result)));
+			}
+			return new ResponseEntity<List<Integer>>(formattedResults, HttpStatus.OK);
 		} catch (Exception e) {
 			//	if (log.isDebugEnabled()) {
 			//		log.debug(e);
