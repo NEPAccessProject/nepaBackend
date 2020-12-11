@@ -150,4 +150,75 @@ public class StatsController {
 		}
 	}
 	
+	/** dynamically pull and include a number for “draft records” (i.e., say “x”) and for the 
+	 * corresponding searchable / downloadable draft PDF (say x1) files. Add those numbers
+		- E.g., within the sentence “This includes draft and final documents”,  make it 
+		“This includes x draft and y final documents”.
+		- Then, if possible add another sentence like, “Of these, x1 draft and y1 final EISs 
+		are in a format that supports full-text searching and downloading.” */
+
+	@CrossOrigin
+	@GetMapping(path = "/final_count", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Long> finalCount() {
+		try {
+			return new ResponseEntity<Long>(docRepository.getFinalCount(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+			//	e.printStackTrace();
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
+	@GetMapping(path = "/final_count_downloadable", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Long> finalCountDownloadable() {
+		try {
+			return new ResponseEntity<Long>(docRepository.getFinalCountDownloadable(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+			//	e.printStackTrace();
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
+	@GetMapping(path = "/draft_count", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Long> draftCount() {
+		try {
+			return new ResponseEntity<Long>(docRepository.getDraftCount(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+			//	e.printStackTrace();
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
+	@GetMapping(path = "/draft_count_downloadable", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Long> draftCountDownloadable() {
+		try {
+			return new ResponseEntity<Long>(docRepository.getDraftCountDownloadable(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+			//	e.printStackTrace();
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
 }

@@ -161,5 +161,31 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "DESC;",
 			nativeQuery = true)
 	public List<String> getYears();
+
+	@Query(value = "SELECT COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE document_type='Final' "
+			+ "AND LENGTH(filename)>0;",
+			nativeQuery = true)
+	long getFinalCountDownloadable();
+
+	@Query(value = "SELECT COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE document_type='Final';",
+			nativeQuery = true)
+	long getFinalCount();
+
+	@Query(value = "SELECT COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE document_type='Draft' "
+			+ "AND LENGTH(filename)>0;",
+			nativeQuery = true)
+	long getDraftCountDownloadable();
+	
+	@Query(value = "SELECT COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE document_type='Draft';",
+			nativeQuery = true)
+	long getDraftCount();
 	
 }
