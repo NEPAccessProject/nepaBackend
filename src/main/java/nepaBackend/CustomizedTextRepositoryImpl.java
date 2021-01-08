@@ -1201,6 +1201,65 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return records;
 	}
 	
+	/** Combination title/fulltext query including the metadata parameters like agency/state/...
+	 * and this is currently the default search; returns metadata plus filename 
+	 * using Lucene's internal default scoring algorithm
+	 * @throws ParseException
+	 * */
+	@Override
+	public List<MetadataWithContext> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
+		try {
+			long startTime = System.currentTimeMillis();
+			System.out.println("Offset: " + searchInputs.offset);
+			List<EISDoc> records = getFilteredRecords(searchInputs);
+			
+			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			if(!searchInputs.title.isBlank()) {
+				String formattedTitle = mutateTermModifiers(searchInputs.title);
+
+				HashSet<Long> justRecordIds = new HashSet<Long>();
+				for(EISDoc record: records) {
+					justRecordIds.add(record.getId());
+				}
+
+				List<MetadataWithContext> results = searchNoContext(formattedTitle, searchInputs.limit, searchInputs.offset, justRecordIds);
+				
+				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				for(int i = 0; i < results.size(); i++) {
+					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+						finalResults.add(results.get(i));
+					}
+				}
+				
+				if(Globals.TESTING) {
+					System.out.println("Records 1 " + records.size());
+					System.out.println("Records 2 " + results.size());
+				}
+
+				if(Globals.TESTING) {
+					long stopTime = System.currentTimeMillis();
+					long elapsedTime = stopTime - startTime;
+					System.out.println("Lucene search time: " + elapsedTime);
+				}
+				return finalResults;
+			} else { // no title: simply return JDBC results...  however they have to be translated
+				// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
+				// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
+				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				for(EISDoc record : records) {
+					finalResults.add(new MetadataWithContext(record, "", ""));
+				}
+				return finalResults;
+			}
+			
+//			return lucenePrioritySearch(searchInputs.title, limit, offset);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ArrayList<MetadataWithContext>();
+		}
+	}
+	
 	/** "A/B testing" search functions: */
 
 	/** Combination title/fulltext query including the metadata parameters like agency/state/...
@@ -1481,8 +1540,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		Query luceneQuery = mfqp.parse(formattedTerms);
 		
-//		org.hibernate.search.jpa.FullTextQuery jpaQuery =
-//				fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class); // filters only DocumentText results
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery);
 		
@@ -1583,6 +1640,128 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		return combinedResultsWithHighlights;
 	}
+	
+	// objective: Search both fields at once and return quickly
+		public List<MetadataWithContext> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
+			long startTime = System.currentTimeMillis();
+			if(limit == 0) {
+				limit = 1000000;
+			}
+			// Normalize whitespace and support added term modifiers
+		    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+
+			FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+			// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+			// but the results will contain both types mixed together
+			MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+						new String[] {"title", "plaintext"},
+						new StandardAnalyzer());
+			mfqp.setDefaultOperator(Operator.AND);
+
+			Query luceneQuery = mfqp.parse(formattedTerms);
+			
+//			org.hibernate.search.jpa.FullTextQuery jpaQuery =
+//					fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class); // filters only DocumentText results
+			org.hibernate.search.jpa.FullTextQuery jpaQuery =
+					fullTextEntityManager.createFullTextQuery(luceneQuery);
+			
+			jpaQuery.setMaxResults(limit);
+			jpaQuery.setFirstResult(offset);
+
+			if(Globals.TESTING) {System.out.println("Query using limit " + limit);}
+			
+			// Returns a list containing both EISDoc and DocumentText objects.
+			List<Object> results = jpaQuery.getResultList();
+			
+			// init final result list
+			List<MetadataWithContext> combinedResultsWithHighlights = new ArrayList<MetadataWithContext>();
+			
+			// build highlighter
+			QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+			qp.setDefaultOperator(Operator.AND);
+			Query luceneTextOnlyQuery = qp.parse(formattedTerms);
+			
+			// Condense results:
+			// If we have companion results (same EISDoc.ID), combine
+
+			// Quickly build a HashMap of EISDoc (AKA metadata) IDs; these are unique
+			// (we'll use these to condense the results on pass 2)
+			HashMap<Long, Integer> metaIds = new HashMap<Long, Integer>(results.size());
+			int position = 0;
+			for (Object result : results) {
+				if(result.getClass().equals(EISDoc.class)) {
+					metaIds.put(((EISDoc) result).getId(), position);
+				}
+				position++;
+			}
+			
+			HashMap<Long, Boolean> skipThese = new HashMap<Long, Boolean>();
+			
+			position = 0;
+			for (Object result : results) {
+
+				if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
+					
+					try {
+						long key = ((DocumentText) result).getEisdoc().getId();
+
+						// Get highlights
+						MetadataWithContext combinedResult = new MetadataWithContext(
+								((DocumentText) result).getEisdoc(),
+								"",
+								((DocumentText) result).getFilename());
+
+						// If we have companion results:
+						if(metaIds.containsKey(key)) {
+							// If this Text result comes before the Meta result:
+							if(metaIds.get(key) > position) {
+								// Flag to skip over the Meta result later
+								skipThese.put(key, true);
+								// Add this combinedResult to List
+								combinedResultsWithHighlights.add( combinedResult );
+							} else {
+								// We already have a companion meta result in the table
+								
+								// If existing result has no filename:
+								if(combinedResultsWithHighlights.get(metaIds.get(key)).getFilename().isBlank()) {
+									// "update" that instead of adding this result
+									combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
+								} else {
+									System.out.println("Adding filename to existing record: " + combinedResult.getFilename());
+
+									// Add this combinedResult's filename to filename list
+									combinedResultsWithHighlights.get(metaIds.get(key)).getFilename()
+										.concat("," + combinedResult.getFilename());
+								}
+							}
+						} else {
+							// Add this companionless combinedResult to List
+							combinedResultsWithHighlights.add( combinedResult );
+						}
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				} else if(result.getClass().equals(EISDoc.class)) {
+					// Add metadata result unless it's flagged for skipping
+					if(!skipThese.containsKey(((EISDoc) result).getId())) {
+						combinedResultsWithHighlights.add(new MetadataWithContext(((EISDoc) result),"",""));
+					}
+				}
+				position++;
+			}
+			
+			if(Globals.TESTING) {
+				System.out.println("Results #: " + results.size());
+				
+				long stopTime = System.currentTimeMillis();
+				long elapsedTime = stopTime - startTime;
+				System.out.println("Time elapsed: " + elapsedTime);
+			}
+
+			return combinedResultsWithHighlights;
+		}
 	
 	/** */
 

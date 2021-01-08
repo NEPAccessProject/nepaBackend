@@ -209,7 +209,7 @@ public class FulltextController {
 	}
 
 
-	// Metadata with context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext, prioritizes title matches
+	// Metadata with context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
 	@PostMapping(path = "/search_lucene_priority")
 	public ResponseEntity<List<MetadataWithContext>> searchPriorityLucene(@RequestBody SearchInputs searchInputs)
@@ -220,6 +220,26 @@ public class FulltextController {
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
 			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+
+	// Metadata without context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
+	@CrossOrigin
+	@PostMapping(path = "/search_no_context")
+	public ResponseEntity<List<MetadataWithContext>> searchNoContext(@RequestBody SearchInputs searchInputs)
+	{
+		saveSearchLog(searchInputs);
+
+		try { 
+			List<MetadataWithContext> metaAndFilenames = new ArrayList<MetadataWithContext>(
+					(textRepository.CombinedSearchNoContext(searchInputs, SearchType.ALL)));
+			return new ResponseEntity<List<MetadataWithContext>>(metaAndFilenames, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {

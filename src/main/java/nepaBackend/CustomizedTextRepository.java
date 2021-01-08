@@ -1,13 +1,11 @@
 package nepaBackend;
 
-import java.util.Collection;
 import java.util.List;
 
 import org.apache.lucene.queryparser.classic.ParseException;
 
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.enums.SearchType;
-import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.SearchInputs;
 
@@ -22,4 +20,5 @@ public interface CustomizedTextRepository {
 	
 	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType);
+	List<MetadataWithContext> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType);
 }
