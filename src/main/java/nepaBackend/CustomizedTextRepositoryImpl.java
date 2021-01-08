@@ -1642,11 +1642,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	// objective: Search both fields at once and return quickly
+		@SuppressWarnings("unchecked")
 		public List<MetadataWithContext> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
 			long startTime = System.currentTimeMillis();
-			if(limit == 0) {
-				limit = 1000000;
-			}
+
 			// Normalize whitespace and support added term modifiers
 		    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
 
@@ -1666,8 +1665,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			org.hibernate.search.jpa.FullTextQuery jpaQuery =
 					fullTextEntityManager.createFullTextQuery(luceneQuery);
 			
-			jpaQuery.setMaxResults(limit);
-			jpaQuery.setFirstResult(offset);
+			jpaQuery.setMaxResults(1000000);
+			jpaQuery.setFirstResult(0);
 
 			if(Globals.TESTING) {System.out.println("Query using limit " + limit);}
 			
@@ -1676,11 +1675,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			// init final result list
 			List<MetadataWithContext> combinedResultsWithHighlights = new ArrayList<MetadataWithContext>();
-			
-			// build highlighter
-			QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
-			qp.setDefaultOperator(Operator.AND);
-			Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 			
 			// Condense results:
 			// If we have companion results (same EISDoc.ID), combine
@@ -1706,7 +1700,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					try {
 						long key = ((DocumentText) result).getEisdoc().getId();
 
-						// Get highlights
+						// Get filename
 						MetadataWithContext combinedResult = new MetadataWithContext(
 								((DocumentText) result).getEisdoc(),
 								"",
@@ -1728,11 +1722,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 									// "update" that instead of adding this result
 									combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
 								} else {
-									System.out.println("Adding filename to existing record: " + combinedResult.getFilename());
-
+									if(Globals.TESTING) {
+										System.out.println("Adding filename to existing record: " + combinedResult.getFilename());
+									}
 									// Add this combinedResult's filename to filename list
-									combinedResultsWithHighlights.get(metaIds.get(key)).getFilename()
-										.concat("," + combinedResult.getFilename());
+									String currentFilename = combinedResultsWithHighlights.get(metaIds.get(key)).getFilename();
+									combinedResultsWithHighlights.get(metaIds.get(key)).setFilename
+									(currentFilename.concat("," + combinedResult.getFilename()));
 								}
 							}
 						} else {

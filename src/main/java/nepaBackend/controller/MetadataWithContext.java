@@ -4,8 +4,8 @@ import nepaBackend.model.EISDoc;
 
 public class MetadataWithContext {
 	private final EISDoc doc;
-	private final String highlight;
-	private final String filename;
+	private String highlight;
+	private String filename;
 	
 	public MetadataWithContext(EISDoc doc, String highlights, String filename) {
 		this.doc = doc;
@@ -23,6 +23,14 @@ public class MetadataWithContext {
 
 	public String getFilename() {
 		return filename;
+	}
+
+	public void setFilename(String filename) {
+		this.filename = filename;
+	}
+
+	public void setHighlight(String highlight) {
+		this.highlight = highlight;
 	}
 	
 }
