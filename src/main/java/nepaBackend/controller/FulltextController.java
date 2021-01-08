@@ -232,19 +232,19 @@ public class FulltextController {
 	// Metadata without context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
 	@PostMapping(path = "/search_no_context")
-	public ResponseEntity<List<MetadataWithContext>> searchNoContext(@RequestBody SearchInputs searchInputs)
+	public ResponseEntity<List<MetadataWithContext2>> searchNoContext(@RequestBody SearchInputs searchInputs)
 	{
 		saveSearchLog(searchInputs);
 
 		try { 
-			List<MetadataWithContext> metaAndFilenames = new ArrayList<MetadataWithContext>(
+			List<MetadataWithContext2> metaAndFilenames = new ArrayList<MetadataWithContext2>(
 					(textRepository.CombinedSearchNoContext(searchInputs, SearchType.ALL)));
-			return new ResponseEntity<List<MetadataWithContext>>(metaAndFilenames, HttpStatus.OK);
+			return new ResponseEntity<List<MetadataWithContext2>>(metaAndFilenames, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	

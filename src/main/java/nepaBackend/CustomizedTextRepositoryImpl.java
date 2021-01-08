@@ -35,6 +35,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import nepaBackend.controller.MetadataWithContext;
+import nepaBackend.controller.MetadataWithContext2;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
@@ -1207,7 +1208,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	 * @throws ParseException
 	 * */
 	@Override
-	public List<MetadataWithContext> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
+	public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
 		try {
 			long startTime = System.currentTimeMillis();
 			System.out.println("Offset: " + searchInputs.offset);
@@ -1222,10 +1223,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					justRecordIds.add(record.getId());
 				}
 
-				List<MetadataWithContext> results = searchNoContext(formattedTitle, searchInputs.limit, searchInputs.offset, justRecordIds);
+				List<MetadataWithContext2> results = searchNoContext(formattedTitle, searchInputs.limit, searchInputs.offset, justRecordIds);
 				
 				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
-				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
 				for(int i = 0; i < results.size(); i++) {
 					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
 						finalResults.add(results.get(i));
@@ -1246,9 +1247,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			} else { // no title: simply return JDBC results...  however they have to be translated
 				// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
 				// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
-				List<MetadataWithContext> finalResults = new ArrayList<MetadataWithContext>();
+				List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
 				for(EISDoc record : records) {
-					finalResults.add(new MetadataWithContext(record, "", ""));
+					finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), ""));
 				}
 				return finalResults;
 			}
@@ -1256,7 +1257,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //			return lucenePrioritySearch(searchInputs.title, limit, offset);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ArrayList<MetadataWithContext>();
+			return new ArrayList<MetadataWithContext2>();
 		}
 	}
 	
@@ -1643,7 +1644,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	// objective: Search both fields at once and return quickly
 		@SuppressWarnings("unchecked")
-		public List<MetadataWithContext> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
+		public List<MetadataWithContext2> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
 			long startTime = System.currentTimeMillis();
 
 			// Normalize whitespace and support added term modifiers
@@ -1674,7 +1675,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			List<Object> results = jpaQuery.getResultList();
 			
 			// init final result list
-			List<MetadataWithContext> combinedResultsWithHighlights = new ArrayList<MetadataWithContext>();
+			List<MetadataWithContext2> combinedResultsWithHighlights = new ArrayList<MetadataWithContext2>();
 			
 			// Condense results:
 			// If we have companion results (same EISDoc.ID), combine
@@ -1701,9 +1702,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 						long key = ((DocumentText) result).getEisdoc().getId();
 
 						// Get filename
-						MetadataWithContext combinedResult = new MetadataWithContext(
+						MetadataWithContext2 combinedResult = new MetadataWithContext2(
 								((DocumentText) result).getEisdoc(),
-								"",
+								new ArrayList<String>(),
 								((DocumentText) result).getFilename());
 
 						// If we have companion results:
@@ -1718,17 +1719,17 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 								// We already have a companion meta result in the table
 								
 								// If existing result has no filename:
-								if(combinedResultsWithHighlights.get(metaIds.get(key)).getFilename().isBlank()) {
+								if(combinedResultsWithHighlights.get(metaIds.get(key)).getFilenames().isBlank()) {
 									// "update" that instead of adding this result
 									combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
 								} else {
 									if(Globals.TESTING) {
-										System.out.println("Adding filename to existing record: " + combinedResult.getFilename());
+										System.out.println("Adding filename to existing record: " + combinedResult.getFilenames());
 									}
 									// Add this combinedResult's filename to filename list
-									String currentFilename = combinedResultsWithHighlights.get(metaIds.get(key)).getFilename();
-									combinedResultsWithHighlights.get(metaIds.get(key)).setFilename
-									(currentFilename.concat(">" + combinedResult.getFilename()));
+									String currentFilename = combinedResultsWithHighlights.get(metaIds.get(key)).getFilenames();
+									combinedResultsWithHighlights.get(metaIds.get(key)).setFilenames
+									(currentFilename.concat(">" + combinedResult.getFilenames()));
 									// > is not a valid directory/filename char, so should be good
 								}
 							}
@@ -1743,7 +1744,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				} else if(result.getClass().equals(EISDoc.class)) {
 					// Add metadata result unless it's flagged for skipping
 					if(!skipThese.containsKey(((EISDoc) result).getId())) {
-						combinedResultsWithHighlights.add(new MetadataWithContext(((EISDoc) result),"",""));
+						combinedResultsWithHighlights.add(new MetadataWithContext2(((EISDoc) result),new ArrayList<String>(),""));
 					}
 				}
 				position++;
