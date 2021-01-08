@@ -1728,7 +1728,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 									// Add this combinedResult's filename to filename list
 									String currentFilename = combinedResultsWithHighlights.get(metaIds.get(key)).getFilename();
 									combinedResultsWithHighlights.get(metaIds.get(key)).setFilename
-									(currentFilename.concat("," + combinedResult.getFilename()));
+									(currentFilename.concat(">" + combinedResult.getFilename()));
+									// > is not a valid directory/filename char, so should be good
 								}
 							}
 						} else {
