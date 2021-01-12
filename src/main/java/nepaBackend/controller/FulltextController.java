@@ -40,6 +40,7 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISDocDAO;
 import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.UnhighlightedDTO;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -247,7 +248,25 @@ public class FulltextController {
 			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	
+
+	// Returns highlights for given list of IDs and filenames
+	@CrossOrigin
+	@PostMapping(path = "/get_highlights")
+	public ResponseEntity<List<List<String>>> getHighlights(@RequestBody UnhighlightedDTO unhighlighted)
+	{
+		System.out.println("Anything?");
+		try {
+			// Could turn IDs into list of eisdocs, hand those off instead?
+			List<List<String>> highlights = new ArrayList<List<String>>(
+					(textRepository.getHighlights(unhighlighted)));
+			return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<List<String>>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<List<String>>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 
 
 

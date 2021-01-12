@@ -1,5 +1,6 @@
 package nepaBackend;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -9,6 +10,8 @@ import nepaBackend.controller.MetadataWithContext2;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.Unhighlighted;
+import nepaBackend.pojo.UnhighlightedDTO;
 
 public interface CustomizedTextRepository {
 	List<EISDoc> search(String term, int limit, int offset) throws ParseException;
@@ -22,4 +25,5 @@ public interface CustomizedTextRepository {
 	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType);
+	ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException;
 }

@@ -1,20 +1,15 @@
 package nepaBackend;
 
 import java.math.BigInteger;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
-import nepaBackend.controller.MetadataWithContext;
-import nepaBackend.enums.SearchType;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
-import nepaBackend.pojo.SearchInputs;
 
 public interface TextRepository extends JpaRepository<DocumentText, Long>, CustomizedTextRepository {
 
