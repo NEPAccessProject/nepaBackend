@@ -1663,17 +1663,40 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //					fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class); // filters only DocumentText results
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery);
-		
+
+//		jpaQuery.setProjection(ProjectionConstants.ID, ProjectionConstants.OBJECT_CLASS);
+//		jpaQuery.setProjection(ProjectionConstants.ID, ProjectionConstants.SCORE, "filename");
 		jpaQuery.setMaxResults(1000000);
 		jpaQuery.setFirstResult(0);
+		
+		// Lazy fetching isn't so easy here with combined results, so the goal is to get the order
+		// first and then get all of the results maintaining that order but without getting full
+		// texts which is slow and also overflows the heap
+		
+		// Could potentially try to get ProjectionConstants.ID and ProjectionConstants.SCORE
+		// for two separate searches, join and sort by score,
+		// then get the metadata and filenames.  This would maintain the order.
+		
 
 		if(Globals.TESTING) {System.out.println("Query using limit " + limit);}
 		
 		// Returns a list containing both EISDoc and DocumentText objects.
 		List<Object> results = jpaQuery.getResultList();
 		
+//		Class<?> clazz = results.get(0).getClass();
+//		System.out.println(clazz);
+//		System.out.println(clazz.getClass());
+//		for(Field field : clazz.getDeclaredFields()) {
+//			System.out.println("Anything???");
+//			System.out.println(field.getName());
+//		}
+//		if(Globals.TESTING) {
+//			System.out.println(results.get(0).getId().toString());
+//			System.out.println(results.get(0).getFilename());
+//		}
+		
 		// init final result list
-		List<MetadataWithContext2> combinedResultsWithHighlights = new ArrayList<MetadataWithContext2>();
+		List<MetadataWithContext2> combinedResults = new ArrayList<MetadataWithContext2>();
 		
 		// Condense results:
 		// If we have companion results (same EISDoc.ID), combine
@@ -1695,7 +1718,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Handle DocumentText results
 		position = 0;
 		for (Object result : results) {
-
 			if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
 				
 				try {
@@ -1714,22 +1736,22 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					} 
 					// 2. If this is the first non-title (text content) result, add new.
 					if(!added.containsKey(key)) {
-						combinedResultsWithHighlights.add( combinedResult );
+						combinedResults.add( combinedResult );
 						added.put( key, position );
 					} else {
 						// 3. If we already have this result with no filename, add new filename.
-						if(combinedResultsWithHighlights.get(added.get(key)).getFilenames().isBlank()) {
+						if(combinedResults.get(added.get(key)).getFilenames().isBlank()) {
 							// "update" that instead of adding this result
-							combinedResultsWithHighlights.set(added.get(key), combinedResult);
+							combinedResults.set(added.get(key), combinedResult);
 						} else {
 							// 4. If we have this WITH filename, concat.
 							if(Globals.TESTING) {
 								System.out.println("Adding filename to existing record: " + combinedResult.getFilenames());
 							}
 							// Add this combinedResult's filename to filename list
-							String currentFilename = combinedResultsWithHighlights.get(added.get(key)).getFilenames();
+							String currentFilename = combinedResults.get(added.get(key)).getFilenames();
 							// > is not a valid directory/filename char, so should work as delimiter
-							combinedResultsWithHighlights.get(added.get(key))
+							combinedResults.get(added.get(key))
 								.setFilenames(
 									currentFilename.concat(">" + combinedResult.getFilenames())
 								);
@@ -1742,7 +1764,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			} else if(result.getClass().equals(EISDoc.class)) {
 				// Add metadata result unless it's flagged for skipping
 				if(!skipThese.containsKey(((EISDoc) result).getId())) {
-					combinedResultsWithHighlights.add(new MetadataWithContext2(((EISDoc) result),new ArrayList<String>(),""));
+					combinedResults.add(new MetadataWithContext2(((EISDoc) result),new ArrayList<String>(),""));
 				}
 			}
 			position++;
@@ -1756,7 +1778,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			System.out.println("Time elapsed: " + elapsedTime);
 		}
 
-		return combinedResultsWithHighlights;
+		return combinedResults;
 	}
 	
 	public ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException {
