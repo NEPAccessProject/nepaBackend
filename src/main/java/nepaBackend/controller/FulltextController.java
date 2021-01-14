@@ -254,7 +254,6 @@ public class FulltextController {
 	@PostMapping(path = "/get_highlights")
 	public ResponseEntity<List<List<String>>> getHighlights(@RequestBody UnhighlightedDTO unhighlighted)
 	{
-		System.out.println("Anything?");
 		try {
 			// Could turn IDs into list of eisdocs, hand those off instead?
 			List<List<String>> highlights = new ArrayList<List<String>>(

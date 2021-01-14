@@ -6,11 +6,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
@@ -34,8 +30,6 @@ import org.hibernate.search.jpa.Search;
 //import org.hibernate.search.query.dsl.QueryBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.RequestBody;
-
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.controller.MetadataWithContext2;
 import nepaBackend.enums.SearchType;
@@ -1647,209 +1641,206 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	// objective: Search both fields at once and return quickly
-		@SuppressWarnings("unchecked")
-		public List<MetadataWithContext2> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
-			long startTime = System.currentTimeMillis();
+	@SuppressWarnings("unchecked")
+	public List<MetadataWithContext2> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
+		long startTime = System.currentTimeMillis();
 
-			// Normalize whitespace and support added term modifiers
-		    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
 
-			FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
-			// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
-			// but the results will contain both types mixed together
-			MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
-						new String[] {"title", "plaintext"},
-						new StandardAnalyzer());
-			mfqp.setDefaultOperator(Operator.AND);
+		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+		// but the results will contain both types mixed together
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
 
-			Query luceneQuery = mfqp.parse(formattedTerms);
-			
+		Query luceneQuery = mfqp.parse(formattedTerms);
+		
 //			org.hibernate.search.jpa.FullTextQuery jpaQuery =
 //					fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class); // filters only DocumentText results
-			org.hibernate.search.jpa.FullTextQuery jpaQuery =
-					fullTextEntityManager.createFullTextQuery(luceneQuery);
-			
-			jpaQuery.setMaxResults(1000000);
-			jpaQuery.setFirstResult(0);
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+				fullTextEntityManager.createFullTextQuery(luceneQuery);
+		
+		jpaQuery.setMaxResults(1000000);
+		jpaQuery.setFirstResult(0);
 
-			if(Globals.TESTING) {System.out.println("Query using limit " + limit);}
-			
-			// Returns a list containing both EISDoc and DocumentText objects.
-			List<Object> results = jpaQuery.getResultList();
-			
-			// init final result list
-			List<MetadataWithContext2> combinedResultsWithHighlights = new ArrayList<MetadataWithContext2>();
-			
-			// Condense results:
-			// If we have companion results (same EISDoc.ID), combine
+		if(Globals.TESTING) {System.out.println("Query using limit " + limit);}
+		
+		// Returns a list containing both EISDoc and DocumentText objects.
+		List<Object> results = jpaQuery.getResultList();
+		
+		// init final result list
+		List<MetadataWithContext2> combinedResultsWithHighlights = new ArrayList<MetadataWithContext2>();
+		
+		// Condense results:
+		// If we have companion results (same EISDoc.ID), combine
 
-			// Quickly build a HashMap of EISDoc (AKA metadata) IDs; these are unique
-			// (we'll use these to condense the results on pass 2)
-			HashMap<Long, Integer> metaIds = new HashMap<Long, Integer>(results.size());
-			int position = 0;
-			for (Object result : results) {
-				if(result.getClass().equals(EISDoc.class)) {
-					metaIds.put(((EISDoc) result).getId(), position);
-				}
-				position++;
+		// Quickly build a HashMap of EISDoc (AKA metadata) IDs; these are unique
+		// (we'll use these to condense the results on pass 2)
+		HashMap<Long, Integer> metaIds = new HashMap<Long, Integer>(results.size());
+		int position = 0;
+		for (Object result : results) {
+			if(result.getClass().equals(EISDoc.class)) {
+				metaIds.put(((EISDoc) result).getId(), position);
 			}
-			
-			HashMap<Long, Boolean> skipThese = new HashMap<Long, Boolean>();
-			
-			position = 0;
-			for (Object result : results) {
-
-				if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
-					
-					try {
-						long key = ((DocumentText) result).getEisdoc().getId();
-
-						// Get filename
-						MetadataWithContext2 combinedResult = new MetadataWithContext2(
-								((DocumentText) result).getEisdoc(),
-								new ArrayList<String>(),
-								((DocumentText) result).getFilename());
-
-						// If we have companion results:
-						if(metaIds.containsKey(key)) {
-							// If this Text result comes before the Meta result:
-							if(metaIds.get(key) > position) {
-								// Flag to skip over the Meta result later
-								skipThese.put(key, true);
-								// Add this combinedResult to List
-								combinedResultsWithHighlights.add( combinedResult );
-							} else {
-								// We already have a companion meta result in the table
-								
-								// If existing result has no filename:
-								if(combinedResultsWithHighlights.get(metaIds.get(key)).getFilenames().isBlank()) {
-									// "update" that instead of adding this result
-									combinedResultsWithHighlights.set(metaIds.get(key), combinedResult);
-								} else {
-									if(Globals.TESTING) {
-										System.out.println("Adding filename to existing record: " + combinedResult.getFilenames());
-									}
-									// Add this combinedResult's filename to filename list
-									String currentFilename = combinedResultsWithHighlights.get(metaIds.get(key)).getFilenames();
-									combinedResultsWithHighlights.get(metaIds.get(key)).setFilenames
-									(currentFilename.concat(">" + combinedResult.getFilenames()));
-									// > is not a valid directory/filename char, so should be good
-								}
-							}
-						} else {
-							// Add this companionless combinedResult to List
-							combinedResultsWithHighlights.add( combinedResult );
-						}
-					} catch (Exception e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				} else if(result.getClass().equals(EISDoc.class)) {
-					// Add metadata result unless it's flagged for skipping
-					if(!skipThese.containsKey(((EISDoc) result).getId())) {
-						combinedResultsWithHighlights.add(new MetadataWithContext2(((EISDoc) result),new ArrayList<String>(),""));
-					}
-				}
-				position++;
-			}
-			
-			if(Globals.TESTING) {
-				System.out.println("Results #: " + results.size());
-				
-				long stopTime = System.currentTimeMillis();
-				long elapsedTime = stopTime - startTime;
-				System.out.println("Time elapsed: " + elapsedTime);
-			}
-
-			return combinedResultsWithHighlights;
+			position++;
 		}
 		
-		// TODO: Need to handle comma-delimited filename lists.
-		public ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException {
-			long startTime = System.currentTimeMillis();
-			// Normalize whitespace and support added term modifiers
-		    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
-			
-			// build highlighter
-			QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
-			qp.setDefaultOperator(Operator.AND);
-			Query luceneTextOnlyQuery = qp.parse(formattedTerms);
-			QueryScorer scorer = new QueryScorer(luceneTextOnlyQuery);
-			Highlighter highlighter = new Highlighter(globalFormatter, scorer);
-			Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
-			highlighter.setTextFragmenter(fragmenter);
-			highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
-			
-			StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
-			
-			ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
-			
-			for(Unhighlighted input : unhighlighted.getUnhighlighted()) {
-				ArrayList<String> result = new ArrayList<String>();
+		HashMap<Long, Boolean> skipThese = new HashMap<Long, Boolean>();
+		HashMap<Long, Integer> added = new HashMap<Long, Integer>();
+		
+		// Handle DocumentText results
+		position = 0;
+		for (Object result : results) {
 
-				// Run query to get each text via eisdoc ID and filename?
-				// Need to split filenames by comma
-				System.out.println(input.getId().toString());
-				System.out.println(input.getFilename());
-				// TODO: Build a list of strings for all filenames
-				String[] filenames = input.getFilename().split(",");
-				List<String> texts = new ArrayList<String>();
-				for(String filename : filenames) {
-					ArrayList<String> inputList = new ArrayList<String>();
-					inputList.add(input.getId().toString());
-					inputList.add(filename);
-					List<String> records = jdbcTemplate.query
-					(
-						"SELECT plaintext FROM test.document_text WHERE document_id = (?) AND filename=(?)", 
-						inputList.toArray(new Object[] {}),
-						(rs, rowNum) -> new String(
-							rs.getString("plaintext")
-						)
-					);
-					String text = records.get(0);
-					texts.add(text);
+			if(result.getClass().equals(DocumentText.class) && justRecordIds.contains(((DocumentText) result).getEisdoc().getId())) {
+				
+				try {
+					long key = ((DocumentText) result).getEisdoc().getId();
+
+					// Get filename
+					MetadataWithContext2 combinedResult = new MetadataWithContext2(
+							((DocumentText) result).getEisdoc(),
+							new ArrayList<String>(),
+							((DocumentText) result).getFilename());
+
+					// 1. If we have already have a title result set skip flag
+					if(metaIds.containsKey(key) && (metaIds.get(key) > position)) { // If this Text result comes before the Meta result
+							// Flag to skip over the Meta result later
+							skipThese.put(key, true);
+					} 
+					// 2. If this is the first non-title (text content) result, add new.
+					if(!added.containsKey(key)) {
+						combinedResultsWithHighlights.add( combinedResult );
+						added.put( key, position );
+					} else {
+						// 3. If we already have this result with no filename, add new filename.
+						if(combinedResultsWithHighlights.get(added.get(key)).getFilenames().isBlank()) {
+							// "update" that instead of adding this result
+							combinedResultsWithHighlights.set(added.get(key), combinedResult);
+						} else {
+							// 4. If we have this WITH filename, concat.
+							if(Globals.TESTING) {
+								System.out.println("Adding filename to existing record: " + combinedResult.getFilenames());
+							}
+							// Add this combinedResult's filename to filename list
+							String currentFilename = combinedResultsWithHighlights.get(added.get(key)).getFilenames();
+							// > is not a valid directory/filename char, so should work as delimiter
+							combinedResultsWithHighlights.get(added.get(key))
+								.setFilenames(
+									currentFilename.concat(">" + combinedResult.getFilenames())
+								);
+						}
+					}
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-				
-				
+			} else if(result.getClass().equals(EISDoc.class)) {
+				// Add metadata result unless it's flagged for skipping
+				if(!skipThese.containsKey(((EISDoc) result).getId())) {
+					combinedResultsWithHighlights.add(new MetadataWithContext2(((EISDoc) result),new ArrayList<String>(),""));
+				}
+			}
+			position++;
+		}
+		
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+
+		return combinedResultsWithHighlights;
+	}
+	
+	public ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException {
+		long startTime = System.currentTimeMillis();
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+		
+		// build highlighter
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
+		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
+		QueryScorer scorer = new QueryScorer(luceneTextOnlyQuery);
+		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
+		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
+		highlighter.setTextFragmenter(fragmenter);
+		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
+		
+		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
+		
+		ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
+		
+		for(Unhighlighted input : unhighlighted.getUnhighlighted()) {
+			ArrayList<String> result = new ArrayList<String>();
+
+			// Run query to get each text via eisdoc ID and filename?
+			// Need to split filenames by >
+			String[] filenames = input.getFilename().split(">");
+			List<String> texts = new ArrayList<String>();
+			for(String filename : filenames) {
+				ArrayList<String> inputList = new ArrayList<String>();
+				inputList.add(input.getId().toString());
+				inputList.add(filename);
+				List<String> records = jdbcTemplate.query
+				(
+					"SELECT plaintext FROM test.document_text WHERE document_id = (?) AND filename=(?)", 
+					inputList.toArray(new Object[] {}),
+					(rs, rowNum) -> new String(
+						rs.getString("plaintext")
+					)
+				);
+				String text = records.get(0);
+				texts.add(text);
+				System.out.println("ID: " + input.getId().toString() + "; Filename: " + filename);
+			}
+			
+			
 //				Optional<EISDoc> doc = DocRepository.findById(input.getId());
 //				String text = TextRepository.findByEisdocAndFilenameIn(doc.get(), filename).getText();
-				for(String text : texts) {
-					TokenStream tokenStream = stndrdAnalyzer.tokenStream("plaintext", new StringReader(text));
+			for(String text : texts) {
+				TokenStream tokenStream = stndrdAnalyzer.tokenStream("plaintext", new StringReader(text));
 
+				try {
+					// Add ellipses to denote that these are text fragments within the string
+					String highlight = highlighter.getBestFragments(tokenStream, text, 1, " ...</span><span class=\"fragment\">... ");
+					
+					if(highlight.length() > 0) {
+						result.add("<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(highlight).strip().concat(" ...</span>"));
+					}
+				} catch (InvalidTokenOffsetsException | IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} finally {
+					results.add(result);
 					try {
-						// Add ellipses to denote that these are text fragments within the string
-						String highlight = highlighter.getBestFragments(tokenStream, text, 1, " ...</span><span class=\"fragment\">... ");
-						
-						if(highlight.length() > 0) {
-							result.add("<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(highlight).strip().concat(" ...</span>"));
-						}
-					} catch (InvalidTokenOffsetsException | IOException e) {
+						tokenStream.close();
+					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
-					} finally {
-						results.add(result);
-						try {
-							tokenStream.close();
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
 					}
 				}
 			}
-			
-			stndrdAnalyzer.close();
-
-			if(Globals.TESTING) {
-				System.out.println("Results #: " + results.size());
-				
-				long stopTime = System.currentTimeMillis();
-				long elapsedTime = stopTime - startTime;
-				System.out.println("Time elapsed: " + elapsedTime);
-			}
-			
-			return results;
 		}
+		
+		stndrdAnalyzer.close();
+
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+		
+		return results;
+	}
 
 }
