@@ -1797,9 +1797,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 						rs.getString("plaintext")
 					)
 				);
-				String text = records.get(0);
-				texts.add(text);
-				System.out.println("ID: " + input.getId().toString() + "; Filename: " + filename);
+				if(records.size()>0) {
+					String text = records.get(0);
+					texts.add(text);
+
+					if(Globals.TESTING){
+						System.out.println("ID: " + input.getId().toString() + "; Filename: " + filename);
+					}
+				}
 			}
 			
 			
