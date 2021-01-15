@@ -2,17 +2,12 @@ package nepaBackend;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
@@ -1696,7 +1691,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		System.out.println(clazz);
 //		System.out.println(clazz.getClass());
 //		for(Field field : clazz.getDeclaredFields()) {
-//			System.out.println("Anything???");
 //			System.out.println(field.getName());
 //		}
 //		if(Globals.TESTING) {
@@ -1958,6 +1952,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		// Returns a list containing both EISDoc and DocumentText objects.
 		List<Object[]> results = jpaQuery.getResultList();
+		
+		System.out.println("Initial results size: " + results.size());
+		
 		List<ScoredResult> converted = new ArrayList<ScoredResult>();
 		Set<Long> metaIds = new HashSet<Long>();
 		Set<Long> textIds = new HashSet<Long>();
@@ -1997,6 +1994,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
 			.setParameter("ids", metaIds).getResultList();
 
+		System.out.println("Docs results size: " + docs.size());
 		
 		HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
 		for(EISDoc doc : docs) {
@@ -2007,6 +2005,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		List<Object[]> textIdMetaAndFilenames = em.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
 				.setParameter("ids", textIds).getResultList();
+		
+
+		System.out.println("Texts results size: " + textIdMetaAndFilenames.size());
+		
+		
 		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
 		for(Object[] obj : textIdMetaAndFilenames) {
 			hashTexts.put(
@@ -2089,9 +2092,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
 			try {
 				long startTime = System.currentTimeMillis();
-//				if(Globals.TESTING) {
+				if(Globals.TESTING) {
 					System.out.println("Offset: " + searchInputs.offset);
-//				}
+				}
 				List<EISDoc> records = getFilteredRecords(searchInputs);
 				
 				// Run Lucene query on title if we have one, join with JDBC results, return final results
