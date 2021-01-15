@@ -9,6 +9,7 @@ import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.controller.MetadataWithContext2;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;
+import nepaBackend.pojo.ScoredResult;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.Unhighlighted;
 import nepaBackend.pojo.UnhighlightedDTO;
@@ -26,4 +27,6 @@ public interface CustomizedTextRepository {
 	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType);
 	ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException;
+	List<Object[]> getRaw(String title) throws ParseException;
+	MetadataWithContext2[] getScored(String title) throws ParseException;
 }

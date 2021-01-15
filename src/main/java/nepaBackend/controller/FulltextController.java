@@ -39,6 +39,7 @@ import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISDocDAO;
 import nepaBackend.model.SearchLog;
+import nepaBackend.pojo.ScoredResult;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.UnhighlightedDTO;
 import nepaBackend.security.SecurityConstants;
@@ -267,6 +268,40 @@ public class FulltextController {
 		}
 	}
 
+	@CrossOrigin
+	@PostMapping(path = "/get_raw")
+	public ResponseEntity<List<Object[]>> getRaw(@RequestBody SearchInputs searchInputs)
+	{
+		try {
+			// Could turn IDs into list of eisdocs, hand those off instead?
+			List<Object[]> results = new ArrayList<Object[]>(
+					(textRepository.getRaw(searchInputs.title)));
+			return new ResponseEntity<List<Object[]>>(results, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<Object[]>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<Object[]>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+
+	@CrossOrigin
+	@PostMapping(path = "/get_scored")
+	public ResponseEntity<List<MetadataWithContext2>> getScored(@RequestBody SearchInputs searchInputs)
+	{
+		try {
+			// Could turn IDs into list of eisdocs, hand those off instead?
+			List<MetadataWithContext2> results = (
+					Arrays.asList(textRepository.getScored(searchInputs.title)));
+			return new ResponseEntity<List<MetadataWithContext2>>(results, HttpStatus.OK);
+		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 
 
 	// Testing getting data offset# results at a time

@@ -2,11 +2,16 @@ package nepaBackend;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
@@ -35,6 +40,8 @@ import nepaBackend.controller.MetadataWithContext2;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.pojo.ReducedText;
+import nepaBackend.pojo.ScoredResult;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.Unhighlighted;
 import nepaBackend.pojo.UnhighlightedDTO;
@@ -1664,6 +1671,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 				fullTextEntityManager.createFullTextQuery(luceneQuery);
 
+//		jpaQuery.setProjection(ProjectionConstants.ID);
 //		jpaQuery.setProjection(ProjectionConstants.ID, ProjectionConstants.OBJECT_CLASS);
 //		jpaQuery.setProjection(ProjectionConstants.ID, ProjectionConstants.SCORE, "filename");
 		jpaQuery.setMaxResults(1000000);
@@ -1870,4 +1878,185 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return results;
 	}
 
+	// objective: Search both fields at once and return quickly in combined scored order
+	@Override
+		public List<Object[]> getRaw(String terms) throws ParseException {
+			long startTime = System.currentTimeMillis();
+	
+			// Normalize whitespace and support added term modifiers
+		    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+	
+			FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+	
+			// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+			// but the results will contain both types mixed together
+			MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+						new String[] {"title", "plaintext"},
+						new StandardAnalyzer());
+			mfqp.setDefaultOperator(Operator.AND);
+	
+			Query luceneQuery = mfqp.parse(formattedTerms);
+			
+			org.hibernate.search.jpa.FullTextQuery jpaQuery =
+						fullTextEntityManager.createFullTextQuery(luceneQuery);
+	
+			// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
+			jpaQuery.setProjection(
+						ProjectionConstants.ID
+						,ProjectionConstants.OBJECT_CLASS
+						,ProjectionConstants.SCORE
+						);
+			jpaQuery.setMaxResults(1000000);
+			jpaQuery.setFirstResult(0);
+			
+			List<Object[]> results = jpaQuery.getResultList();
+			
+			return results;
+		}
+
+	// objective: Search both fields at once and return quickly in combined scored order
+	@Override
+	public MetadataWithContext2[] getScored(String terms) throws ParseException {
+		long startTime = System.currentTimeMillis();
+
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+		// but the results will contain both types mixed together
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+
+		Query luceneQuery = mfqp.parse(formattedTerms);
+		
+//			org.hibernate.search.jpa.FullTextQuery jpaQuery =
+//					fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class); // filters only DocumentText results
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+				fullTextEntityManager.createFullTextQuery(luceneQuery);
+
+		// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
+		jpaQuery.setProjection(
+				ProjectionConstants.ID
+				,ProjectionConstants.OBJECT_CLASS
+				,ProjectionConstants.SCORE
+				);
+		jpaQuery.setMaxResults(1000000);
+		jpaQuery.setFirstResult(0);
+		
+		// Lazy fetching isn't so easy here with combined results, so the goal is to get the order
+		// first and then get all of the results maintaining that order but without getting full
+		// texts which is slow and also overflows the heap
+		
+		// Could potentially try to get ProjectionConstants.ID and ProjectionConstants.SCORE
+		// for two separate searches, join and sort by score,
+		// then get the metadata and filenames.  This would maintain the order.
+		
+		// Returns a list containing both EISDoc and DocumentText objects.
+		List<Object[]> results = jpaQuery.getResultList();
+		List<ScoredResult> converted = new ArrayList<ScoredResult>();
+		Set<Long> metaIds = new HashSet<Long>();
+		Set<Long> textIds = new HashSet<Long>();
+		
+		int i = 0;
+		
+		for(Object[] result : results) {
+			ScoredResult convert = new ScoredResult();
+			convert.id = (Long) result[0];
+			convert.className = (Class<?>) result[1];
+			convert.score = (Float) result[2];
+			convert.idx = i;
+//			System.out.println(convert.className);
+			if(convert.className.equals(EISDoc.class)) {
+				metaIds.add(convert.id);
+			} else {
+				textIds.add(convert.id);
+			}
+//			System.out.println("Score " + (convert.score).toString());
+			converted.add(convert);
+			i++;
+		}
+		
+		// [8383,"nepaBackend.model.EISDoc"]
+		// We now have a list of ID/class.  Using that, we can get all of the
+		// EISDocs, DocumentText-linked EISDocs and filenames by ID, and keep the order
+		// from the original search.  ProjectionConstants.SCORE would also give score
+		// to sort by.
+		
+		// 1: Get EISDocs by IDs.
+
+
+//		Set<Long> eisIds = docs.stream().map(eis -> eis.getId()).collect(Collectors.toSet());
+//		List<MetadataWithContext2> intersect = converted.stream()
+//		    .filter(obj -> eisIds.contains(obj.id))
+//		    .collect(Collectors.toList());
+		
+		// Wonder if there's a way to get a hashmap with the ID as the key from the ORM?
+		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
+			.setParameter("ids", metaIds).getResultList();
+
+		
+		HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
+		for(EISDoc doc : docs) {
+			hashDocs.put(doc.getId(), doc);
+		}
+		
+		
+
+		List<Object[]> textIdMetaAndFilenames = em.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
+				.setParameter("ids", textIds).getResultList();
+		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
+		for(Object[] obj : textIdMetaAndFilenames) {
+			hashTexts.put(
+					(Long) obj[0], 
+					new ReducedText(
+						(Long) obj[0],
+						(EISDoc) obj[1],
+						(String) obj[2]
+					));
+		}
+		
+		MetadataWithContext2[] combinedResults = new MetadataWithContext2[converted.size()];
+		
+		for(ScoredResult ordered : converted) {
+			if(ordered.className.equals(EISDoc.class)) {
+				// Add EISDoc into logical position
+				combinedResults[ordered.idx] = new MetadataWithContext2(
+						hashDocs.get(ordered.id),
+						new ArrayList<String>(),
+						"");
+			} else {
+				// Add DocumentText into logical position
+				combinedResults[ordered.idx] = new MetadataWithContext2(
+						hashTexts.get(ordered.id).eisdoc,
+						new ArrayList<String>(),
+						hashTexts.get(ordered.id).filename);
+			}
+		}
+
+		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
+		
+		
+		// 3: Join, sort according to original order.  Add filenames to existing, else add new.
+		
+		
+		
+		// 4: Return those results so frontend has metadata, filenames, and proper scored order.
+
+		// TODO: Ensure order in is the same as order out. Scored by relevance
+		
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+		
+		return combinedResults;
+//			// Condense results
+	}
 }
