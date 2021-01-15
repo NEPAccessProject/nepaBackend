@@ -1917,6 +1917,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Normalize whitespace and support added term modifiers
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
 
+	    System.out.println("Search terms: " + formattedTerms);
+	    
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
 		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
