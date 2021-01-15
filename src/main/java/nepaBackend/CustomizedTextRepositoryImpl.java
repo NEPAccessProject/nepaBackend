@@ -2068,13 +2068,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// TODO: Ensure order in is the same as order out. Scored by relevance
 		// TODO: Consolidate
 		
-		if(Globals.TESTING) {
+//		if(Globals.TESTING) {
 			System.out.println("Results #: " + results.size());
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
 			System.out.println("Time elapsed: " + elapsedTime);
-		}
+//		}
 		
 		return combinedResults;
 //			// Condense results
@@ -2089,38 +2089,40 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
 			try {
 				long startTime = System.currentTimeMillis();
-				if(Globals.TESTING) {System.out.println("Offset: " + searchInputs.offset);}
+//				if(Globals.TESTING) {
+					System.out.println("Offset: " + searchInputs.offset);
+//				}
 				List<EISDoc> records = getFilteredRecords(searchInputs);
 				
 				// Run Lucene query on title if we have one, join with JDBC results, return final results
 				if(!searchInputs.title.isBlank()) {
 					String formattedTitle = mutateTermModifiers(searchInputs.title);
 	
-//					HashSet<Long> justRecordIds = new HashSet<Long>();
-//					for(EISDoc record: records) {
-//						justRecordIds.add(record.getId());
-//					}
+					HashSet<Long> justRecordIds = new HashSet<Long>();
+					for(EISDoc record: records) {
+						justRecordIds.add(record.getId());
+					}
 	
 					List<MetadataWithContext2> results = getScored(formattedTitle);
 					
 					// Build new result list in the same order but excluding records that don't appear in the first result set (records).
-//					List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
-//					for(int i = 0; i < results.size(); i++) {
-//						if(justRecordIds.contains(results.get(i).getDoc().getId())) {
-//							finalResults.add(results.get(i));
-//						}
-//					}
-					
-					if(Globals.TESTING) {
-//						System.out.println("Records 1 " + records.size());
-						System.out.println("Records 2 " + results.size());
+					List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+					for(int i = 0; i < results.size(); i++) {
+						if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+							finalResults.add(results.get(i));
+						}
 					}
+					
+//					if(Globals.TESTING) {
+						System.out.println("Records 1 " + records.size());
+						System.out.println("Records 2 " + results.size());
+//					}
 	
-					if(Globals.TESTING) {
+//					if(Globals.TESTING) {
 						long stopTime = System.currentTimeMillis();
 						long elapsedTime = stopTime - startTime;
 						System.out.println("Lucene search time: " + elapsedTime);
-					}
+//					}
 					return results;
 				} else { // no title: simply return JDBC results...  however they have to be translated
 					// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
