@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1208,12 +1209,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	/** Combination title/fulltext query including the metadata parameters like agency/state/...
-	 * and this is currently the default search; returns metadata plus filename 
+	 * returns metadata plus filename 
 	 * using Lucene's internal default scoring algorithm
 	 * @throws ParseException
 	 * */
-	@Override
-	public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
+//	@Override
+	public List<MetadataWithContext2> CombinedSearchNoContextOld(SearchInputs searchInputs, SearchType searchType) {
 		try {
 			long startTime = System.currentTimeMillis();
 			System.out.println("Offset: " + searchInputs.offset);
@@ -1916,7 +1917,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	// objective: Search both fields at once and return quickly in combined scored order
 	@Override
-	public MetadataWithContext2[] getScored(String terms) throws ParseException {
+	public List<MetadataWithContext2> getScored(String terms) throws ParseException {
 		long startTime = System.currentTimeMillis();
 
 		// Normalize whitespace and support added term modifiers
@@ -1969,13 +1970,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			convert.className = (Class<?>) result[1];
 			convert.score = (Float) result[2];
 			convert.idx = i;
-//			System.out.println(convert.className);
 			if(convert.className.equals(EISDoc.class)) {
 				metaIds.add(convert.id);
 			} else {
 				textIds.add(convert.id);
 			}
-//			System.out.println("Score " + (convert.score).toString());
 			converted.add(convert);
 			i++;
 		}
@@ -2019,22 +2018,42 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					));
 		}
 		
-		MetadataWithContext2[] combinedResults = new MetadataWithContext2[converted.size()];
+		List <MetadataWithContext2> combinedResults = new ArrayList<MetadataWithContext2>();
+		HashMap<Long, Integer> added = new HashMap<Long, Integer>();
 		
+		int position = 0;
 		for(ScoredResult ordered : converted) {
 			if(ordered.className.equals(EISDoc.class)) {
-				// Add EISDoc into logical position
-				combinedResults[ordered.idx] = new MetadataWithContext2(
-						hashDocs.get(ordered.id),
-						new ArrayList<String>(),
-						"");
+				if(!added.containsKey(ordered.id)) {
+					// Add EISDoc into logical position
+					combinedResults.add(new MetadataWithContext2(
+							hashDocs.get(ordered.id),
+							new ArrayList<String>(),
+							""));
+					added.put(ordered.id, position);
+				}
+				// If we already have one, do nothing - no filenames to add.
 			} else {
-				// Add DocumentText into logical position
-				combinedResults[ordered.idx] = new MetadataWithContext2(
-						hashTexts.get(ordered.id).eisdoc,
-						new ArrayList<String>(),
-						hashTexts.get(ordered.id).filename);
+				EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
+				if(!added.containsKey(eisFromDoc.getId())) {
+					// Add DocumentText into logical position
+					combinedResults.add(new MetadataWithContext2(
+							eisFromDoc,
+							new ArrayList<String>(),
+							hashTexts.get(ordered.id).filename));
+					added.put(eisFromDoc.getId(), position);
+				} else {
+					// Add this combinedResult's filename to filename list
+					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
+							.getFilenames();
+					// > is not a valid directory/filename char, so should work as delimiter
+					combinedResults.get(added.get(eisFromDoc.getId()))
+							.setFilenames(
+								currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
+							);
+				}
 			}
+			position++;
 		}
 
 		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
@@ -2047,6 +2066,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// 4: Return those results so frontend has metadata, filenames, and proper scored order.
 
 		// TODO: Ensure order in is the same as order out. Scored by relevance
+		// TODO: Consolidate
 		
 		if(Globals.TESTING) {
 			System.out.println("Results #: " + results.size());
@@ -2059,4 +2079,63 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return combinedResults;
 //			// Condense results
 	}
+
+	/** Combination title/fulltext query including the metadata parameters like agency/state/...
+		 * and this is currently the default search; returns metadata plus filename 
+		 * using Lucene's internal default scoring algorithm
+		 * @throws ParseException
+		 * */
+		@Override
+		public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
+			try {
+				long startTime = System.currentTimeMillis();
+				if(Globals.TESTING) {System.out.println("Offset: " + searchInputs.offset);}
+				List<EISDoc> records = getFilteredRecords(searchInputs);
+				
+				// Run Lucene query on title if we have one, join with JDBC results, return final results
+				if(!searchInputs.title.isBlank()) {
+					String formattedTitle = mutateTermModifiers(searchInputs.title);
+	
+					HashSet<Long> justRecordIds = new HashSet<Long>();
+					for(EISDoc record: records) {
+						justRecordIds.add(record.getId());
+					}
+	
+					List<MetadataWithContext2> results = getScored(formattedTitle);
+					
+					// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+					List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+					for(int i = 0; i < results.size(); i++) {
+						if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+							finalResults.add(results.get(i));
+						}
+					}
+					
+					if(Globals.TESTING) {
+						System.out.println("Records 1 " + records.size());
+						System.out.println("Records 2 " + results.size());
+					}
+	
+					if(Globals.TESTING) {
+						long stopTime = System.currentTimeMillis();
+						long elapsedTime = stopTime - startTime;
+						System.out.println("Lucene search time: " + elapsedTime);
+					}
+					return finalResults;
+				} else { // no title: simply return JDBC results...  however they have to be translated
+					// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
+					// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
+					List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+					for(EISDoc record : records) {
+						finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), ""));
+					}
+					return finalResults;
+				}
+				
+	//			return lucenePrioritySearch(searchInputs.title, limit, offset);
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ArrayList<MetadataWithContext2>();
+			}
+		}
 }

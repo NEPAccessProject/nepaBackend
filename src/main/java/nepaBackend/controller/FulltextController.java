@@ -292,8 +292,8 @@ public class FulltextController {
 	{
 		try {
 			// Could turn IDs into list of eisdocs, hand those off instead?
-			List<MetadataWithContext2> results = (
-					Arrays.asList(textRepository.getScored(searchInputs.title)));
+			List<MetadataWithContext2> results = 
+					textRepository.getScored(searchInputs.title);
 			return new ResponseEntity<List<MetadataWithContext2>>(results, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
