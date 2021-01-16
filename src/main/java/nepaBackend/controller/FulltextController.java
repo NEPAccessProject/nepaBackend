@@ -231,8 +231,8 @@ public class FulltextController {
 		saveSearchLog(searchInputs);
 
 		try { 
-			List<MetadataWithContext2> metaAndFilenames = new ArrayList<MetadataWithContext2>(
-					(textRepository.CombinedSearchNoContext(searchInputs, SearchType.ALL)));
+			List<MetadataWithContext2> metaAndFilenames = 
+					textRepository.CombinedSearchNoContext(searchInputs, SearchType.ALL);
 			return new ResponseEntity<List<MetadataWithContext2>>(metaAndFilenames, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
 			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
@@ -260,6 +260,7 @@ public class FulltextController {
 		}
 	}
 
+	/** Mostly for testing, returns raw results from a .getResultList() call */
 	@CrossOrigin
 	@PostMapping(path = "/get_raw")
 	public ResponseEntity<List<Object[]>> getRaw(@RequestBody SearchInputs searchInputs)

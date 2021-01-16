@@ -1033,6 +1033,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	}
 	
+	/** Uses full parameters (not just a String for terms) to narrow down results */
 	private List<EISDoc> getFilteredRecords(SearchInputs searchInputs) {
 		searchInputs.title = mutateTermModifiers(searchInputs.title);
 		
@@ -1203,66 +1204,269 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return records;
 	}
 	
+	// objective: Search both fields at once and return quickly in combined scored order
+	@Override
+	public List<Object[]> getRaw(String terms) throws ParseException {
+		long startTime = System.currentTimeMillis();
+		
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+
+	    if(Globals.TESTING) {System.out.println("Search terms: " + formattedTerms);}
+	    
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+		// but the results will contain both types mixed together
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+
+		Query luceneQuery = mfqp.parse(formattedTerms);
+		
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+					fullTextEntityManager.createFullTextQuery(luceneQuery);
+
+		// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
+		jpaQuery.setProjection(
+					ProjectionConstants.ID
+					,ProjectionConstants.OBJECT_CLASS
+					,ProjectionConstants.SCORE
+					);
+		jpaQuery.setMaxResults(1000000);
+		jpaQuery.setFirstResult(0);
+		
+		List<Object[]> results = jpaQuery.getResultList();
+
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+		
+		return results;
+	}
+
+	// objective: Search both fields at once and return quickly in combined scored order
+	@Override
+	public List<MetadataWithContext2> getScored(String terms) throws ParseException {
+		long startTime = System.currentTimeMillis();
+
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+
+	    if(Globals.TESTING) {System.out.println("Search terms: " + formattedTerms);}
+	    
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+		// but the results will contain both types mixed together
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+
+		Query luceneQuery = mfqp.parse(formattedTerms);
+		
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+				fullTextEntityManager.createFullTextQuery(luceneQuery);
+
+		// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
+		jpaQuery.setProjection(
+				ProjectionConstants.ID
+				,ProjectionConstants.OBJECT_CLASS
+//				,ProjectionConstants.SCORE
+				);
+		jpaQuery.setMaxResults(1000000);
+		jpaQuery.setFirstResult(0);
+		
+		// Lazy fetching isn't so easy here with combined results, so the goal is to get the order
+		// first and then get all of the results maintaining that order but without getting full
+		// texts which is slow and also overflows the heap
+		
+		// Could potentially try to get ProjectionConstants.ID and ProjectionConstants.SCORE
+		// for two separate searches, join and sort by score,
+		// then get the metadata and filenames.  This would maintain the order.
+		
+		// Returns a list containing both EISDoc and DocumentText objects.
+		List<Object[]> results = jpaQuery.getResultList();
+		
+		if(Globals.TESTING) {System.out.println("Initial results size: " + results.size());}
+		
+		List<ScoredResult> converted = new ArrayList<ScoredResult>();
+		Set<Long> metaIds = new HashSet<Long>();
+		Set<Long> textIds = new HashSet<Long>();
+		
+		int i = 0;
+		
+		for(Object[] result : results) {
+			ScoredResult convert = new ScoredResult();
+			convert.id = (Long) result[0];
+			convert.className = (Class<?>) result[1];
+//			convert.score = (Float) result[2];
+			convert.idx = i;
+			if(convert.className.equals(EISDoc.class)) {
+				metaIds.add(convert.id);
+			} else {
+				textIds.add(convert.id);
+			}
+			converted.add(convert);
+			i++;
+		}
+		
+		// [8383,"nepaBackend.model.EISDoc"]
+		// ProjectionConstants.SCORE could also give score to sort by.
+		
+		// 1: Get EISDocs by IDs.
+		
+		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
+			.setParameter("ids", metaIds).getResultList();
+
+		if(Globals.TESTING){System.out.println("Docs results size: " + docs.size());}
+		
+		HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
+		for(EISDoc doc : docs) {
+			hashDocs.put(doc.getId(), doc);
+		}
+
+		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
+
+		List<Object[]> textIdMetaAndFilenames = em.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
+				.setParameter("ids", textIds).getResultList();
+
+		if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
+		
+		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
+		for(Object[] obj : textIdMetaAndFilenames) {
+			hashTexts.put(
+					(Long) obj[0], 
+					new ReducedText(
+						(Long) obj[0],
+						(EISDoc) obj[1],
+						(String) obj[2]
+					));
+		}
+		
+		List <MetadataWithContext2> combinedResults = new ArrayList<MetadataWithContext2>();
+
+		// 3: Join (combine) results from the two tables
+		// 3.1: Condense (add filenames to existing records rather than adding new records)
+		// 3.2: keep original order
+		
+		HashMap<Long, Integer> added = new HashMap<Long, Integer>();
+		int position = 0;
+		
+		for(ScoredResult ordered : converted) {
+			if(ordered.className.equals(EISDoc.class)) {
+				if(!added.containsKey(ordered.id)) {
+					// Add EISDoc into logical position
+					combinedResults.add(new MetadataWithContext2(
+							hashDocs.get(ordered.id),
+							new ArrayList<String>(),
+							""));
+					added.put(ordered.id, position);
+				}
+				// If we already have one, do nothing - no filenames to add.
+			} else {
+				EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
+				if(!added.containsKey(eisFromDoc.getId())) {
+					// Add DocumentText into logical position
+					combinedResults.add(new MetadataWithContext2(
+							eisFromDoc,
+							new ArrayList<String>(),
+							hashTexts.get(ordered.id).filename));
+					added.put(eisFromDoc.getId(), position);
+				} else {
+					// Add this combinedResult's filename to filename list
+					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
+							.getFilenames();
+					// > is not a valid directory/filename char, so should work as delimiter
+					combinedResults.get(added.get(eisFromDoc.getId()))
+							.setFilenames(
+								currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
+							);
+				}
+			}
+			position++;
+		}
+		
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+		
+		return combinedResults;
+	}
+
 	/** Combination title/fulltext query including the metadata parameters like agency/state/...
 			 * and this is currently the default search; returns metadata plus filename 
 			 * using Lucene's internal default scoring algorithm
 			 * @throws ParseException
 			 * */
-			@Override
-			public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
-				try {
-					long startTime = System.currentTimeMillis();
-					if(Globals.TESTING) {
-						System.out.println("Offset: " + searchInputs.offset);
-					}
-					List<EISDoc> records = getFilteredRecords(searchInputs);
-					
-					// Run Lucene query on title if we have one, join with JDBC results, return final results
-					if(!searchInputs.title.isBlank()) {
-						String formattedTitle = mutateTermModifiers(searchInputs.title);
-		
-						HashSet<Long> justRecordIds = new HashSet<Long>();
-						for(EISDoc record: records) {
-							justRecordIds.add(record.getId());
-						}
-		
-						List<MetadataWithContext2> results = getScored(formattedTitle);
-						
-						// Build new result list in the same order but excluding records that don't appear in the first result set (records).
-						List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
-						for(int i = 0; i < results.size(); i++) {
-							if(justRecordIds.contains(results.get(i).getDoc().getId())) {
-								finalResults.add(results.get(i));
-							}
-						}
-						
-						if(Globals.TESTING) {
-							System.out.println("Records 1 " + records.size());
-							System.out.println("Records 2 " + results.size());
-						}
-		
-						if(Globals.TESTING) {
-							long stopTime = System.currentTimeMillis();
-							long elapsedTime = stopTime - startTime;
-							System.out.println("Lucene search time: " + elapsedTime);
-						}
-						return results;
-					} else { // no title: simply return JDBC results...  however they have to be translated
-						// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
-						// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
-						List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
-						for(EISDoc record : records) {
-							finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), ""));
-						}
-						return finalResults;
-					}
-					
-		//			return lucenePrioritySearch(searchInputs.title, limit, offset);
-				} catch(Exception e) {
-					e.printStackTrace();
-					return new ArrayList<MetadataWithContext2>();
-				}
+	@Override
+	public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
+		try {
+			long startTime = System.currentTimeMillis();
+			
+			if(Globals.TESTING) {
+				System.out.println("Offset: " + searchInputs.offset);
 			}
+			
+			List<EISDoc> records = getFilteredRecords(searchInputs);
+			
+			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			if(!searchInputs.title.isBlank()) {
+				String title = searchInputs.title;
+
+				// Collect IDs filtered by params
+				HashSet<Long> justRecordIds = new HashSet<Long>();
+				for(EISDoc record: records) {
+					justRecordIds.add(record.getId());
+				}
+
+				List<MetadataWithContext2> results = getScored(title);
+				
+				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+				List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+				for(int i = 0; i < results.size(); i++) {
+					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+						finalResults.add(results.get(i));
+					}
+				}
+				
+				if(Globals.TESTING) {
+					System.out.println("Records 1 " + records.size());
+					System.out.println("Records 2 " + results.size());
+				}
+
+				if(Globals.TESTING) {
+					long stopTime = System.currentTimeMillis();
+					long elapsedTime = stopTime - startTime;
+					System.out.println("Lucene search time: " + elapsedTime);
+				}
+				return results;
+			} else { // no title: simply return JDBC results...  however they have to be translated
+				// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
+				// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
+				List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+				for(EISDoc record : records) {
+					finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), ""));
+				}
+				return finalResults;
+			}
+			
+//			return lucenePrioritySearch(searchInputs.title, limit, offset);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ArrayList<MetadataWithContext2>();
+		}
+	}
 
 	/** Combination title/fulltext query including the metadata parameters like agency/state/...
 	 * returns metadata plus filename 
@@ -1704,7 +1908,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return combinedResultsWithHighlights;
 	}
 	
-	// objective: Search both fields at once and return quickly
 	@SuppressWarnings("unchecked")
 	public List<MetadataWithContext2> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
 		long startTime = System.currentTimeMillis();
@@ -1932,210 +2135,5 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 		
 		return results;
-	}
-
-	// objective: Search both fields at once and return quickly in combined scored order
-	@Override
-		public List<Object[]> getRaw(String terms) throws ParseException {
-			long startTime = System.currentTimeMillis();
-	
-			// Normalize whitespace and support added term modifiers
-		    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
-	
-			FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
-	
-			// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
-			// but the results will contain both types mixed together
-			MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
-						new String[] {"title", "plaintext"},
-						new StandardAnalyzer());
-			mfqp.setDefaultOperator(Operator.AND);
-	
-			Query luceneQuery = mfqp.parse(formattedTerms);
-			
-			org.hibernate.search.jpa.FullTextQuery jpaQuery =
-						fullTextEntityManager.createFullTextQuery(luceneQuery);
-	
-			// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
-			jpaQuery.setProjection(
-						ProjectionConstants.ID
-						,ProjectionConstants.OBJECT_CLASS
-						,ProjectionConstants.SCORE
-						);
-			jpaQuery.setMaxResults(1000000);
-			jpaQuery.setFirstResult(0);
-			
-			List<Object[]> results = jpaQuery.getResultList();
-			
-			return results;
-		}
-
-	// objective: Search both fields at once and return quickly in combined scored order
-	@Override
-	public List<MetadataWithContext2> getScored(String terms) throws ParseException {
-		long startTime = System.currentTimeMillis();
-
-		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
-
-	    if(Globals.TESTING) {System.out.println("Search terms: " + formattedTerms);}
-	    
-		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
-
-		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
-		// but the results will contain both types mixed together
-		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
-					new String[] {"title", "plaintext"},
-					new StandardAnalyzer());
-		mfqp.setDefaultOperator(Operator.AND);
-
-		Query luceneQuery = mfqp.parse(formattedTerms);
-		
-//			org.hibernate.search.jpa.FullTextQuery jpaQuery =
-//					fullTextEntityManager.createFullTextQuery(luceneQuery, DocumentText.class); // filters only DocumentText results
-		org.hibernate.search.jpa.FullTextQuery jpaQuery =
-				fullTextEntityManager.createFullTextQuery(luceneQuery);
-
-		// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
-		jpaQuery.setProjection(
-				ProjectionConstants.ID
-				,ProjectionConstants.OBJECT_CLASS
-//				,ProjectionConstants.SCORE
-				);
-		jpaQuery.setMaxResults(1000000);
-		jpaQuery.setFirstResult(0);
-		
-		// Lazy fetching isn't so easy here with combined results, so the goal is to get the order
-		// first and then get all of the results maintaining that order but without getting full
-		// texts which is slow and also overflows the heap
-		
-		// Could potentially try to get ProjectionConstants.ID and ProjectionConstants.SCORE
-		// for two separate searches, join and sort by score,
-		// then get the metadata and filenames.  This would maintain the order.
-		
-		// Returns a list containing both EISDoc and DocumentText objects.
-		List<Object[]> results = jpaQuery.getResultList();
-		
-		if(Globals.TESTING) {System.out.println("Initial results size: " + results.size());}
-		
-		List<ScoredResult> converted = new ArrayList<ScoredResult>();
-		Set<Long> metaIds = new HashSet<Long>();
-		Set<Long> textIds = new HashSet<Long>();
-		
-		int i = 0;
-		
-		for(Object[] result : results) {
-			ScoredResult convert = new ScoredResult();
-			convert.id = (Long) result[0];
-			convert.className = (Class<?>) result[1];
-//			convert.score = (Float) result[2];
-			convert.idx = i;
-			if(convert.className.equals(EISDoc.class)) {
-				metaIds.add(convert.id);
-			} else {
-				textIds.add(convert.id);
-			}
-			converted.add(convert);
-			i++;
-		}
-		
-		// [8383,"nepaBackend.model.EISDoc"]
-		// We now have a list of ID/class.  Using that, we can get all of the
-		// EISDocs, DocumentText-linked EISDocs and filenames by ID, and keep the order
-		// from the original search.  ProjectionConstants.SCORE would also give score
-		// to sort by.
-		
-		// 1: Get EISDocs by IDs.
-
-
-//		Set<Long> eisIds = docs.stream().map(eis -> eis.getId()).collect(Collectors.toSet());
-//		List<MetadataWithContext2> intersect = converted.stream()
-//		    .filter(obj -> eisIds.contains(obj.id))
-//		    .collect(Collectors.toList());
-		
-		// Wonder if there's a way to get a hashmap with the ID as the key from the ORM?
-		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
-			.setParameter("ids", metaIds).getResultList();
-
-		if(Globals.TESTING){System.out.println("Docs results size: " + docs.size());}
-		
-		HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
-		for(EISDoc doc : docs) {
-			hashDocs.put(doc.getId(), doc);
-		}
-		
-
-		List<Object[]> textIdMetaAndFilenames = em.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
-				.setParameter("ids", textIds).getResultList();
-		
-
-		if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
-		
-		
-		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
-		for(Object[] obj : textIdMetaAndFilenames) {
-			hashTexts.put(
-					(Long) obj[0], 
-					new ReducedText(
-						(Long) obj[0],
-						(EISDoc) obj[1],
-						(String) obj[2]
-					));
-		}
-		
-		List <MetadataWithContext2> combinedResults = new ArrayList<MetadataWithContext2>();
-		HashMap<Long, Integer> added = new HashMap<Long, Integer>();
-		
-		int position = 0;
-		for(ScoredResult ordered : converted) {
-			if(ordered.className.equals(EISDoc.class)) {
-				if(!added.containsKey(ordered.id)) {
-					// Add EISDoc into logical position
-					combinedResults.add(new MetadataWithContext2(
-							hashDocs.get(ordered.id),
-							new ArrayList<String>(),
-							""));
-					added.put(ordered.id, position);
-				}
-				// If we already have one, do nothing - no filenames to add.
-			} else {
-				EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
-				if(!added.containsKey(eisFromDoc.getId())) {
-					// Add DocumentText into logical position
-					combinedResults.add(new MetadataWithContext2(
-							eisFromDoc,
-							new ArrayList<String>(),
-							hashTexts.get(ordered.id).filename));
-					added.put(eisFromDoc.getId(), position);
-				} else {
-					// Add this combinedResult's filename to filename list
-					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
-							.getFilenames();
-					// > is not a valid directory/filename char, so should work as delimiter
-					combinedResults.get(added.get(eisFromDoc.getId()))
-							.setFilenames(
-								currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
-							);
-				}
-			}
-			position++;
-		}
-
-		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
-		
-		// 3: Join, sort according to original order.  Add filenames to existing, else add new.
-		
-		// 4: Return those results so frontend has metadata, filenames, and proper scored order.
-		
-		if(Globals.TESTING) {
-			System.out.println("Results #: " + results.size());
-			
-			long stopTime = System.currentTimeMillis();
-			long elapsedTime = stopTime - startTime;
-			System.out.println("Time elapsed: " + elapsedTime);
-		}
-		
-		return combinedResults;
-//			// Condense results
 	}
 }
