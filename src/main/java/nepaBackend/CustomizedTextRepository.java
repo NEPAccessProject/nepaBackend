@@ -25,8 +25,8 @@ public interface CustomizedTextRepository {
 	
 	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType);
-	List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType);
+	List<Object[]> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType);
 	ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException;
 	List<Object[]> getRaw(String title) throws ParseException;
-	List<MetadataWithContext2> getScored(String title) throws ParseException;
+	List<Object[]> getScored(String title) throws ParseException;
 }

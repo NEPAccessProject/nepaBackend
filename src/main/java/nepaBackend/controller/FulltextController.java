@@ -226,19 +226,19 @@ public class FulltextController {
 	// Metadata without context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
 	@PostMapping(path = "/search_no_context")
-	public ResponseEntity<List<MetadataWithContext2>> searchNoContext(@RequestBody SearchInputs searchInputs)
+	public ResponseEntity<List<Object[]>> searchNoContext(@RequestBody SearchInputs searchInputs)
 	{
 		saveSearchLog(searchInputs);
 
 		try { 
-			List<MetadataWithContext2> metaAndFilenames = new ArrayList<MetadataWithContext2>(
+			List<Object[]> metaAndFilenames = (
 					(textRepository.CombinedSearchNoContext(searchInputs, SearchType.ALL)));
-			return new ResponseEntity<List<MetadataWithContext2>>(metaAndFilenames, HttpStatus.OK);
+			return new ResponseEntity<List<Object[]>>(metaAndFilenames, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<List<Object[]>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<Object[]>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -280,18 +280,18 @@ public class FulltextController {
 
 	@CrossOrigin
 	@PostMapping(path = "/get_scored")
-	public ResponseEntity<List<MetadataWithContext2>> getScored(@RequestBody SearchInputs searchInputs)
+	public ResponseEntity<List<Object[]>> getScored(@RequestBody SearchInputs searchInputs)
 	{
 		try {
 			// Could turn IDs into list of eisdocs, hand those off instead?
-			List<MetadataWithContext2> results = 
+			List<Object[]> results = 
 					textRepository.getScored(searchInputs.title);
-			return new ResponseEntity<List<MetadataWithContext2>>(results, HttpStatus.OK);
+			return new ResponseEntity<List<Object[]>>(results, HttpStatus.OK);
 		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<List<Object[]>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<Object[]>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
