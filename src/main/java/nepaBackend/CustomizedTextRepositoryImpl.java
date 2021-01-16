@@ -1368,6 +1368,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							new ArrayList<String>(),
 							""));
 					added.put(ordered.id, position);
+					position++;
 				}
 				// If we already have one, do nothing - no filenames to add.
 			} else {
@@ -1379,6 +1380,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							new ArrayList<String>(),
 							hashTexts.get(ordered.id).filename));
 					added.put(eisFromDoc.getId(), position);
+					position++;
 				} else {
 					// Add this combinedResult's filename to filename list
 					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
@@ -1390,7 +1392,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							);
 				}
 			}
-			position++;
 		}
 		
 		if(Globals.TESTING) {
