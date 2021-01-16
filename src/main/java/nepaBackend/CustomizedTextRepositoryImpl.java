@@ -1209,7 +1209,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			 * @throws ParseException
 			 * */
 			@Override
-			public List<Object[]> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
+			public List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType) {
 				try {
 					long startTime = System.currentTimeMillis();
 					if(Globals.TESTING) {
@@ -1226,45 +1226,41 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							justRecordIds.add(record.getId());
 						}
 		
-						List<Object[]> results = getScored(formattedTitle);
-						return results;
+						List<MetadataWithContext2> results = getScored(formattedTitle);
 						
 						// Build new result list in the same order but excluding records that don't appear in the first result set (records).
-//						List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
-//						for(int i = 0; i < results.size(); i++) {
-//							if(justRecordIds.contains(results.get(i).getDoc().getId())) {
-//								finalResults.add(results.get(i));
-//							}
-//						}
-//						
-//						if(Globals.TESTING) {
-//							System.out.println("Records 1 " + records.size());
-//							System.out.println("Records 2 " + results.size());
-//						}
-//		
-//						if(Globals.TESTING) {
-//							long stopTime = System.currentTimeMillis();
-//							long elapsedTime = stopTime - startTime;
-//							System.out.println("Lucene search time: " + elapsedTime);
-//						}
-//						return results;
+						List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+						for(int i = 0; i < results.size(); i++) {
+							if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+								finalResults.add(results.get(i));
+							}
+						}
+						
+						if(Globals.TESTING) {
+							System.out.println("Records 1 " + records.size());
+							System.out.println("Records 2 " + results.size());
+						}
+		
+						if(Globals.TESTING) {
+							long stopTime = System.currentTimeMillis();
+							long elapsedTime = stopTime - startTime;
+							System.out.println("Lucene search time: " + elapsedTime);
+						}
+						return results;
 					} else { // no title: simply return JDBC results...  however they have to be translated
 						// TODO: If we care to avoid this, frontend has to know if it's sending a title or not, and ask for the appropriate
 						// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
-
-						return new ArrayList<Object[]>();
-						
-//						List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
-//						for(EISDoc record : records) {
-//							finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), ""));
-//						}
-//						return finalResults;
+						List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+						for(EISDoc record : records) {
+							finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), ""));
+						}
+						return finalResults;
 					}
 					
 		//			return lucenePrioritySearch(searchInputs.title, limit, offset);
 				} catch(Exception e) {
 					e.printStackTrace();
-					return new ArrayList<Object[]>();
+					return new ArrayList<MetadataWithContext2>();
 				}
 			}
 
@@ -1976,7 +1972,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	// objective: Search both fields at once and return quickly in combined scored order
 	@Override
-	public List<Object[]> getScored(String terms) throws ParseException {
+	public List<MetadataWithContext2> getScored(String terms) throws ParseException {
 		long startTime = System.currentTimeMillis();
 
 		// Normalize whitespace and support added term modifiers
@@ -2003,7 +1999,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
 		jpaQuery.setProjection(
 				ProjectionConstants.ID
-//				,ProjectionConstants.OBJECT_CLASS
+				,ProjectionConstants.OBJECT_CLASS
 //				,ProjectionConstants.SCORE
 				);
 		jpaQuery.setMaxResults(1000000);
@@ -2020,8 +2016,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Returns a list containing both EISDoc and DocumentText objects.
 		List<Object[]> results = jpaQuery.getResultList();
 		
-		return results;
-		/**
 		if(Globals.TESTING) {System.out.println("Initial results size: " + results.size());}
 		
 		List<ScoredResult> converted = new ArrayList<ScoredResult>();
@@ -2140,8 +2134,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			long elapsedTime = stopTime - startTime;
 			System.out.println("Time elapsed: " + elapsedTime);
 		}
-		*/
-//		return combinedResults;
+		
+		return combinedResults;
 //			// Condense results
 	}
 }
