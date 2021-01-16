@@ -1464,7 +1464,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //			return lucenePrioritySearch(searchInputs.title, limit, offset);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ArrayList<MetadataWithContext2>();
+			String problem = e.getLocalizedMessage();
+			MetadataWithContext2 result = new MetadataWithContext2(null, new ArrayList<String>(), problem);
+			List<MetadataWithContext2> results = new ArrayList<MetadataWithContext2>();
+			results.add(result);
+			return results;
 		}
 	}
 
