@@ -1386,10 +1386,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
 							.getFilenames();
 					// > is not a valid directory/filename char, so should work as delimiter
-					combinedResults.get(added.get(eisFromDoc.getId()))
-							.setFilenames(
-								currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
-							);
+					// If currentFilename is blank (title match came first), no need to concat.  Just set.
+					if(currentFilename.isBlank()) {
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							hashTexts.get(ordered.id).filename
+						);
+					} else {
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
+						);
+					}
 				}
 			}
 		}
