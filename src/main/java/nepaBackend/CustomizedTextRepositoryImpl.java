@@ -1278,7 +1278,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		jpaQuery.setProjection(
 				ProjectionConstants.ID
 				,ProjectionConstants.OBJECT_CLASS
-//				,ProjectionConstants.SCORE
+				,ProjectionConstants.SCORE
 				);
 		jpaQuery.setMaxResults(1000000);
 		jpaQuery.setFirstResult(0);
@@ -1306,7 +1306,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			ScoredResult convert = new ScoredResult();
 			convert.id = (Long) result[0];
 			convert.className = (Class<?>) result[1];
-//			convert.score = (Float) result[2];
+			convert.score = (Float) result[2];
 			convert.idx = i;
 			if(convert.className.equals(EISDoc.class)) {
 				metaIds.add(convert.id);
@@ -2066,7 +2066,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		// Normalize whitespace and support added term modifiers
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
 		
-		// build highlighter
+		// build highlighter with StandardAnalyzer
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
 		qp.setDefaultOperator(Operator.AND);
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
@@ -2076,7 +2076,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 		
-		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
 		
 		ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
 		
@@ -2112,6 +2111,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 //				Optional<EISDoc> doc = DocRepository.findById(input.getId());
 //				String text = TextRepository.findByEisdocAndFilenameIn(doc.get(), filename).getText();
+			StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
 			for(String text : texts) {
 				TokenStream tokenStream = stndrdAnalyzer.tokenStream("plaintext", new StringReader(text));
 
@@ -2126,7 +2126,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} finally {
-					results.add(result);
 					try {
 						tokenStream.close();
 					} catch (IOException e) {
@@ -2135,9 +2134,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					}
 				}
 			}
+			stndrdAnalyzer.close();
+			if(Globals.TESTING) {
+				System.out.println("Adding a list of results");
+			}
+			results.add(result);
 		}
 		
-		stndrdAnalyzer.close();
 
 		if(Globals.TESTING) {
 			System.out.println("Results #: " + results.size());
