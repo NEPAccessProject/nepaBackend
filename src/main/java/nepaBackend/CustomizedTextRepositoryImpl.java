@@ -2072,7 +2072,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 		QueryScorer scorer = new QueryScorer(luceneTextOnlyQuery);
 		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
-		Fragmenter fragmenter = new SimpleFragmenter(fragmentSize);
+		Fragmenter fragmenter = new SimpleFragmenter(bigFragmentSize);
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
 		
