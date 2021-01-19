@@ -3,6 +3,7 @@ package nepaBackend.controller;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -109,11 +110,14 @@ public class FileController {
 	}
 	
 	private static boolean testing = Globals.TESTING;
-	private static String dbURL = Globals.DOWNLOAD_URL;
-	private static String uploadURL = Globals.UPLOAD_URL;
 	
+	private static String dbURL = Globals.DOWNLOAD_URL;
 	private static String testURL = "http://localhost:5000/";
-	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
+	
+	private static String uploadURL = Globals.UPLOAD_URL;
+	private static String uploadTestURL = "http://localhost:5309/upload";
+	
+//	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 
 	// TODO: Filesize check for folders (currently no folders are live)
 	/** Check all possible file sizes for entities with filenames */
@@ -331,47 +335,6 @@ public class FileController {
 					else 
 					{
 						this.convertRecord(doc);
-					}
-				}
-			}
-			
-			return new ResponseEntity<ArrayList<String>>(resultList, HttpStatus.OK);
-		}
-		
-	}
-	
-	/** Run convertRecordSmart for all IDs in db.  */
-	@CrossOrigin
-	@RequestMapping(path = "/bulk2", method = RequestMethod.GET)
-	public ResponseEntity<ArrayList<String>> bulkSmart(@RequestHeader Map<String, String> headers) {
-		
-		String token = headers.get("authorization");
-		if(!isAdmin(token)) 
-		{
-			return new ResponseEntity<ArrayList<String>>(HttpStatus.UNAUTHORIZED);
-		} 
-		else 
-		{
-			ArrayList<String> resultList = new ArrayList<String>();
-			List<EISDoc> convertList = docRepository.findByFilenameNotEmpty();
-			
-			for(EISDoc doc : convertList) 
-			{
-				// ignore if no file to convert, although should be handled by query already
-				if(doc.getFilename().length() == 0) 
-				{
-					// skip
-				} 
-				else 
-				{
-					if(testing) 
-					{
-						resultList.add(doc.getId().toString() + ": " + this.convertRecordSmart(doc)
-						.getStatusCodeValue());
-					} 
-					else 
-					{
-						this.convertRecordSmart(doc);
 					}
 				}
 			}
@@ -993,6 +956,8 @@ public class FileController {
 						    	}
 						    }
 				    	}
+				    } else {
+				    	results[i] = "Couldn't upload" + " __ " + origFilename;
 				    }
 			    } else {
 			    	// Inform client this file can't be linked to anything, and has been rejected
@@ -1007,6 +972,12 @@ public class FileController {
 			    if(uploadLog.getUser() != null) { 
 			    	fileLogRepository.save(uploadLog);
 			    }
+			}
+		}
+		
+		if(testing) {
+			for(String result: results) {
+				System.out.println(result);
 			}
 		}
 		
@@ -1578,6 +1549,7 @@ public class FileController {
 						System.out.println(textRepository.existsByEisdocAndFilename(eis, filename));
 					}
 					
+					// Skip if we have this file text already
 					if(textRepository.existsByEisdocAndFilename(eis, filename)) {
 						zis.closeEntry();
 					} else {
@@ -1640,156 +1612,14 @@ public class FileController {
 			zis.close();
 
 			return new ResponseEntity<Void>(HttpStatus.OK);
+		} catch(FileNotFoundException fnfe) {
+			// We won't log missing files every time this runs, but we will return a 404
+			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 		} catch (Exception e) {
 //			e.printStackTrace();
 			try {
 				fileLog.setImported(false);
 				
-				fileLog.setErrorType(e.getLocalizedMessage());
-				fileLog.setLogTime(LocalDateTime.now());
-				fileLogRepository.save(fileLog);
-			} catch (Exception e2) {
-				System.out.println("Error logging error...");
-				e2.printStackTrace();
-				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-			}
-			// could be IO exception getting the file if it doesn't exist
-			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-	}
-	
-	// Skips if document ID present (aka assumes no partial archive imports to complete) for running when new archives are added
-	private ResponseEntity<Void> convertRecordSmart(EISDoc eis) {
-
-		// Check to make sure this record exists.
-		if(eis == null) {
-			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
-		}
-		
-		FileLog fileLog = new FileLog();
-		
-		try {
-			fileLog.setDocumentId(eis.getId());
-		} catch(Exception e) {
-			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
-		}
-		if(eis.getId() < 1) {
-			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
-		}
-		if(textRepository.existsByEisdoc(eis)) 
-		{
-			return new ResponseEntity<Void>(HttpStatus.FOUND);
-		} 
-		
-		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
-		// but presumably different filenames with hopefully different conents
-		final int BUFFER = 2048;
-		
-		try {
-			Tika tikaParser = new Tika();
-			tikaParser.setMaxStringLength(-1); // disable limit
-		
-			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
-			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
-				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
-			}
-			
-			String relevantURL = dbURL;
-			if(testing) {
-				relevantURL = testURL;
-			}
-			URL fileURL = new URL(relevantURL + eis.getFilename());
-		
-			fileLog.setFilename(eis.getFilename());
-
-			
-			// 1: Download the archive
-			InputStream in = new BufferedInputStream(fileURL.openStream());
-			ZipInputStream zis = new ZipInputStream(in);
-			ZipEntry ze;
-			
-			// Note: If every entry null, equivalent to failing silently
-			while((ze = zis.getNextEntry()) != null) {
-				if(testing) {
-					System.out.println("Processing non null entry " + ze.getName());
-				}
-				int count;
-				byte[] data = new byte[BUFFER];
-				
-				// TODO: Can check filename for .pdf extension to determine if we should try to parse it?
-				String filename = ze.getName();
-
-				
-				// Deduplication: Ignore when document ID already exists in EISDoc table.
-				
-				// Handle directory - can ignore them if we're just converting PDFs
-				if(!ze.isDirectory()) {
-
-					if(textRepository.existsByEisdoc(eis)) 
-					{
-						zis.closeEntry();
-					} 
-					else 
-					{
-						DocumentText docText = new DocumentText();
-						docText.setEisdoc(eis);
-						docText.setFilename(filename);
-						
-						fileLog.setExtractedFilename(filename);
-						
-						// 2: Extract data and stream to Tika
-						try {
-							ByteArrayOutputStream baos = new ByteArrayOutputStream();
-							while (( count = zis.read(data)) != -1) {
-								baos.write(data, 0, count);
-							}
-							
-							// 3: Convert to text
-							String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-							docText.setPlaintext(textResult);
-							
-							// 4: Add converted text to database for document(EISDoc) ID, filename
-							this.save(docText);
-						} catch(Exception e){
-							e.printStackTrace();
-							try {
-
-								if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
-									fileLog.setImported(false);
-								} else {
-									fileLog.setImported(true);
-								}
-								
-								// Note:  This step does not index; that's a separate process.  N/A, so null would be fine.
-								// But Tinyint is numeric, should default to 0.  Still better than the Boolean type in MySQL
-								
-								fileLog.setErrorType(e.getLocalizedMessage());
-								fileLog.setLogTime(LocalDateTime.now());
-								fileLogRepository.save(fileLog);
-							} catch (Exception e2) {
-								System.out.println("Error logging error...");
-								e2.printStackTrace();
-							}
-							
-						} 
-						finally 
-						{ // while loop handles getNextEntry()
-							zis.closeEntry();
-						}
-					}
-				}
-			
-			}
-
-			// 5: Cleanup
-			in.close();
-			zis.close();
-
-			return new ResponseEntity<Void>(HttpStatus.OK);
-		} catch (Exception e) {
-			e.printStackTrace();
-			try {
-				fileLog.setImported(false);
 				fileLog.setErrorType(e.getLocalizedMessage());
 				fileLog.setLogTime(LocalDateTime.now());
 				fileLogRepository.save(fileLog);
