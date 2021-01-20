@@ -1366,11 +1366,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					combinedResults.add(new MetadataWithContext2(
 							hashDocs.get(ordered.id),
 							new ArrayList<String>(),
-							""));
+							"",
+							ordered.score));
 					added.put(ordered.id, position);
 					position++;
 				}
-				// If we already have one, do nothing - no filenames to add.
+				// If we already have one, do nothing - (title result: no filenames to add.)
 			} else {
 				EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
 				if(!added.containsKey(eisFromDoc.getId())) {
@@ -1378,7 +1379,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					combinedResults.add(new MetadataWithContext2(
 							eisFromDoc,
 							new ArrayList<String>(),
-							hashTexts.get(ordered.id).filename));
+							hashTexts.get(ordered.id).filename,
+							ordered.score));
 					added.put(eisFromDoc.getId(), position);
 					position++;
 				} else {
@@ -1465,7 +1467,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				// return type (either EISDoc or MetadataWithContext), and then we need two versions of the search on the backend
 				List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
 				for(EISDoc record : records) {
-					finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), ""));
+					finalResults.add(new MetadataWithContext2(record, new ArrayList<String>(), "", 0));
 				}
 				return finalResults;
 			}
@@ -1474,7 +1476,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		} catch(Exception e) {
 			e.printStackTrace();
 			String problem = e.getLocalizedMessage();
-			MetadataWithContext2 result = new MetadataWithContext2(null, new ArrayList<String>(), problem);
+			MetadataWithContext2 result = new MetadataWithContext2(null, new ArrayList<String>(), problem, 0);
 			List<MetadataWithContext2> results = new ArrayList<MetadataWithContext2>();
 			results.add(result);
 			return results;
@@ -1921,6 +1923,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return combinedResultsWithHighlights;
 	}
 	
+	@Deprecated
 	@SuppressWarnings("unchecked")
 	public List<MetadataWithContext2> searchNoContext(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
 		long startTime = System.currentTimeMillis();
@@ -2007,7 +2010,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					MetadataWithContext2 combinedResult = new MetadataWithContext2(
 							((DocumentText) result).getEisdoc(),
 							new ArrayList<String>(),
-							((DocumentText) result).getFilename());
+							((DocumentText) result).getFilename(),0);
 
 					// 1. If we have already have a title result set skip flag
 					if(metaIds.containsKey(key) && (metaIds.get(key) > position)) { // If this Text result comes before the Meta result
@@ -2044,7 +2047,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			} else if(result.getClass().equals(EISDoc.class)) {
 				// Add metadata result unless it's flagged for skipping
 				if(!skipThese.containsKey(((EISDoc) result).getId())) {
-					combinedResults.add(new MetadataWithContext2(((EISDoc) result),new ArrayList<String>(),""));
+					combinedResults.add(new MetadataWithContext2(((EISDoc) result),new ArrayList<String>(),"",0));
 				}
 			}
 			position++;
@@ -2135,9 +2138,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 			}
 			stndrdAnalyzer.close();
-			if(Globals.TESTING) {
-				System.out.println("Adding a list of results");
-			}
 			results.add(result);
 		}
 		

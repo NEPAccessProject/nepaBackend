@@ -8,11 +8,13 @@ public class MetadataWithContext2 {
 	private final EISDoc doc;
 	private List<String> highlights;
 	private String filenames;
+	private float score;
 	
-	public MetadataWithContext2(EISDoc doc, List<String> highlights, String filenames) {
+	public MetadataWithContext2(EISDoc doc, List<String> highlights, String filenames, float score) {
 		this.doc = doc;
 		this.highlights = highlights;
 		this.filenames = filenames;
+		this.setScore(score);
 	}
 
 	public EISDoc getDoc() {
@@ -37,6 +39,14 @@ public class MetadataWithContext2 {
 
 	public void addHighlight(String highlight) {
 		this.highlights.add(highlight);
+	}
+
+	public float getScore() {
+		return score;
+	}
+
+	public void setScore(float score) {
+		this.score = score;
 	}
 	
 }
