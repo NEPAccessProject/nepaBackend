@@ -88,11 +88,15 @@ public class FileController {
 	private ApplicationUserRepository applicationUserRepository;
 	private NEPAFileRepository nepaFileRepository;
 	
-	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
-			"yyyy/MM/dd", "MM/dd/yyyy", 
-			"M/dd/yyyy", "yyyy/M/dd", "M-dd-yyyy", "yyyy-M-dd",
-			"MM/d/yyyy", "yyyy/MM/d", "MM-d-yyyy", "yyyy-MM-d",
-			"M/d/yyyy", "yyyy/M/d", "M-d-yyyy", "yyyy-M-d",
+	private static DateTimeFormatter[] parseFormatters = Stream.of(
+			"yyyy-MM-dd", "MM-dd-yyyy", "yyyy/MM/dd", "MM/dd/yyyy", 
+			"yyyy-M-dd", "M-dd-yyyy", "yyyy/M/dd", "M/dd/yyyy", 
+			"yyyy-MM-d", "MM-d-yyyy", "yyyy/MM/d", "MM/d/yyyy", 
+			"yyyy-M-d", "M-d-yyyy", "yyyy/M/d", "M/d/yyyy", 
+			"yy-MM-dd", "MM-dd-yy", "yy/MM/dd", "MM/dd/yy", 
+			"yy-M-dd", "M-dd-yy", "yy/M/dd", "M/dd/yy", 
+			"yy-MM-d", "MM-d-yy", "yy/MM/d", "MM/d/yy", 
+			"yy-M-d", "M-d-yy", "yy/M/d", "M/d/yy", 
 			"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
 			.map(DateTimeFormatter::ofPattern)
 			.toArray(DateTimeFormatter[]::new);
@@ -724,10 +728,10 @@ public class FileController {
 		} 
 		List<String> results = new ArrayList<String>();
 		
-		if(testing) {
-			String[] testing = csv.split("\n");
-			System.out.println(testing[0]);
-		}
+//		if(testing) {
+//			String[] testing = csv.split("\n");
+//			System.out.println(testing[0]);
+//		}
 
 
 	    // Expect these headers:
@@ -753,6 +757,7 @@ public class FileController {
 						LocalDate parsedDate = parseDate(itr.federal_register_date);
 						itr.federal_register_date = parsedDate.toString();
 					} catch (IllegalArgumentException e) {
+						System.out.println("Threw IllegalArgumentException");
 						results.add("Item " + count + ": " + e.getMessage());
 						error = true;
 					} catch (Exception e) {
@@ -760,8 +765,12 @@ public class FileController {
 						error = true;
 					}
 
-					if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
-						itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
+					try {
+						if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
+							itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
+						}
+					} catch (Exception e) {
+						// Since this field is optional, we can just proceed
 					}
 					
 					if(!error) {
@@ -1850,6 +1859,7 @@ public class FileController {
 		newRecord.setDocumentType(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.document));
 		newRecord.setFilename(itr.filename);
 		newRecord.setCommentsFilename(itr.comments_filename);
+		// can't be null or blank
 		newRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
 		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
 			// skip
@@ -1858,9 +1868,9 @@ public class FileController {
 		}
 		newRecord.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
 		newRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
-		newRecord.setFolder(itr.eis_identifier.trim());
-		newRecord.setLink(itr.link.trim());
-		newRecord.setNotes(itr.notes.trim());
+		newRecord.setFolder(itr.eis_identifier);
+		newRecord.setLink(itr.link);
+		newRecord.setNotes(itr.notes);
 		
 		EISDoc savedRecord = docRepository.save(newRecord); // save to db
 		
@@ -1966,12 +1976,9 @@ public class FileController {
 				return valid; // Just stop here and don't have to worry about validating null values
 			}
 			
-			if(dto.filename.contentEquals("n/a")) {
-				valid = false;
-			}
-			
-			// Expect EIS identifier
-			if(dto.eis_identifier == null || dto.eis_identifier.isBlank()) {
+			// Expect EIS identifier or filename
+			if((dto.eis_identifier == null || dto.eis_identifier.isBlank()) 
+					&& (dto.filename.isBlank() || dto.filename.contentEquals("n/a"))) {
 				valid = false;
 				return valid;
 			}
@@ -1983,6 +1990,12 @@ public class FileController {
 	
 			if(dto.document.isBlank()) {
 				valid = false; // Need type
+			}
+			
+			if(valid && testing) {
+				System.out.println("Valid");
+				System.out.println(dto.filename);
+				System.out.println(dto.eis_identifier);
 			}
 	
 			return valid;
