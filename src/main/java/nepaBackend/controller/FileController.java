@@ -14,6 +14,9 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -118,8 +121,8 @@ public class FileController {
 	private static String dbURL = Globals.DOWNLOAD_URL;
 	private static String testURL = "http://localhost:5000/";
 	
-	private static String uploadURL = Globals.UPLOAD_URL;
-	private static String uploadTestURL = "http://localhost:5309/upload";
+	private static String uploadURL = Globals.UPLOAD_URL.concat("uploadFilesTest");
+	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 	
 //	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 
@@ -860,6 +863,7 @@ public class FileController {
 	 * For each file, assumes a base folder that ends in a number (identifying folder)
 	 * If that doesn't exist, rejects that file because it can't ever be automatically connected to a record 
 	 * (would be forever unlinked/orphaned)
+	 * TODO: Accept big pile of archives, no folders
 	 * */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFilesBulk", method = RequestMethod.POST, consumes = "multipart/form-data")
@@ -891,9 +895,90 @@ public class FileController {
 			    String origFilename = files[i].getOriginalFilename();
 			    String folderName = getUniqueFolderNameOrEmpty(origFilename);
 			    
-			    if(folderName.length() == 0) { // If no folder name
-			    	// Do nothing (reject file: no upload, no log)
-			    	results[i] = "No folder match" + " __ " + files[i].getOriginalFilename();
+			    if(folderName.length() == 0) { // If no folder name:
+			    	
+			    	// If filename, however:
+			    	// TODO: In this case it's probably time to extract all the files and create a
+			    	// NEPAFile for each of them inside the folder.
+			    	Optional<EISDoc> foundDoc = docRepository.findTopByFilename(origFilename);
+			    	if(foundDoc.isPresent()) {
+			    		// If found we can link this to something, therefore proceed with upload
+
+			    		// We're setting the directory to the name of the file.
+			    		String savePath = "/" + origFilename.strip() + "/";
+			    		
+					    // Upload file
+				    	HttpEntity entity = MultipartEntityBuilder.create()
+			    					.addTextBody("filepath",
+			    							savePath) // Feed Express path to use
+				    				.addBinaryBody("file", //fieldname
+				    						files[i].getInputStream(), 
+				    						ContentType.create("application/octet-stream"), 
+				    						origFilename)
+				    				.build();
+					    HttpPost request = new HttpPost(uploadURL);
+					    if(testing) { request = new HttpPost(uploadTestURL); }
+					    request.setEntity(entity);
+			
+					    HttpClient client = HttpClientBuilder.create().build();
+					    HttpResponse response = client.execute(request);
+					    
+					    if(testing) {
+						    System.out.println(response.toString());
+					    }
+					    
+					    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
+					    boolean converted = false;
+			
+					    // If file uploaded, proceed to import and logging
+					    if(uploaded) {
+					    	results[i] = "OK" + " __ " + files[i].getOriginalFilename();
+					    	// Save NEPAFile
+
+					    	// TODO: ISSUE: Because NEPAFiles don't exist for legacy archives,
+					    	// this would create duplicate files on the file server.
+					    	// We'll want a way to clean up legacy files later.
+					    	NEPAFile savedNEPAFile = handleNEPAFileSave(origFilename, foundDoc);
+					    	
+					    	// Need to update EISDoc for size and to look in the correct place.
+					    	EISDoc existingDoc = foundDoc.get();
+					    	existingDoc.setFolder(origFilename);
+					    	
+							Long sizeResponse = (getFileSizeFromFilename(origFilename).getBody());
+							if(sizeResponse != null) {
+								existingDoc.setSize(sizeResponse);
+							}
+					    	
+					    	docRepository.save(existingDoc);
+					    	
+					    	// Save FileLog
+					    	
+					    	if(savedNEPAFile == null) {
+						    	results[i] = "Duplicate (File exists, nothing done)" + " __ " + origFilename;
+					    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
+					    	} else {
+					    		uploadLog.setFilename(savePath + origFilename); // full path
+							    uploadLog.setUser(getUser(token));
+							    uploadLog.setLogTime(LocalDateTime.now());
+							    uploadLog.setErrorType("Uploaded");
+							    // Note: Should be impossible not to have a linked document if the logic got us here
+							    uploadLog.setDocumentId(foundDoc.get().getId());
+						    
+						    	// Run Tika on file, record if 200 or not
+							    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
+							    
+						    	if(converted) {
+								    uploadLog.setImported(true);
+								    if(testing) {System.out.println("Converted " + origFilename);}
+						    	}
+					    	}
+					    } else {
+					    	results[i] = "Couldn't upload" + " __ " + origFilename;
+					    }
+			    	} else {
+				    	// Do nothing (reject file: no upload, no log)
+				    	results[i] = "No folder and no filename match" + " __ " + files[i].getOriginalFilename();
+			    	}
 			    } else if(metadataExists(folderName)){
 			    	// If metadata exists we can link this to something, therefore proceed with upload
 				    String savePath = getPathOnly(origFilename);
@@ -996,6 +1081,34 @@ public class FileController {
 	
 
 
+	/** Used for filename-only match. Returns null if duplicate */
+	private NEPAFile handleNEPAFileSave(String origFilename, Optional<EISDoc> foundDoc) {
+		EISDoc existingDoc = foundDoc.get();
+		if(existingDoc == null) {
+			// probably impossible
+			return null;
+		}
+		
+		boolean duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(origFilename, existingDoc);
+		
+		if(duplicate) {
+			return null;
+		} else {
+			NEPAFile fileToSave = new NEPAFile();
+	    	NEPAFile savedFile = null;
+	    	
+	    	fileToSave.setFilename(origFilename);
+	    	fileToSave.setFolder(origFilename);
+	        fileToSave.setRelativePath("/" + origFilename + "/"); 
+
+    		fileToSave.setEisdoc(foundDoc.get());
+	    	
+	    	fileToSave.setDocumentType(existingDoc.getDocumentType());
+	    	
+	    	savedFile = nepaFileRepository.save(fileToSave);
+			return savedFile;
+		}
+	}
 
 	// Must have a link available, presumably added by a CSV import. 
 	// Therefore EISDoc needs a Folder, and the connection has to be enforced after we have both.
@@ -1029,11 +1142,15 @@ public class FileController {
 				// Should expect this anyway, ideally.
 				// Records may be part of the same process and share a folder, but NEPAFiles are for one document type.
 				Optional<EISDoc> existingDoc = docRepository.findTopByFolderAndDocumentTypeIn(folderName, documentType);
-		    	if(existingDoc.isPresent() && !folderName.isBlank() && !documentType.isBlank()) {
+
+		        EISDoc docToUse = existingDoc.get();
+				if(existingDoc.isPresent() && !folderName.isBlank() && !documentType.isBlank()) {
 		    		fileToSave.setEisdoc(existingDoc.get());
 		    	} else { // if we fail (this is not great), just link with the top of the list
 			    	fileToSave.setEisdoc(existingDocs.get(0));
+			    	docToUse = existingDocs.get(0);
 		    	}
+		    	
 		    	
 		    	// prefer to use directory document type, if exists
 		    	if(documentType.isBlank()) {
@@ -1043,11 +1160,46 @@ public class FileController {
 		    	}
 		    	
 		    	savedFile = nepaFileRepository.save(fileToSave);
+		    	addUpFolderSize(docToUse);
 			}
 			return savedFile;
 		}
 	}
 
+
+
+	// Add up filesize.  Note: Spaces must be URI'd
+	private boolean addUpFolderSize(EISDoc eisDoc) {
+		// 1: Get all existing NEPAFiles by folder.
+		List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(eisDoc);
+		Long total = 0L;
+		for(NEPAFile file : nepaFiles) {
+			// 2: Iterate over each NEPAFile's relative path + filename, calling
+			// getFileSizeFromFilename each time and adding up the Longs
+			try {
+				String pathURL = URLEncoder
+						.encode(file.getRelativePath()+file.getFilename(), StandardCharsets.UTF_8.toString())
+						.replace("+", "%20");
+
+				Long sizeResponse = getFileSizeFromFilename(pathURL).getBody();
+				if(sizeResponse != null) {
+					total = total + sizeResponse;
+				}
+				System.out.println("Size of "+pathURL+": "+sizeResponse);
+			} catch (UnsupportedEncodingException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		
+		// 3: Save total to EISDoc.  Need to save totals by EISDoc ID,
+		// because they can have the same base folder name but different type folders.
+		eisDoc.setSize(total);
+		docRepository.save(eisDoc);
+		
+		return true;
+	}
 
 	/** Given path, new/updated EISDoc and document_type, save new NEPAFile if not a duplicate. 
 	 *  Uses getFilenameWithoutPath() to set filename and getUniqueFolderName() to set folder, uses identical logic 
@@ -1793,7 +1945,7 @@ public class FileController {
 	
 
 	/** 
-	 * Returns file size if available (likely only for archives, may want to store size value somewhere for folders and handle separately)
+	 * Returns file size starting from base path if available
 	 **/
 	@CrossOrigin
 	@RequestMapping(path = "/file_size", method = RequestMethod.GET)
@@ -1894,9 +2046,7 @@ public class FileController {
 		oldRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
 		
 		// this is redundant because the outer logic doesn't set the filename when one exists without force_update
-		if(itr.filename == null || itr.filename.isBlank()) {
-			// skip, leave original
-		} else if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
+		if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
 			/** 
 			 * update even if new filename is blank/null, allowing user to potentially ungracefully unlink existing
 			 *  files from metadata.  Also allows bulk fixing of past mistakes if they previously added a bunch of
@@ -1904,6 +2054,8 @@ public class FileController {
 			 *  which is true of the import in general
 			 */
 			oldRecord.setFilename(itr.filename);
+		} else if(itr.filename == null || itr.filename.isBlank()) {
+			// skip, leave original
 		} else {
 			oldRecord.setFilename(itr.filename);
 		}
@@ -1927,9 +2079,9 @@ public class FileController {
 		if(itr.agency != null && !itr.agency.isBlank()) {
 			oldRecord.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
 		}
-		oldRecord.setFolder(itr.eis_identifier.strip());
-		oldRecord.setLink(itr.link.strip());
-		oldRecord.setNotes(itr.notes.strip());
+		oldRecord.setFolder(itr.eis_identifier);
+		oldRecord.setLink(itr.link);
+		oldRecord.setNotes(itr.notes);
 		
 		docRepository.save(oldRecord); // save to db, ID shouldn't change
 		
@@ -1990,12 +2142,6 @@ public class FileController {
 	
 			if(dto.document.isBlank()) {
 				valid = false; // Need type
-			}
-			
-			if(valid && testing) {
-				System.out.println("Valid");
-				System.out.println(dto.filename);
-				System.out.println(dto.eis_identifier);
 			}
 	
 			return valid;
