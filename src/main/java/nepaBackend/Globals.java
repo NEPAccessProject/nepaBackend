@@ -8,7 +8,7 @@ public class Globals {
     // Database/file server URL to base folder containing all files exposed to DAL for download
     public static final String DOWNLOAD_URL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
     // Database/file server URL for Express service which handles new file uploads (and potentially updating or deleting files)
-    public static final String UPLOAD_URL = "http://mis-jvinaldbl1.catnet.arizona.edu:5309/upload";
+    public static final String UPLOAD_URL = "http://mis-jvinaldbl1.catnet.arizona.edu:5309/";
     
     public static final List<String> EIS_TYPES = Arrays.asList("Draft Supplement",
 			"Final Supplement",
