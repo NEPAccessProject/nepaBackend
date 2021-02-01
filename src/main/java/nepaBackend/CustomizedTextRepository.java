@@ -29,4 +29,5 @@ public interface CustomizedTextRepository {
 	ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException;
 	List<Object[]> getRaw(String title) throws ParseException;
 	List<MetadataWithContext2> getScored(String title) throws ParseException;
+	List<EISDoc> searchTitles(String terms) throws ParseException;
 }

@@ -168,6 +168,38 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		return docs;
 	}
+	
+	/** Return all records matching terms in "title" field
+	 * @throws ParseException 
+	 */
+	@SuppressWarnings("unchecked")
+	@Override
+	public List<EISDoc> searchTitles(String terms) throws ParseException {
+		
+		String newTerms = mutateTermModifiers(terms);
+		
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
+			
+		QueryParser qp = new QueryParser("title", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
+
+		// this may throw a ParseException which the caller has to deal with
+		Query luceneQuery = qp.parse(newTerms);
+		
+		
+		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+			fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
+		
+		jpaQuery.setMaxResults(1000000);
+		jpaQuery.setFirstResult(0);
+		
+		List<EISDoc> docs = jpaQuery.getResultList();
+
+		fullTextEntityManager.close(); // Because this is created on demand, close it when we're done
+		
+		return docs;
+	}
 
 	// Note: Probably unnecessary function
 	/** Return all highlights with context for matching terms (term phrase?) */
@@ -974,34 +1006,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			// Run Lucene query on title if we have one, join with JDBC results, return final results
 			if(!searchInputs.title.isBlank()) {
-				String formattedTitle = org.apache.commons.lang3.StringUtils.normalizeSpace(searchInputs.title.strip());
 
-				FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
-
-//				QueryBuilder queryBuilder = fullTextEntityManager.getSearchFactory()
-//						.buildQueryBuilder().forEntity(EISDoc.class).get();
-				
-				
-				QueryParser qp = new QueryParser("title", new StandardAnalyzer());
-				qp.setDefaultOperator(Operator.AND);
-
-				// this may throw a ParseException which the caller has to deal with
-				Query luceneQuery = qp.parse(formattedTitle);
-
-//				Query luceneQuery = queryBuilder
-//						.simpleQueryString()
-//						.onField("title")
-//						.withAndAsDefaultOperator()
-//						.matching(formattedTitle)
-//						.createQuery();
-	
-				org.hibernate.search.jpa.FullTextQuery jpaQuery =
-						fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
-				
-				jpaQuery.setMaxResults(limit);
-				jpaQuery.setFirstResult(offset);
-				
-				List<EISDoc> results = jpaQuery.getResultList();
+				List<EISDoc> results = searchTitles(searchInputs.title);
 				
 				HashSet<Long> justRecordIds = new HashSet<Long>();
 				for(EISDoc record: records) {
@@ -1017,8 +1023,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 				
 				if(Globals.TESTING) {
-					System.out.println("Records 1 " + records.size());
-					System.out.println("Records 2 " + results.size());
+					System.out.println("Records filtered " + records.size());
+					System.out.println("Records by term " + results.size());
 				}
 				
 				return finalResults;
