@@ -1194,7 +1194,7 @@ public class FileController {
 				if(sizeResponse != null) {
 					total = total + sizeResponse;
 				}
-				System.out.println("Size of "+pathURL+": "+sizeResponse);
+				if(Globals.TESTING) {System.out.println("Size of "+pathURL+": "+sizeResponse);}
 			} catch (UnsupportedEncodingException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
