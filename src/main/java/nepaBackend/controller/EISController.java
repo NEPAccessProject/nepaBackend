@@ -755,13 +755,22 @@ public class EISController {
 			recordToUpdate.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
 			recordToUpdate.setDocumentType(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.document));
 			recordToUpdate.setFilename(itr.filename);
-			recordToUpdate.setCommentsFilename(itr.comments_filename);
 			recordToUpdate.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+			
+			if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
+				// skip
+			} else {
+				recordToUpdate.setCommentsFilename(itr.comments_filename);
+			}
 			if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
 				// skip
 			} else {
+				LocalDate parsedDate = parseDate(itr.epa_comment_letter_date);
+				
+				itr.epa_comment_letter_date = parsedDate.toString();
 				recordToUpdate.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
 			}
+			
 			recordToUpdate.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
 			recordToUpdate.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
 			recordToUpdate.setFolder(itr.eis_identifier.trim());
