@@ -126,8 +126,7 @@ public class FileController {
 	
 //	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 
-	// TODO: Filesize check for folders (currently no folders are live)
-	/** Check all possible file sizes for entities with filenames */
+	/** Check all possible file sizes for entities with filenames or folders */
 	@CrossOrigin
 	@RequestMapping(path = "/filesizes", method = RequestMethod.GET)
 	public ResponseEntity<String> filesizes() {
@@ -135,8 +134,12 @@ public class FileController {
 			List<EISDoc> files = docRepository.findAll();
 			
 			for(EISDoc doc : files) {
+				String folder = doc.getFolder();
 				String filename = doc.getFilename();
-				if(filename != null && filename.strip().length() > 0) {
+				if(folder != null && folder.strip().length() > 0) {
+					addUpFolderSize(doc);
+				}
+				else if(filename != null && filename.strip().length() > 0) {
 					Long response = (getFileSizeFromFilename(doc.getFilename()).getBody());
 					if(response != null) {
 						doc.setSize(response);
@@ -214,7 +217,8 @@ public class FileController {
 			if(nepaFiles.size() == 0) {
 				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 			}
-			String downloadFilename = nepaFiles.get(0).getFolder();
+			String downloadFilename = nepaFiles.get(0).getFolder() + "_" + nepaFiles.get(0).getDocumentType();
+			downloadFilename = downloadFilename.replaceAll(" ", "_");
 			
 		    zip = new ZipOutputStream(response.getOutputStream());
 			response.addHeader("Content-Disposition", "attachment; filename=\"" + downloadFilename + ".zip\""); 
@@ -935,19 +939,23 @@ public class FileController {
 					    	results[i] = "OK" + " __ " + files[i].getOriginalFilename();
 					    	// Save NEPAFile
 
-					    	// TODO: ISSUE: Because NEPAFiles don't exist for legacy archives,
+					    	// Because NEPAFiles don't exist for legacy archives,
 					    	// this would create duplicate files on the file server.
-					    	// We'll want a way to clean up legacy files later.
+					    	// However this is already handled by express_uploader.js
+					    	// which simply refuses the upload in this case with
+					    	// errno: -4058, code: 'ENOENT'
+					    	// This will also handle folder size.
 					    	NEPAFile savedNEPAFile = handleNEPAFileSave(origFilename, foundDoc);
 					    	
 					    	// Need to update EISDoc for size and to look in the correct place.
 					    	EISDoc existingDoc = foundDoc.get();
 					    	existingDoc.setFolder(origFilename);
 					    	
-							Long sizeResponse = (getFileSizeFromFilename(origFilename).getBody());
-							if(sizeResponse != null) {
-								existingDoc.setSize(sizeResponse);
-							}
+					    	// No longer needed
+//							Long sizeResponse = (getFileSizeFromFilename(origFilename).getBody());
+//							if(sizeResponse != null) {
+//								existingDoc.setSize(sizeResponse);
+//							}
 					    	
 					    	docRepository.save(existingDoc);
 					    	
@@ -973,6 +981,7 @@ public class FileController {
 						    	}
 					    	}
 					    } else {
+					    	// File already exists in legacy style
 					    	results[i] = "Couldn't upload" + " __ " + origFilename;
 					    }
 			    	} else {
