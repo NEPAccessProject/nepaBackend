@@ -1928,9 +1928,15 @@ public class FileController {
 		String noApostropheTitle = title.replaceAll("'", "");
 		
 		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date));
+//		if(Globals.TESTING && docToReturn.isPresent()) {
+//			System.out.println("Matched: " + docToReturn.get().getTitle());
+//		}
 		if(!docToReturn.isPresent()) {
 			// Try without apostrophes?
 			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(noApostropheTitle.trim(), type.trim(), LocalDate.parse(date));
+			if(Globals.TESTING && docToReturn.isPresent()) {
+				System.out.println("Matched without apostrophes: " + docToReturn.get().getTitle());
+			}
 		}
 		
 		return docToReturn;
@@ -2127,23 +2133,11 @@ public class FileController {
 	//		System.out.println(dto.document);
 	//		System.out.println(dto.filename);
 			boolean valid = true;
-			// Choice: Agency/state required also?
-			// Check for null; filename should at least be "multi" but sometimes may be blank
-			if(dto.filename == null) {
-				dto.filename = "";
-			}
+
 			if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
 				valid = false;
 				return valid; // Just stop here and don't have to worry about validating null values
 			}
-			
-			// Expect EIS identifier or filename
-			if((dto.eis_identifier == null || dto.eis_identifier.isBlank()) 
-					&& (dto.filename.isBlank() || dto.filename.contentEquals("n/a"))) {
-				valid = false;
-				return valid;
-			}
-			
 			// Check for empty
 			if(dto.title.isBlank()) {
 				valid = false; // Need title
@@ -2151,6 +2145,18 @@ public class FileController {
 	
 			if(dto.document.isBlank()) {
 				valid = false; // Need type
+			}
+			
+			// Don't require filename or EISID if force update==yes
+			if(valid && dto.force_update.equalsIgnoreCase("yes")) {
+				return true;
+			}
+			
+			// Expect EIS identifier or filename
+			if((dto.eis_identifier == null || dto.eis_identifier.isBlank()) 
+					&& (dto.filename == null || dto.filename.isBlank() || dto.filename.equalsIgnoreCase("n/a") || dto.filename.equalsIgnoreCase("null"))) {
+				valid = false;
+				return valid;
 			}
 	
 			return valid;
@@ -2189,10 +2195,10 @@ public class FileController {
 			try {
 				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 					.getId();
-				if(testing) {System.out.println("ID: " + id);}
+//				if(testing) {System.out.println("ID: " + id);}
 
 				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-				if(testing) {System.out.println("User ID: " + user.getId());}
+//				if(testing) {System.out.println("User ID: " + user.getId());}
 				return user;
 			} catch (Exception e) {
 				return null;
