@@ -334,17 +334,18 @@ public class FulltextController {
 	}
 	
 
-	/** Rewrite all existing titles for normalized space (deduplication should compare with normalized input) */
+	/** Rewrite all existing titles for normalized space (deduplication should compare with normalized input)
+	 * Not sure if user error but I've seen incoming data with spacing anomalies, so I wrote this */
 	@CrossOrigin
 	@RequestMapping(path = "/normalize_titles", method = RequestMethod.GET)
-	public int normalizeTitleSpace(@RequestHeader Map<String, String> headers) {
+	public List<String> normalizeTitleSpace(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
+		List<String> results = new ArrayList<String>();
 		if(!isAdmin(token)) 
 		{
-			return 0;
+			return null;
 		} else {
 			// Count how many actually change
-			int counter = 0;
 			try {
 				List<EISDoc> docs = docRepository.findAll();
 				for(EISDoc doc : docs) {
@@ -352,15 +353,17 @@ public class FulltextController {
 					if(title.contentEquals(org.apache.commons.lang3.StringUtils.normalizeSpace(title))) {
 						// do nothing
 					} else {
-						doc.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(title));
-						docRepository.save(doc);
-						counter++;
+						// Disable for right now and test
+//						doc.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(title));
+//						docRepository.save(doc);
+						// add pre-altered title to results following ID
+						results.add(doc.getId() + ": " + title);
 					}
 				}
-				return counter;
+				return results;
 			} catch(Exception e) {
 				e.printStackTrace();
-				return counter;
+				return results;
 			}
 		}
 	}
