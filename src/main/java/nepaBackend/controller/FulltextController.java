@@ -335,6 +335,7 @@ public class FulltextController {
 	
 
 	/** Rewrite all existing titles for normalized space (deduplication should compare with normalized input)
+	 * Legacy titles all had a \r at the end, and we don't want that.  Also:
 	 * Not sure if user error but I've seen incoming data with spacing anomalies, so I wrote this */
 	@CrossOrigin
 	@RequestMapping(path = "/normalize_titles", method = RequestMethod.GET)
@@ -353,9 +354,8 @@ public class FulltextController {
 					if(title.contentEquals(org.apache.commons.lang3.StringUtils.normalizeSpace(title))) {
 						// do nothing
 					} else {
-						// Disable for right now and test
-//						doc.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(title));
-//						docRepository.save(doc);
+						doc.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(title));
+						docRepository.save(doc);
 						// add pre-altered title to results following ID
 						results.add(doc.getId() + ": " + title);
 					}
