@@ -2022,6 +2022,10 @@ public class FileController {
 	/** Turns UploadInputs into valid EISDoc and saves to database, returns new ID and 200 (OK) or null and 500 (error) */
 	private ResponseEntity<Long> saveDto(UploadInputs itr) {
 		
+		// "Multi" is actually counterproductive, will have to amend spec
+		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
+			itr.filename = "";
+		}
 		
 		// translate
 		EISDoc newRecord = new EISDoc();
@@ -2058,6 +2062,11 @@ public class FileController {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 		EISDoc oldRecord = existingRecord.get();
+
+		// "Multi" is actually counterproductive, will have to amend spec
+		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
+			itr.filename = "";
+		}
 
 		// at this point we've matched on title, date and document type already but because of how we match on title
 		// it can actually be slightly different and hopefully more accurate
@@ -2151,7 +2160,7 @@ public class FileController {
 			}
 			
 			// Don't require filename or EISID if force update==yes
-			if(valid && dto.force_update.equalsIgnoreCase("yes")) {
+			if(valid && dto.force_update != null && dto.force_update.equalsIgnoreCase("yes")) {
 				return true;
 			}
 			
@@ -2294,6 +2303,8 @@ public class FileController {
 		    	
 		    	ObjectMapper mapper = new ObjectMapper();
 			    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+				results.add("Record count: " + dto.length);
 	
 			    // Ensure metadata is valid
 				int count = 0;
@@ -2354,6 +2365,7 @@ public class FileController {
 				}
 				
 			} catch (Exception e) {
+				e.printStackTrace();
 				results.add(e.getMessage());
 			}
 	
