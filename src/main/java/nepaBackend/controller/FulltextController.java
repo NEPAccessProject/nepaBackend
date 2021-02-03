@@ -333,6 +333,38 @@ public class FulltextController {
 		}
 	}
 	
+
+	/** Rewrite all existing titles for normalized space (deduplication should compare with normalized input) */
+	@CrossOrigin
+	@RequestMapping(path = "/normalize_titles", method = RequestMethod.GET)
+	public int normalizeTitleSpace(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(!isAdmin(token)) 
+		{
+			return 0;
+		} else {
+			// Count how many actually change
+			int counter = 0;
+			try {
+				List<EISDoc> docs = docRepository.findAll();
+				for(EISDoc doc : docs) {
+					String title = doc.getTitle();
+					if(title.contentEquals(org.apache.commons.lang3.StringUtils.normalizeSpace(title))) {
+						// do nothing
+					} else {
+						doc.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(title));
+						docRepository.save(doc);
+						counter++;
+					}
+				}
+				return counter;
+			} catch(Exception e) {
+				e.printStackTrace();
+				return counter;
+			}
+		}
+	}
+	
 	/** Get a list of DocumentTexts for a given EIS ID (DocumentText.document_id) */
 	@CrossOrigin
 	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
