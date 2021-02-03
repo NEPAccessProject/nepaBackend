@@ -754,7 +754,7 @@ public class FileController {
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) {
-				itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
+				
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
 
@@ -784,6 +784,8 @@ public class FileController {
 						// Deduplication
 						
 						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
+						
+						itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
 						
 						// If record exists but has no filename, then update it instead of skipping
 						// This is because current data is based on having a filename for an archive or not,
@@ -1924,19 +1926,29 @@ public class FileController {
 	
 	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination */
 	private Optional<EISDoc> getEISDocByTitleTypeDate(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
-		// Original dataset has no apostrophes
-		String noApostropheTitle = title.replaceAll("'", "");
-		
-		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date));
-//		if(Globals.TESTING && docToReturn.isPresent()) {
-//			System.out.println("Matched: " + docToReturn.get().getTitle());
-//		}
+
+		// Try with unmodified title
+		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
+				title.strip(), 
+				type.strip(), 
+				LocalDate.parse(date));
+
+		// Try without apostrophes? (legacy data has no apostrophes)
 		if(!docToReturn.isPresent()) {
-			// Try without apostrophes?
-			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(noApostropheTitle.trim(), type.trim(), LocalDate.parse(date));
-			if(Globals.TESTING && docToReturn.isPresent()) {
-				System.out.println("Matched without apostrophes: " + docToReturn.get().getTitle());
-			}
+			String noApostropheTitle = title.replaceAll("'", "");
+			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
+					noApostropheTitle, 
+					type.strip(), 
+					LocalDate.parse(date));
+		}
+		
+		// TODO: Rewrite all legacy titles with normalized space to be sure, and then always normalize.
+		// Try with normalized space? (new data is saved with normalized space and with apostrophes)
+		if(!docToReturn.isPresent()) {
+			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
+					org.apache.commons.lang3.StringUtils.normalizeSpace(title), 
+					type.strip(), 
+					LocalDate.parse(date));
 		}
 		
 		return docToReturn;
@@ -2265,6 +2277,97 @@ public class FileController {
 	
 		return new ResponseEntity<String>(result, HttpStatus.OK);
 	}
+
+	/** 
+		 * Dummy version of importCSV doesn't add anything to the database.
+		 * 
+		 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
+		 * and potentially more details */
+		@CrossOrigin
+		@RequestMapping(path = "/uploadCSV_dummy", method = RequestMethod.POST, consumes = "multipart/form-data")
+		private ResponseEntity<List<String>> importCSVDummy(@RequestPart(name="csv") String csv, 
+					@RequestHeader Map<String, String> headers) 
+					throws IOException { 
+			
+			String token = headers.get("authorization");
+			
+			if(!isCurator(token) && !isAdmin(token)) 
+			{
+				return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+			} 
+			List<String> results = new ArrayList<String>();
+			
+			results.add("Dummy results follow (database is unchanged):");
+			
+		    try {
+		    	
+		    	ObjectMapper mapper = new ObjectMapper();
+			    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+	
+			    // Ensure metadata is valid
+				int count = 0;
+				for (UploadInputs itr : dto) {
+					itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
+				    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
+				    if(isValid(itr)) {
+	
+				    	// Save only valid dates
+				    	boolean error = false;
+						try {
+							LocalDate parsedDate = parseDate(itr.federal_register_date);
+							itr.federal_register_date = parsedDate.toString();
+						} catch (IllegalArgumentException e) {
+							System.out.println("Threw IllegalArgumentException");
+							results.add("Item " + count + ": " + e.getMessage());
+							error = true;
+						} catch (Exception e) {
+							results.add("Item " + count + ": Error " + e.getMessage());
+							error = true;
+						}
+	
+						try {
+							if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
+								itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
+							}
+						} catch (Exception e) {
+							// Since this field is optional, we can just proceed
+						}
+						
+						if(!error) {
+							// Deduplication
+							
+							Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
+							
+							// If record exists but has no filename, then update it instead of skipping
+							// This is because current data is based on having a filename for an archive or not,
+							// so new data can add files where there are none, without adding redundant data when there is data.
+							// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
+							if(recordThatMayExist.isPresent() && 
+									(recordThatMayExist.get().getFilename().isBlank() || 
+											(itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) )
+							) {
+								results.add("Item " + count + ": Updated: " + itr.title);
+					    	}
+							// If file doesn't exist, then create new record
+							else if(!recordThatMayExist.isPresent()) 
+							{ 
+					    		results.add("Item " + count + ": OK: " + itr.title);
+					    	} else {
+								results.add("Item " + count + ": Duplicate (no action): " + itr.title);
+					    	}
+						}
+				    } else {
+						results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/EIS Identifier/Title");
+				    }
+				    count++;
+				}
+				
+			} catch (Exception e) {
+				results.add(e.getMessage());
+			}
+	
+			return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+		}
 
 	public static String encodeURIComponent(String s) {
 	    String result;
