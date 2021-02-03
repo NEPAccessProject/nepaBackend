@@ -754,6 +754,7 @@ public class FileController {
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) {
+				itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
 				
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
@@ -785,7 +786,6 @@ public class FileController {
 						
 						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
 						
-						itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
 						
 						// If record exists but has no filename, then update it instead of skipping
 						// This is because current data is based on having a filename for an archive or not,
@@ -1938,15 +1938,6 @@ public class FileController {
 			String noApostropheTitle = title.replaceAll("'", "");
 			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
 					noApostropheTitle, 
-					type.strip(), 
-					LocalDate.parse(date));
-		}
-		
-		// TODO: Rewrite all legacy titles with normalized space to be sure, and then always normalize.
-		// Try with normalized space? (new data is saved with normalized space and with apostrophes)
-		if(!docToReturn.isPresent()) {
-			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-					org.apache.commons.lang3.StringUtils.normalizeSpace(title), 
 					type.strip(), 
 					LocalDate.parse(date));
 		}
