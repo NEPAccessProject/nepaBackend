@@ -69,7 +69,12 @@ public class Globals {
 		return false;
 	}
 
-	private static final Map<String,String> agencies = new HashMap<String, String>() {{
+	private static final Map<String,String> agencies = new HashMap<String, String>() {/**
+		 * 
+		 */
+		private static final long serialVersionUID = 4836502066730819061L;
+
+	{
 		agencies.put("ACHP","Advisory Council on Historic Preservation");
 		agencies.put("USAID","Agency for International Development");
 		agencies.put("ARS","Agriculture Research Service");
