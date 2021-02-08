@@ -752,8 +752,8 @@ public class EISController {
 			EISDoc recordToUpdate = maybeRecord.get();
 
 			// translate
-			recordToUpdate.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
-			recordToUpdate.setDocumentType(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.document));
+			recordToUpdate.setAgency(Globals.normalizeSpace(itr.agency));
+			recordToUpdate.setDocumentType(Globals.normalizeSpace(itr.document));
 			recordToUpdate.setFilename(itr.filename);
 			recordToUpdate.setRegisterDate(LocalDate.parse(itr.federal_register_date));
 			
@@ -771,8 +771,8 @@ public class EISController {
 				recordToUpdate.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
 			}
 			
-			recordToUpdate.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
-			recordToUpdate.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
+			recordToUpdate.setState(Globals.normalizeSpace(itr.state));
+			recordToUpdate.setTitle(Globals.normalizeSpace(itr.title));
 			recordToUpdate.setFolder(itr.eis_identifier.trim());
 			recordToUpdate.setLink(itr.link.trim());
 			recordToUpdate.setNotes(itr.notes.trim());

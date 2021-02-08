@@ -4,25 +4,19 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,7 +46,6 @@ import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -2051,8 +2044,8 @@ public class FileController {
 		
 		// translate
 		EISDoc newRecord = new EISDoc();
-		newRecord.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
-		newRecord.setDocumentType(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.document));
+		newRecord.setAgency(Globals.normalizeSpace(itr.agency));
+		newRecord.setDocumentType(Globals.normalizeSpace(itr.document));
 		newRecord.setFilename(itr.filename);
 		newRecord.setCommentsFilename(itr.comments_filename);
 		// can't be null or blank
@@ -2062,8 +2055,8 @@ public class FileController {
 		} else {
 			newRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
 		}
-		newRecord.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
-		newRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
+		newRecord.setState(Globals.normalizeSpace(itr.state));
+		newRecord.setTitle(Globals.normalizeSpace(itr.title));
 		newRecord.setFolder(itr.eis_identifier);
 		newRecord.setLink(itr.link);
 		newRecord.setNotes(itr.notes);
@@ -2092,7 +2085,7 @@ public class FileController {
 
 		// at this point we've matched on title, date and document type already but because of how we match on title
 		// it can actually be slightly different and hopefully more accurate
-		oldRecord.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title));
+		oldRecord.setTitle(Globals.normalizeSpace(itr.title));
 		
 		// this is redundant because the outer logic doesn't set the filename when one exists without force_update
 		if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
@@ -2123,10 +2116,10 @@ public class FileController {
 		}
 		
 		if(itr.state != null && !itr.state.isBlank()) {
-			oldRecord.setState(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.state));
+			oldRecord.setState(Globals.normalizeSpace(itr.state));
 		}
 		if(itr.agency != null && !itr.agency.isBlank()) {
-			oldRecord.setAgency(org.apache.commons.lang3.StringUtils.normalizeSpace(itr.agency));
+			oldRecord.setAgency(Globals.normalizeSpace(itr.agency));
 		}
 		oldRecord.setFolder(itr.eis_identifier);
 		oldRecord.setLink(itr.link);
@@ -2331,7 +2324,7 @@ public class FileController {
 			    // Ensure metadata is valid
 				int count = 0;
 				for (UploadInputs itr : dto) {
-					itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
+					itr.title = Globals.normalizeSpace(itr.title);
 				    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 				    if(isValid(itr)) {
 	
@@ -2393,6 +2386,108 @@ public class FileController {
 	
 			return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 		}
+
+	/** 
+		 * Takes .csv file with required headers and imports each valid record.  Updates existing records
+		 * 
+		 * Valid records: Must have title
+		 * 
+		 * @return List of strings with message per record (zero-based) indicating success/error 
+		 * and potentially more details */
+//		@CrossOrigin
+//		@RequestMapping(path = "/uploadCSV_titles", method = RequestMethod.POST, consumes = "multipart/form-data")
+//		private ResponseEntity<List<String>> importCSVTitlesOnly(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+//											throws IOException { 
+//			
+//			String token = headers.get("authorization");
+//			
+//			if(!isCurator(token) && !isAdmin(token)) 
+//			{
+//				return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+//			} 
+//			List<String> results = new ArrayList<String>();
+//			
+//		    // Expect these headers:
+//		    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
+//			
+//		    try {
+//		    	
+//		    	ObjectMapper mapper = new ObjectMapper();
+//			    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+//	
+//				int count = 0;
+//				for (UploadInputs itr : dto) {
+//					
+//					// Handle any leading/trailing invisible characters, double spacing
+//					itr.title = Globals.normalizeSpace(itr.title);
+//					// Handle any agency abbreviations
+//					itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
+//					
+//					// Title-only option for Buomsoo's data, to update all title matches
+//				    
+//				    if(itr.title != null && itr.title.length()>0) {
+//	
+//				    	// Save only valid dates
+//				    	boolean error = false;
+////						try {
+////							LocalDate parsedDate = parseDate(itr.federal_register_date);
+////							itr.federal_register_date = parsedDate.toString();
+////						} catch (IllegalArgumentException e) {
+////							System.out.println("Threw IllegalArgumentException");
+////							results.add("Item " + count + ": " + e.getMessage());
+////							error = true;
+////						} catch (Exception e) {
+////							results.add("Item " + count + ": Error " + e.getMessage());
+////							error = true;
+////						}
+////	
+////						try {
+////							if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
+////								itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
+////							}
+////						} catch (Exception e) {
+////							// Since this field is optional, we can just proceed
+////						}
+//						
+//						if(!error) {
+//							// Deduplication
+//							
+//							List<EISDoc> matchingRecords = findAllByTitle(itr.title);
+//							
+//							for(EISDoc record : matchingRecords) {
+//								// TODO: Special update function that only adds new data
+//								ResponseEntity<Long> status = updateDto(itr, record);
+//								
+//								if(status.getStatusCodeValue() == 500) { // Error
+//									results.add("Item " + count + ": Error saving: " + itr.title);
+//						    	} else {
+//									results.add("Item " + count + ": Updated: " + itr.title);
+//	
+//						    		// Log successful record update for accountability (can know last person to update an EISDoc)
+//									FileLog recordLog = new FileLog();
+//									recordLog.setErrorType("Updated existing record by title match");
+//						    		recordLog.setDocumentId(status.getBody());
+//						    		recordLog.setFilename(itr.filename);
+//						    		recordLog.setImported(false);
+//						    		recordLog.setLogTime(LocalDateTime.now());
+//						    		recordLog.setUser(getUser(token));
+//						    		fileLogRepository.save(recordLog);
+//						    	}
+//							}
+//						}
+//				    } else {
+//						results.add("Item " + count + ": Missing title");
+//				    }
+//				    count++;
+//				}
+//		    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
+//				
+//			} catch (Exception e) {
+//				e.printStackTrace();
+//			}
+//	
+//			return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+//		}
 
 	public static String encodeURIComponent(String s) {
 	    String result;

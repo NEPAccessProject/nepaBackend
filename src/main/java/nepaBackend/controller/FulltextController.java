@@ -122,7 +122,7 @@ public class FulltextController {
 //		System.out.println(terms);
 		if(terms != null) {
 			// Whitespace can prevent Lucene from finding results
-			terms = org.apache.commons.lang3.StringUtils.normalizeSpace(terms.strip());
+			terms = Globals.normalizeSpace(terms.strip());
 			
 			try { // Note: Limit matters a lot when getting highlights.  Lack of SSD, RAM, CPU probably important, in that order
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
@@ -335,8 +335,7 @@ public class FulltextController {
 	
 
 	/** Rewrite all existing titles for normalized space (deduplication should compare with normalized input)
-	 * Legacy titles all had a \r at the end, and we don't want that.  Also:
-	 * Not sure if user error but I've seen incoming data with spacing anomalies, so I wrote this */
+	 * Legacy titles all had a \r at the end, and we don't want that.  Also turns double spaces into single */
 	@CrossOrigin
 	@RequestMapping(path = "/normalize_titles", method = RequestMethod.GET)
 	public List<String> normalizeTitleSpace(@RequestHeader Map<String, String> headers) {
@@ -351,10 +350,10 @@ public class FulltextController {
 				List<EISDoc> docs = docRepository.findAll();
 				for(EISDoc doc : docs) {
 					String title = doc.getTitle();
-					if(title.contentEquals(org.apache.commons.lang3.StringUtils.normalizeSpace(title))) {
+					if(title.contentEquals(Globals.normalizeSpace(title))) {
 						// do nothing
 					} else {
-						doc.setTitle(org.apache.commons.lang3.StringUtils.normalizeSpace(title));
+						doc.setTitle(Globals.normalizeSpace(title));
 						docRepository.save(doc);
 						// add pre-altered title to results following ID
 						results.add(doc.getId() + ": " + title);
