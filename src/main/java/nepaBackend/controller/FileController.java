@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -97,6 +98,7 @@ public class FileController {
 			"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
 			.map(DateTimeFormatter::ofPattern)
 			.toArray(DateTimeFormatter[]::new);
+	
 
 	public FileController(DocRepository docRepository,
 				TextRepository textRepository,
@@ -752,7 +754,7 @@ public class FileController {
 				// Handle any leading/trailing invisible characters, double spacing
 				itr.title = Globals.normalizeSpace(itr.title);
 				// Handle any agency abbreviations
-//				itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
+				itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
 				
 				// TODO: Need a title-only option for Buomsoo's data, to update all title matches
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
@@ -2325,6 +2327,7 @@ public class FileController {
 				int count = 0;
 				for (UploadInputs itr : dto) {
 					itr.title = Globals.normalizeSpace(itr.title);
+					itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
 				    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 				    if(isValid(itr)) {
 	
@@ -2394,100 +2397,104 @@ public class FileController {
 		 * 
 		 * @return List of strings with message per record (zero-based) indicating success/error 
 		 * and potentially more details */
-//		@CrossOrigin
-//		@RequestMapping(path = "/uploadCSV_titles", method = RequestMethod.POST, consumes = "multipart/form-data")
-//		private ResponseEntity<List<String>> importCSVTitlesOnly(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
-//											throws IOException { 
-//			
-//			String token = headers.get("authorization");
-//			
-//			if(!isCurator(token) && !isAdmin(token)) 
-//			{
-//				return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
-//			} 
-//			List<String> results = new ArrayList<String>();
-//			
-//		    // Expect these headers:
-//		    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
-//			
-//		    try {
-//		    	
-//		    	ObjectMapper mapper = new ObjectMapper();
-//			    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
-//	
-//				int count = 0;
-//				for (UploadInputs itr : dto) {
-//					
-//					// Handle any leading/trailing invisible characters, double spacing
-//					itr.title = Globals.normalizeSpace(itr.title);
-//					// Handle any agency abbreviations
-//					itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
-//					
-//					// Title-only option for Buomsoo's data, to update all title matches
-//				    
-//				    if(itr.title != null && itr.title.length()>0) {
-//	
-//				    	// Save only valid dates
-//				    	boolean error = false;
-////						try {
-////							LocalDate parsedDate = parseDate(itr.federal_register_date);
-////							itr.federal_register_date = parsedDate.toString();
-////						} catch (IllegalArgumentException e) {
-////							System.out.println("Threw IllegalArgumentException");
-////							results.add("Item " + count + ": " + e.getMessage());
-////							error = true;
-////						} catch (Exception e) {
-////							results.add("Item " + count + ": Error " + e.getMessage());
-////							error = true;
-////						}
-////	
-////						try {
-////							if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
-////								itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
-////							}
-////						} catch (Exception e) {
-////							// Since this field is optional, we can just proceed
-////						}
-//						
-//						if(!error) {
-//							// Deduplication
-//							
-//							List<EISDoc> matchingRecords = findAllByTitle(itr.title);
-//							
-//							for(EISDoc record : matchingRecords) {
-//								// TODO: Special update function that only adds new data
-//								ResponseEntity<Long> status = updateDto(itr, record);
-//								
-//								if(status.getStatusCodeValue() == 500) { // Error
-//									results.add("Item " + count + ": Error saving: " + itr.title);
-//						    	} else {
-//									results.add("Item " + count + ": Updated: " + itr.title);
-//	
-//						    		// Log successful record update for accountability (can know last person to update an EISDoc)
-//									FileLog recordLog = new FileLog();
-//									recordLog.setErrorType("Updated existing record by title match");
-//						    		recordLog.setDocumentId(status.getBody());
-//						    		recordLog.setFilename(itr.filename);
-//						    		recordLog.setImported(false);
-//						    		recordLog.setLogTime(LocalDateTime.now());
-//						    		recordLog.setUser(getUser(token));
-//						    		fileLogRepository.save(recordLog);
-//						    	}
-//							}
+		@CrossOrigin
+		@RequestMapping(path = "/uploadCSV_titles", method = RequestMethod.POST, consumes = "multipart/form-data")
+		private ResponseEntity<List<String>> importCSVTitlesOnly(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+											throws IOException { 
+			
+			String token = headers.get("authorization");
+			
+			if(!isCurator(token) && !isAdmin(token)) 
+			{
+				return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+			} 
+			List<String> results = new ArrayList<String>();
+			
+		    // Expect these headers:
+		    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
+			
+		    try {
+		    	
+		    	ObjectMapper mapper = new ObjectMapper();
+			    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+	
+				int count = 0;
+				for (UploadInputs itr : dto) {
+					
+					// Handle any leading/trailing invisible characters, double spacing
+					itr.title = Globals.normalizeSpace(itr.title);
+					// Handle any agency abbreviations
+					itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
+					
+					// Title-only option for Buomsoo's data, to update all title matches
+				    
+				    if(itr.title != null && itr.title.length()>0) {
+	
+				    	// Save only valid dates
+				    	boolean error = false;
+//						try {
+//							LocalDate parsedDate = parseDate(itr.federal_register_date);
+//							itr.federal_register_date = parsedDate.toString();
+//						} catch (IllegalArgumentException e) {
+//							System.out.println("Threw IllegalArgumentException");
+//							results.add("Item " + count + ": " + e.getMessage());
+//							error = true;
+//						} catch (Exception e) {
+//							results.add("Item " + count + ": Error " + e.getMessage());
+//							error = true;
 //						}
-//				    } else {
-//						results.add("Item " + count + ": Missing title");
-//				    }
-//				    count++;
-//				}
-//		    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
-//				
-//			} catch (Exception e) {
-//				e.printStackTrace();
-//			}
 //	
-//			return new ResponseEntity<List<String>>(results, HttpStatus.OK);
-//		}
+//						try {
+//							if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
+//								itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
+//							}
+//						} catch (Exception e) {
+//							// Since this field is optional, we can just proceed
+//						}
+						
+						if(!error) {
+							// Deduplication
+							
+							List<EISDoc> matchingRecords = docRepository.findAllByTitle(itr.title);
+							
+							for(EISDoc record : matchingRecords) {
+
+								/** TODO: Special update function that only adds new data
+								 * 
+								ResponseEntity<Long> status = updateDto(itr, record);
+								
+								if(status.getStatusCodeValue() == 500) { // Error
+									results.add("Item " + count + ": Error saving: " + itr.title);
+						    	} else {
+									results.add("Item " + count + ": Updated: " + itr.title);
+	
+						    		// Log successful record update for accountability (can know last person to update an EISDoc)
+									FileLog recordLog = new FileLog();
+									recordLog.setErrorType("Updated existing record by title match");
+						    		recordLog.setDocumentId(status.getBody());
+						    		recordLog.setFilename(itr.filename);
+						    		recordLog.setImported(false);
+						    		recordLog.setLogTime(LocalDateTime.now());
+						    		recordLog.setUser(getUser(token));
+						    		fileLogRepository.save(recordLog);
+						    	}
+						    	*
+						    	*/
+							}
+						}
+				    } else {
+						results.add("Item " + count + ": Missing title");
+				    }
+				    count++;
+				}
+		    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
+				
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+	
+			return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+		}
 
 	public static String encodeURIComponent(String s) {
 	    String result;
