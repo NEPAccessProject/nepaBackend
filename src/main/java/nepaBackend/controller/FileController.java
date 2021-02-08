@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -754,8 +755,13 @@ public class FileController {
 		    // Ensure metadata is valid
 			int count = 0;
 			for (UploadInputs itr : dto) {
-				itr.title = org.apache.commons.lang3.StringUtils.normalizeSpace(itr.title);
 				
+				// Handle any leading/trailing invisible characters, double spacing
+				itr.title = Globals.normalizeSpace(itr.title);
+				// Handle any agency abbreviations
+				itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
+				
+				// TODO: Need a title-only option for Buomsoo's data, to update all title matches
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
 
@@ -2405,6 +2411,11 @@ public class FileController {
 
 	    return result;
 	}
+	
+	
+	
+	
+	
 
 	// Probably useless
 //	private String pdfParseToXML(ByteArrayInputStream inputstream) {
