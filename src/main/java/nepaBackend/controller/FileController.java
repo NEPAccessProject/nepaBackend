@@ -902,11 +902,20 @@ public class FileController {
 			    String folderName = getUniqueFolderNameOrEmpty(origFilename);
 			    
 			    if(folderName.length() == 0) { // If no folder name:
+			    	boolean missingZip = false;
 			    	
 			    	// If filename, however:
 			    	// TODO: In this case it's probably time to extract all the files and create a
 			    	// NEPAFile for each of them inside the folder.
 			    	Optional<EISDoc> foundDoc = docRepository.findTopByFilename(origFilename);
+			    	if(!foundDoc.isPresent()) {
+			    		// Nothing?  Try removing .zip from filename, if it exists.
+			    		if(origFilename.length()>4 
+			    				&& origFilename.substring(origFilename.length() - 4).equalsIgnoreCase(".zip")){
+				    		foundDoc = docRepository.findTopByFilename(origFilename.substring(0, origFilename.length()-4));
+				    		missingZip = true;
+			    		}
+			    	}
 			    	if(foundDoc.isPresent()) {
 			    		// If found we can link this to something, therefore proceed with upload
 
@@ -952,6 +961,10 @@ public class FileController {
 					    	// Need to update EISDoc for size and to look in the correct place.
 					    	EISDoc existingDoc = foundDoc.get();
 					    	existingDoc.setFolder(origFilename);
+					    	if(missingZip) {
+					    		// We'll want to change the database filename to include the extension
+					    		existingDoc.setFilename(origFilename);
+					    	}
 					    	
 					    	// No longer needed
 //							Long sizeResponse = (getFileSizeFromFilename(origFilename).getBody());
@@ -960,6 +973,9 @@ public class FileController {
 //							}
 					    	
 					    	docRepository.save(existingDoc);
+					    	if(missingZip) {
+					    		addUpFolderSize(existingDoc);
+					    	}
 					    	
 					    	// Save FileLog
 					    	
@@ -1611,9 +1627,9 @@ public class FileController {
 			
 			// Handle directory - can ignore them if we're just converting PDFs
 			if(!ze.isDirectory()) {
-				if(testing) {
-					System.out.println(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename));
-				}
+//				if(testing) {
+//					System.out.println(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename));
+//				}
 				
 				// Skip if we have this text already (duplicate filenames associated with one EISDoc record are skipped)
 				if(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename)) {
@@ -1717,9 +1733,9 @@ public class FileController {
 				
 				// Handle directory - can ignore them if we're just converting PDFs
 				if(!ze.isDirectory()) {
-					if(testing) {
-						System.out.println(textRepository.existsByEisdocAndFilename(eis, filename));
-					}
+//					if(testing) {
+//						System.out.println(textRepository.existsByEisdocAndFilename(eis, filename));
+//					}
 					
 					// Skip if we have this file text already
 					if(textRepository.existsByEisdocAndFilename(eis, filename)) {
