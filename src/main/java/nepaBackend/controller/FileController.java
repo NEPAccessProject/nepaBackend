@@ -752,7 +752,7 @@ public class FileController {
 				// Handle any leading/trailing invisible characters, double spacing
 				itr.title = Globals.normalizeSpace(itr.title);
 				// Handle any agency abbreviations
-				itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
+//				itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
 				
 				// TODO: Need a title-only option for Buomsoo's data, to update all title matches
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
