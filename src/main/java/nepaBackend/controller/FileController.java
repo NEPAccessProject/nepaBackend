@@ -2132,7 +2132,63 @@ public class FileController {
 		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
 	}
 
+	/** For Buomsoo's data, updates blank fields with seven new metadatums */
+	private ResponseEntity<Long> updateDtoNoOverwrite(UploadInputs itr, EISDoc existingRecord) {
 
+		existingRecord.setTitle(Globals.normalizeSpace(itr.title));
+		
+		if(itr.agency == null || itr.agency.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setAgency(Globals.normalizeSpace(itr.agency));
+		}
+		if(itr.state == null || itr.state.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setState(Globals.normalizeSpace(itr.state));
+		}
+		
+		if(itr.department == null || itr.department.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setDepartment(Globals.normalizeSpace(itr.department));
+		}
+		if(itr.cooperating_agency == null || itr.cooperating_agency.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setCooperatingAgency(Globals.normalizeSpace(itr.cooperating_agency));
+		}
+		if(itr.summary_text == null || itr.summary_text.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setSummaryText(Globals.normalizeSpace(itr.summary_text));
+		}
+		
+		if(itr.noi_date == null || itr.noi_date.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setNoiDate(LocalDate.parse(itr.noi_date));
+		}
+		if(itr.draft_noa == null || itr.draft_noa.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setDraftNoa(LocalDate.parse(itr.draft_noa));
+		}
+		if(itr.final_noa == null || itr.final_noa.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setFinalNoa(LocalDate.parse(itr.final_noa));
+		}
+		if(itr.first_rod_date == null || itr.first_rod_date.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setFirstRodDate(LocalDate.parse(itr.first_rod_date));
+		}
+		
+		docRepository.save(existingRecord); // save to db, ID shouldn't change
+		
+		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
+	}
 
 	private boolean save(@RequestBody DocumentText docText) {
 		if(docText.getPlaintext().trim().length()>0) {
@@ -2156,40 +2212,40 @@ public class FileController {
 	}
 
 	/** Check that required fields exist (doesn't verify document type from a list of acceptable types) */
-		private boolean isValid(UploadInputs dto) {
+	private boolean isValid(UploadInputs dto) {
 	//		System.out.println(dto.title);
 	//		System.out.println(dto.federal_register_date);
 	//		System.out.println(dto.document);
 	//		System.out.println(dto.filename);
-			boolean valid = true;
+		boolean valid = true;
 
-			if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
-				valid = false;
-				return valid; // Just stop here and don't have to worry about validating null values
-			}
-			// Check for empty
-			if(dto.title.isBlank()) {
-				valid = false; // Need title
-			}
-	
-			if(dto.document.isBlank()) {
-				valid = false; // Need type
-			}
-			
-			// Don't require filename or EISID if force update==yes
-			if(valid && dto.force_update != null && dto.force_update.equalsIgnoreCase("yes")) {
-				return true;
-			}
-			
-			// Expect EIS identifier or filename
-			if((dto.eis_identifier == null || dto.eis_identifier.isBlank()) 
-					&& (dto.filename == null || dto.filename.isBlank() || dto.filename.equalsIgnoreCase("n/a") || dto.filename.equalsIgnoreCase("null"))) {
-				valid = false;
-				return valid;
-			}
-	
+		if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
+			valid = false;
+			return valid; // Just stop here and don't have to worry about validating null values
+		}
+		// Check for empty
+		if(dto.title.isBlank()) {
+			valid = false; // Need title
+		}
+
+		if(dto.document.isBlank()) {
+			valid = false; // Need type
+		}
+		
+		// Don't require filename or EISID if force update==yes
+		if(valid && dto.force_update != null && dto.force_update.equalsIgnoreCase("yes")) {
+			return true;
+		}
+		
+		// Expect EIS identifier or filename
+		if((dto.eis_identifier == null || dto.eis_identifier.isBlank()) 
+				&& (dto.filename == null || dto.filename.isBlank() || dto.filename.equalsIgnoreCase("n/a") || dto.filename.equalsIgnoreCase("null"))) {
+			valid = false;
 			return valid;
 		}
+
+		return valid;
+	}
 
 	/** Return whether JWT is from Admin role */
 	private boolean isAdmin(String token) {
@@ -2296,205 +2352,189 @@ public class FileController {
 	}
 
 	/** 
-		 * Dummy version of importCSV doesn't add anything to the database.
-		 * 
-		 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
-		 * and potentially more details */
-		@CrossOrigin
-		@RequestMapping(path = "/uploadCSV_dummy", method = RequestMethod.POST, consumes = "multipart/form-data")
-		private ResponseEntity<List<String>> importCSVDummy(@RequestPart(name="csv") String csv, 
-					@RequestHeader Map<String, String> headers) 
-					throws IOException { 
-			
-			String token = headers.get("authorization");
-			
-			if(!isCurator(token) && !isAdmin(token)) 
-			{
-				return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
-			} 
-			List<String> results = new ArrayList<String>();
-			
-			results.add("Dummy results follow (database is unchanged):");
-			
-		    try {
-		    	
-		    	ObjectMapper mapper = new ObjectMapper();
-			    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+	 * Dummy version of importCSV doesn't add anything to the database.
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
+	 * and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_dummy", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSVDummy(@RequestPart(name="csv") String csv, 
+				@RequestHeader Map<String, String> headers) 
+				throws IOException { 
+		
+		String token = headers.get("authorization");
+		
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		List<String> results = new ArrayList<String>();
+		
+		results.add("Dummy results follow (database is unchanged):");
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
 
-				results.add("Record count: " + dto.length);
-	
-			    // Ensure metadata is valid
-				int count = 0;
-				for (UploadInputs itr : dto) {
-					itr.title = Globals.normalizeSpace(itr.title);
-					itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
-				    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
-				    if(isValid(itr)) {
-	
-				    	// Save only valid dates
-				    	boolean error = false;
-						try {
-							LocalDate parsedDate = parseDate(itr.federal_register_date);
-							itr.federal_register_date = parsedDate.toString();
-						} catch (IllegalArgumentException e) {
-							System.out.println("Threw IllegalArgumentException");
-							results.add("Item " + count + ": " + e.getMessage());
-							error = true;
-						} catch (Exception e) {
-							results.add("Item " + count + ": Error " + e.getMessage());
-							error = true;
+			results.add("Record count: " + dto.length);
+
+		    // Ensure metadata is valid
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				itr.title = Globals.normalizeSpace(itr.title);
+				itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
+			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
+			    if(isValid(itr)) {
+
+			    	// Save only valid dates
+			    	boolean error = false;
+					try {
+						LocalDate parsedDate = parseDate(itr.federal_register_date);
+						itr.federal_register_date = parsedDate.toString();
+					} catch (IllegalArgumentException e) {
+						System.out.println("Threw IllegalArgumentException");
+						results.add("Item " + count + ": " + e.getMessage());
+						error = true;
+					} catch (Exception e) {
+						results.add("Item " + count + ": Error " + e.getMessage());
+						error = true;
+					}
+
+					try {
+						if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
+							itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
 						}
-	
-						try {
-							if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
-								itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
-							}
-						} catch (Exception e) {
-							// Since this field is optional, we can just proceed
-						}
+					} catch (Exception e) {
+						// Since this field is optional, we can just proceed
+					}
+					
+					if(!error) {
+						// Deduplication
 						
-						if(!error) {
-							// Deduplication
-							
-							Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
-							
-							// If record exists but has no filename, then update it instead of skipping
-							// This is because current data is based on having a filename for an archive or not,
-							// so new data can add files where there are none, without adding redundant data when there is data.
-							// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
-							if(recordThatMayExist.isPresent() && 
-									(recordThatMayExist.get().getFilename().isBlank() || 
-											(itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) )
-							) {
-								results.add("Item " + count + ": Updated: " + itr.title);
-					    	}
-							// If file doesn't exist, then create new record
-							else if(!recordThatMayExist.isPresent()) 
-							{ 
-					    		results.add("Item " + count + ": OK: " + itr.title);
-					    	} else {
-								results.add("Item " + count + ": Duplicate (no action): " + itr.title);
-					    	}
-						}
-				    } else {
-						results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/EIS Identifier/Title");
-				    }
-				    count++;
-				}
-				
-			} catch (Exception e) {
-				e.printStackTrace();
-				results.add(e.getMessage());
+						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
+						
+						// If record exists but has no filename, then update it instead of skipping
+						// This is because current data is based on having a filename for an archive or not,
+						// so new data can add files where there are none, without adding redundant data when there is data.
+						// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
+						if(recordThatMayExist.isPresent() && 
+								(recordThatMayExist.get().getFilename().isBlank() || 
+										(itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) )
+						) {
+							results.add("Item " + count + ": Updated: " + itr.title);
+				    	}
+						// If file doesn't exist, then create new record
+						else if(!recordThatMayExist.isPresent()) 
+						{ 
+				    		results.add("Item " + count + ": OK: " + itr.title);
+				    	} else {
+							results.add("Item " + count + ": Duplicate (no action): " + itr.title);
+				    	}
+					}
+			    } else {
+					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/EIS Identifier/Title");
+			    }
+			    count++;
 			}
-	
-			return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			results.add(e.getMessage());
 		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
 
 	/** 
-		 * Takes .csv file with required headers and imports each valid record.  Updates existing records
-		 * 
-		 * Valid records: Must have title
-		 * 
-		 * @return List of strings with message per record (zero-based) indicating success/error 
-		 * and potentially more details */
-		@CrossOrigin
-		@RequestMapping(path = "/uploadCSV_titles", method = RequestMethod.POST, consumes = "multipart/form-data")
-		private ResponseEntity<List<String>> importCSVTitlesOnly(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
-											throws IOException { 
-			
-			String token = headers.get("authorization");
-			
-			if(!isCurator(token) && !isAdmin(token)) 
-			{
-				return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
-			} 
-			List<String> results = new ArrayList<String>();
-			
-		    // Expect these headers:
-		    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
-			
-		    try {
-		    	
-		    	ObjectMapper mapper = new ObjectMapper();
-			    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
-	
-				int count = 0;
-				for (UploadInputs itr : dto) {
-					
-					// Handle any leading/trailing invisible characters, double spacing
-					itr.title = Globals.normalizeSpace(itr.title);
-					// Handle any agency abbreviations
-					itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
-					
-					// Title-only option for Buomsoo's data, to update all title matches
-				    
-				    if(itr.title != null && itr.title.length()>0) {
-	
-				    	// Save only valid dates
-				    	boolean error = false;
-//						try {
-//							LocalDate parsedDate = parseDate(itr.federal_register_date);
-//							itr.federal_register_date = parsedDate.toString();
-//						} catch (IllegalArgumentException e) {
-//							System.out.println("Threw IllegalArgumentException");
-//							results.add("Item " + count + ": " + e.getMessage());
-//							error = true;
-//						} catch (Exception e) {
-//							results.add("Item " + count + ": Error " + e.getMessage());
-//							error = true;
-//						}
-//	
-//						try {
-//							if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
-//								itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
-//							}
-//						} catch (Exception e) {
-//							// Since this field is optional, we can just proceed
-//						}
-						
-						if(!error) {
-							// Deduplication
-							
-							List<EISDoc> matchingRecords = docRepository.findAllByTitle(itr.title);
-							
-							for(EISDoc record : matchingRecords) {
+	 * Takes .csv file with required headers and imports each valid record.  Updates existing records
+	 * 
+	 * Valid records: Must have title
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating success/error 
+	 * and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_titles", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSVTitlesOnly(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		
+		String token = headers.get("authorization");
+		
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		List<String> results = new ArrayList<String>();
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
 
-								/** TODO: Special update function that only adds new data
-								 * 
-								ResponseEntity<Long> status = updateDto(itr, record);
-								
-								if(status.getStatusCodeValue() == 500) { // Error
-									results.add("Item " + count + ": Error saving: " + itr.title);
-						    	} else {
-									results.add("Item " + count + ": Updated: " + itr.title);
-	
-						    		// Log successful record update for accountability (can know last person to update an EISDoc)
-									FileLog recordLog = new FileLog();
-									recordLog.setErrorType("Updated existing record by title match");
-						    		recordLog.setDocumentId(status.getBody());
-						    		recordLog.setFilename(itr.filename);
-						    		recordLog.setImported(false);
-						    		recordLog.setLogTime(LocalDateTime.now());
-						    		recordLog.setUser(getUser(token));
-						    		fileLogRepository.save(recordLog);
-						    	}
-						    	*
-						    	*/
-							}
-						}
-				    } else {
-						results.add("Item " + count + ": Missing title");
-				    }
-				    count++;
-				}
-		    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
+			int count = 0;
+			for (UploadInputs itr : dto) {
 				
-			} catch (Exception e) {
-				e.printStackTrace();
+				// Handle any leading/trailing invisible characters, double spacing
+				itr.title = Globals.normalizeSpace(itr.title);
+				// Handle any agency abbreviations
+				itr.agency = Globals.agencyAbbreviationToFull(itr.agency);
+				// Handle any department abbreviations
+				itr.department = Globals.agencyAbbreviationToFull(itr.agency);
+				// Handle any cooperating agency abbreviations
+				String[] cooperating = itr.cooperating_agency.split(";");
+				for(int i = 0; i < cooperating.length; i++) {
+					cooperating[i] = Globals.agencyAbbreviationToFull(cooperating[i]);
+				}
+				itr.cooperating_agency = String.join(";", cooperating);
+				
+				// Title-only option for Buomsoo's data, to update all title matches
+			    
+			    if(itr.title != null && itr.title.length()>0) {
+
+			    	// Parse the four new date values
+					try {
+						itr.noi_date = parseDate(itr.noi_date).toString();
+						itr.first_rod_date = parseDate(itr.first_rod_date).toString();
+						itr.draft_noa = parseDate(itr.draft_noa).toString();
+						itr.final_noa = parseDate(itr.final_noa).toString();
+					} catch (Exception e) {
+						// Since this is optional, we can just proceed
+					}
+					List<EISDoc> matchingRecords = docRepository.findAllByTitle(itr.title);
+					
+					for(EISDoc record : matchingRecords) {
+
+						/** Special update function that only adds new data */
+						ResponseEntity<Long> status = updateDtoNoOverwrite(itr, record);
+						
+						if(status.getStatusCodeValue() == 500) { // Error
+							results.add("Item " + count + ": Error saving: " + itr.title);
+				    	} else {
+							results.add("Item " + count + ": Updated: " + itr.title);
+
+				    		// Log successful record update for accountability (can know last person to update an EISDoc)
+							FileLog recordLog = new FileLog();
+							recordLog.setErrorType("Updated existing record by title match");
+				    		recordLog.setDocumentId(status.getBody());
+				    		recordLog.setFilename(itr.filename);
+				    		recordLog.setImported(false);
+				    		recordLog.setLogTime(LocalDateTime.now());
+				    		recordLog.setUser(getUser(token));
+				    		fileLogRepository.save(recordLog);
+				    	}
+					}
+				} else {
+					results.add("Item " + count + ": Missing title");
+				}
+			    count++;
 			}
-	
-			return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
 
 	public static String encodeURIComponent(String s) {
 	    String result;

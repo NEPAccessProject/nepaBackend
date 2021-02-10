@@ -11,6 +11,7 @@ import javax.persistence.Table;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
+import org.hibernate.search.annotations.Store;
 
 @Table(name="document_text")
 @Entity
@@ -38,11 +39,11 @@ public class DocumentText {
 
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
 	@Column(name="plaintext") // Need to manually change to longtext
-    @Field
+    @Field(store=Store.NO)
 	private String plaintext;
 	
 	@Column(name="filename",columnDefinition="text")
-    @Field
+    @Field(store=Store.NO)
 	private String filename;
 
 

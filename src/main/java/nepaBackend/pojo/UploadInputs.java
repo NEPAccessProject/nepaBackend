@@ -14,6 +14,9 @@ public class UploadInputs {
 	public String federal_register_date;
 	public String epa_comment_letter_date;
 	public String agency;
+	public String department;
+	public String cooperating_agency;
+	public String summary_text; 
 	public String state;
 	public String eis_identifier;
 	public String filename;
@@ -21,6 +24,10 @@ public class UploadInputs {
 	public String link;
 	public String notes;
 	public String force_update;
+	public String noi_date; 
+	public String draft_noa; 
+	public String final_noa; 
+	public String first_rod_date; 
 	
 	public UploadInputs() {
 	}

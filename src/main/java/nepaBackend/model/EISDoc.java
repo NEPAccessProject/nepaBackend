@@ -11,6 +11,7 @@ import javax.persistence.Table;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
+import org.hibernate.search.annotations.Store;
 
 @Entity
 @Table(name="eisdoc") 
@@ -21,23 +22,32 @@ public class EISDoc {
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id;  // TODO: ID/PK?
 	
-    @Column(name="title",columnDefinition="text") // Note: Had to do ALTER TABLE `eis-meta` ADD FULLTEXT(title) for search
-    @Field
+    @Column(name="title",columnDefinition="text") // Note: Had to do ALTER TABLE `eisdoc` ADD FULLTEXT(title) for search
+    @Field(store=Store.NO)
     private String title;
   
     @Column(name="document_type")
     private String documentType;  // TODO: Enum?
   
     @Column(name="comment_date")
-    private LocalDate commentDate; // TODO: turn into DATE, MySQL stores Date as yyyy-mm-dd
+    private LocalDate commentDate; 
   
     @Column(name="register_date")
     private LocalDate registerDate; 
   
     @Column(name="agency")
     private String agency; // TODO: Enum?
-  
-    @Column(name="state")
+
+    @Column(name="department")
+    private String department; // TODO: Enum?
+
+    @Column(name="cooperating_agency", columnDefinition="text")
+    private String cooperatingAgency; 
+
+    @Column(name="summary_text", columnDefinition="text")
+    private String summaryText; 
+    
+	@Column(name="state")
     private String state; // TODO: Enum?
   
     @Column(name="filename")
@@ -55,8 +65,20 @@ public class EISDoc {
 	@Column(name="web_link")
     private String link; // source link (optional)
 
-	@Column(name="notes")
+	@Column(name="notes", columnDefinition="text")
     private String notes; // (optional)
+	
+    @Column(name="noi_date")
+    private LocalDate noiDate; 
+
+    @Column(name="draft_noa")
+    private LocalDate draftNoa; 
+
+    @Column(name="final_noa")
+    private LocalDate finalNoa; 
+
+    @Column(name="first_rod_date")
+    private LocalDate firstRodDate; 
     
     // String location; // Location for proposed project is desired, but don't have metadata
     // String action; // Type of action is desired, but don't have metadata
@@ -65,14 +87,19 @@ public class EISDoc {
 
     public EISDoc() { }
 
-	public EISDoc(Long id, String title, String documentType, LocalDate commentDate, LocalDate registerDate, String agency, String state,
-			String filename, String commentsFilename, String folder, Long size, String link, String notes) {
+	public EISDoc(Long id, String title, String documentType, LocalDate commentDate, LocalDate registerDate, 
+			String agency, String department, String cooperatingAgency, String summaryText, String state,
+			String filename, String commentsFilename, String folder, Long size, String link, String notes,
+			LocalDate noiDate, LocalDate draftNoa, LocalDate finalNoa, LocalDate firstRodDate) {
 		this.id = id;
 		this.title = title;
 		this.documentType = documentType;
 		this.commentDate = commentDate;
 		this.registerDate = registerDate;
 		this.agency = agency;
+		this.department = department;
+		this.cooperatingAgency = cooperatingAgency;
+		this.summaryText = summaryText;
 		this.state = state;
 		this.filename = filename;
 		this.commentsFilename = commentsFilename;
@@ -80,6 +107,10 @@ public class EISDoc {
 		this.size = size;
 		this.notes = notes;
 		this.link = link;
+		this.noiDate = noiDate;
+		this.draftNoa = draftNoa;
+		this.finalNoa = finalNoa;
+		this.firstRodDate = firstRodDate;
 	}
 
 	public Long getId() {
@@ -180,6 +211,62 @@ public class EISDoc {
 
 	public void setNotes(String notes) {
 		this.notes = notes;
+	}
+	
+	public String getDepartment() {
+		return department;
+	}
+
+	public void setDepartment(String department) {
+		this.department = department;
+	}
+
+	public String getCooperatingAgency() {
+		return cooperatingAgency;
+	}
+
+	public void setCooperatingAgency(String cooperatingAgency) {
+		this.cooperatingAgency = cooperatingAgency;
+	}
+
+	public LocalDate getNoiDate() {
+		return noiDate;
+	}
+
+	public void setNoiDate(LocalDate noiDate) {
+		this.noiDate = noiDate;
+	}
+
+	public LocalDate getDraftNoa() {
+		return draftNoa;
+	}
+
+	public void setDraftNoa(LocalDate draftNoa) {
+		this.draftNoa = draftNoa;
+	}
+
+	public LocalDate getFinalNoa() {
+		return finalNoa;
+	}
+
+	public void setFinalNoa(LocalDate finalNoa) {
+		this.finalNoa = finalNoa;
+	}
+
+	public LocalDate getFirstRodDate() {
+		return firstRodDate;
+	}
+
+	public void setFirstRodDate(LocalDate firstRodDate) {
+		this.firstRodDate = firstRodDate;
+	}
+
+	public String getSummaryText() {
+		return summaryText;
+	}
+
+	public void setSummaryText(String summaryText) {
+		this.summaryText = summaryText;
 	}
 
 }

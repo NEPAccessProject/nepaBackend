@@ -942,13 +942,20 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					rs.getObject("comment_date", LocalDate.class), 
 					rs.getObject("register_date", LocalDate.class), 
 					rs.getString("agency"),
+					rs.getString("department"),
+					rs.getString("cooperating_agency"),
+					rs.getString("summary_text"),
 					rs.getString("state"), 
 					rs.getString("filename"),
 					rs.getString("comments_filename"),
 					rs.getString("folder"),
 					rs.getLong("size"),
 					rs.getString("web_link"),
-					rs.getString("notes")
+					rs.getString("notes"),
+					rs.getObject("noi_date", LocalDate.class), 
+					rs.getObject("draft_noa", LocalDate.class), 
+					rs.getObject("final_noa", LocalDate.class), 
+					rs.getObject("first_rod_date", LocalDate.class)
 				)
 			);
 			
@@ -1185,13 +1192,20 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				rs.getObject("comment_date", LocalDate.class), 
 				rs.getObject("register_date", LocalDate.class), 
 				rs.getString("agency"),
+				rs.getString("department"),
+				rs.getString("cooperating_agency"),
+				rs.getString("summary_text"),
 				rs.getString("state"), 
 				rs.getString("filename"),
 				rs.getString("comments_filename"),
 				rs.getString("folder"),
 				rs.getLong("size"),
 				rs.getString("web_link"),
-				rs.getString("notes")
+				rs.getString("notes"),
+				rs.getObject("noi_date", LocalDate.class), 
+				rs.getObject("draft_noa", LocalDate.class), 
+				rs.getObject("final_noa", LocalDate.class), 
+				rs.getObject("first_rod_date", LocalDate.class)
 			)
 		);
 
