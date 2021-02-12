@@ -2167,22 +2167,22 @@ public class FileController {
 		if(itr.noi_date == null || itr.noi_date.isBlank()) {
 			// skip, leave original
 		} else {
-			existingRecord.setNoiDate(LocalDate.parse(itr.noi_date));
+			existingRecord.setNoiDate(parseDate(itr.noi_date));
 		}
 		if(itr.draft_noa == null || itr.draft_noa.isBlank()) {
 			// skip, leave original
 		} else {
-			existingRecord.setDraftNoa(LocalDate.parse(itr.draft_noa));
+			existingRecord.setDraftNoa(parseDate(itr.draft_noa));
 		}
 		if(itr.final_noa == null || itr.final_noa.isBlank()) {
 			// skip, leave original
 		} else {
-			existingRecord.setFinalNoa(LocalDate.parse(itr.final_noa));
+			existingRecord.setFinalNoa(parseDate(itr.final_noa));
 		}
 		if(itr.first_rod_date == null || itr.first_rod_date.isBlank()) {
 			// skip, leave original
 		} else {
-			existingRecord.setFirstRodDate(LocalDate.parse(itr.first_rod_date));
+			existingRecord.setFirstRodDate(parseDate(itr.first_rod_date));
 		}
 		
 		docRepository.save(existingRecord); // save to db, ID shouldn't change
