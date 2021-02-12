@@ -2448,6 +2448,7 @@ public class FileController {
 	}
 
 	/** 
+	 * Admin-only. 
 	 * Takes .csv file with required headers and imports each valid record.  Updates existing records
 	 * 
 	 * Valid records: Must have title
@@ -2463,7 +2464,7 @@ public class FileController {
 		
 		fillAgencies();
 		
-		if(!isCurator(token) && !isAdmin(token)) 
+		if(!isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
