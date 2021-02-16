@@ -2630,6 +2630,7 @@ public class FileController {
 		agencies.put("FRA","Federal Railroad Administration");
 		agencies.put("FRBSF","Federal Reserve Bank of San Francisco");
 		agencies.put("FTA","Federal Transit Administration");
+		agencies.put("FirstNet","First Responder Network Authority");
 		agencies.put("USFWS","Fish and Wildlife Service");
 		agencies.put("FDOT","Florida Department of Transportation");
 		agencies.put("FDA","Food and Drug Administration");
@@ -2667,7 +2668,9 @@ public class FileController {
 		agencies.put("NJDEP","New Jersey Department of Environmental Protection");
 		agencies.put("NRC","Nuclear Regulatory Commission");
 		agencies.put("OCR","Office of Coal Research");
-		agencies.put("OSM","Office of Surface Mining");
+//		agencies.put("OSM","Office of Surface Mining"); // EPA mistake?
+		agencies.put("OSM","Office of Surface Mining Reclamation and Enforcement"); 
+		agencies.put("OSMRE","Office of Surface Mining Reclamation and Enforcement");
 		agencies.put("OBR","Ohio River Basin Commission");
 		agencies.put("RSPA","Research and Special Programs");
 		agencies.put("REA","Rural Electrification Administration");
@@ -2695,6 +2698,7 @@ public class FileController {
 		agencies.put("UMR","Upper Mississippi Basin Commission");
 		agencies.put("UMTA","Urban Mass Transportation Administration");
 		agencies.put("UDOT","Utah Department of Transportation");
+		agencies.put("URC","Utah Reclamation Mitigation and Conservation Commission");
 		agencies.put("WAPA","Western Area Power Administration");
 	}
 	

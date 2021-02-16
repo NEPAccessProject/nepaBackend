@@ -209,4 +209,5 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	long getDraftCount();
 	
+	List<EISDoc> findAllByAgency(String agency);
 }

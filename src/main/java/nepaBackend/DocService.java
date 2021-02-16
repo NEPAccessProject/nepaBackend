@@ -38,4 +38,9 @@ public class DocService {
 	public List<EISDoc> getAllDistinctBy(Long _id, List<Integer> idList1, List<Integer> idList2) {
 		return docRepository.queryBy(_id, idList1, idList2);
 	}
+
+	public List<EISDoc> findAllByAgency(String agency) {
+		return docRepository.findAllByAgency(agency);
+	}
+
 }

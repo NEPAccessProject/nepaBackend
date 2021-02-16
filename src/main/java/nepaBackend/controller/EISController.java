@@ -731,6 +731,57 @@ public class EISController {
 		}
 	}
 	
+	private String fixAgency(String before, String after) {
+		List<EISDoc> docs = docService.findAllByAgency(before);
+		String returnValue = "";
+		for(EISDoc doc: docs) {
+			returnValue += doc.getAgency() + ": ";
+			
+			// update
+			doc.setAgency(after); 
+			EISDoc status = docService.saveEISDoc(doc);
+			
+			returnValue += status.getAgency() + "\n";
+		}
+		return returnValue;
+	}
+	
+	/** Fix errors by the federal government */
+	@CrossOrigin
+	@RequestMapping(path = "/fix_abbrev", method = RequestMethod.POST)
+	public ResponseEntity<String> fixAbbrev(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		String returnValue = "";
+		if(userIsAuthorized(token)) {
+			try {
+//				returnValue += fixAgency("ARD","ARD"); // TODO: Still don't know what ARD means
+				returnValue += fixAgency("AFS","Forest Service");
+				returnValue += fixAgency("BOEMRE","Bureau of Ocean Energy Management");
+				returnValue += fixAgency("BOR","Bureau of Reclamation");
+				returnValue += fixAgency("CGD","U.S. Coast Guard");
+				returnValue += fixAgency("COE","U.S. Army Corps of Engineers");
+				returnValue += fixAgency("FHW","Federal Highway Administration");
+				returnValue += fixAgency("FWS","Fish and Wildlife Service");
+				returnValue += fixAgency("FirstNet","First Responder Network Authority");
+				returnValue += fixAgency("NNS","National Nuclear Security Administration");
+				returnValue += fixAgency("NGB","National Guard Bureau");
+				returnValue += fixAgency("NIG","National Indian Gaming Commission");
+				returnValue += fixAgency("Office of Surface Mining","Office of Surface Mining Reclamation and Enforcement");
+				returnValue += fixAgency("OSMRE","Office of Surface Mining Reclamation and Enforcement");
+				returnValue += fixAgency("UCG","U.S. Coast Guard");
+				returnValue += fixAgency("USAF","United States Air Force");
+				returnValue += fixAgency("URC","Utah Reclamation Mitigation and Conservation Commission");
+				returnValue += fixAgency("WAP","Western Area Power Administration");
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ResponseEntity<String>(returnValue + "\n" + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} else {
+			return new ResponseEntity<String>(returnValue, HttpStatus.UNAUTHORIZED);
+		}
+		return new ResponseEntity<String>(returnValue, HttpStatus.OK);
+	}
+	
 	
 	private boolean userIsAuthorized(String token) {
 		boolean result = false;
