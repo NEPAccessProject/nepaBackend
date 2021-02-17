@@ -101,9 +101,17 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getTypeCount();
 	
 	/** Return count of filenames by document type */
+//	@Query(value = "SELECT document_type, COUNT(*) "
+//			+ "FROM test.eisdoc "
+//			+ "WHERE LENGTH(filename)>0 "
+//			+ "GROUP BY document_type;",
+//			nativeQuery = true)
+//	public List<Object> getDownloadableCountByType();
+
+	/** Return count of valid size by document type */
 	@Query(value = "SELECT document_type, COUNT(*) "
 			+ "FROM test.eisdoc "
-			+ "WHERE LENGTH(filename)>0 "
+			+ "WHERE size>200 "
 			+ "GROUP BY document_type;",
 			nativeQuery = true)
 	public List<Object> getDownloadableCountByType();
@@ -135,11 +143,21 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "DESC;",
 			nativeQuery = true)
 	public List<Object> getMetadataCountByYear();
-	/** Return downloadable counts by year */
+	/** Return downloadable counts by year according to filename existing */
+//	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
+//			+ "FROM test.eisdoc "
+//			+ "WHERE (document_type='Final' OR document_type='Draft') "
+//			+ "AND LENGTH(filename)>0 "
+//			+ "GROUP BY YEAR(register_date) "
+//			+ "ORDER BY YEAR(register_date) "
+//			+ "DESC;",
+//			nativeQuery = true)
+//	public List<Object> getDownloadableCountByYear();
+	/** Return downloadable counts by year according to file size */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
 			+ "FROM test.eisdoc "
 			+ "WHERE (document_type='Final' OR document_type='Draft') "
-			+ "AND LENGTH(filename)>0 "
+			+ "AND size>200 "
 			+ "GROUP BY YEAR(register_date) "
 			+ "ORDER BY YEAR(register_date) "
 			+ "DESC;",
@@ -186,7 +204,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	@Query(value = "SELECT COUNT(*) "
 			+ "FROM test.eisdoc "
 			+ "WHERE document_type='Final' "
-			+ "AND LENGTH(filename)>0;",
+			+ "AND size>200;",
 			nativeQuery = true)
 	long getFinalCountDownloadable();
 
@@ -199,7 +217,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	@Query(value = "SELECT COUNT(*) "
 			+ "FROM test.eisdoc "
 			+ "WHERE document_type='Draft' "
-			+ "AND LENGTH(filename)>0;",
+			+ "AND size>200;",
 			nativeQuery = true)
 	long getDraftCountDownloadable();
 	
