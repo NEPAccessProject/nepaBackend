@@ -219,7 +219,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	@Query(value = "SELECT filename,folder,document_type "
 			+ "FROM test.eisdoc "
-			+ "WHERE size<=0;",
+			+ "WHERE size<=200;",
 			nativeQuery = true)
 	List<Object[]> findMissingNames();
 }
