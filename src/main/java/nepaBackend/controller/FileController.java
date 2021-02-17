@@ -155,6 +155,53 @@ public class FileController {
 		}
 	}
 	
+
+	/** Check all missing files for entities with filenames or folders, set new size if found */
+	@CrossOrigin
+	@RequestMapping(path = "/filesizes_missing", method = RequestMethod.GET)
+	public ResponseEntity<String> filesizesMissing() {
+		try {
+			List<EISDoc> files = docRepository.findMissingSize();
+			
+			for(EISDoc doc : files) {
+				String folder = doc.getFolder();
+				String filename = doc.getFilename();
+				if(folder != null && folder.strip().length() > 0) {
+					addUpFolderSize(doc);
+				}
+				else if(filename != null && filename.strip().length() > 0) {
+					Long response = (getFileSizeFromFilename(doc.getFilename()).getBody());
+					if(response != null) {
+						doc.setSize(response);
+					} 
+//					else {
+						// If file isn't found, set size to 0? Or leave it as null?
+//						doc.setSize((long) 0);
+//					}
+					docRepository.save(doc);
+				}
+			}
+			
+			return new ResponseEntity<String>("OK", HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<String>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/** Return list of "missing" files (no size on record) */
+	@CrossOrigin
+	@RequestMapping(path = "/missing_files", method = RequestMethod.GET)
+	public ResponseEntity<List<Object[]>> missingFiles() {
+		try {
+			return new ResponseEntity<List<Object[]>>(docRepository.findMissingNames(),HttpStatus.OK);
+		} catch (Exception e) {
+			if(testing) {
+				e.printStackTrace();
+			}
+			return new ResponseEntity<List<Object[]>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
 	@CrossOrigin
 	@RequestMapping(path = "/filenames", method = RequestMethod.GET)
 	public ResponseEntity<List<String>> filenames(@RequestParam long document_id) {

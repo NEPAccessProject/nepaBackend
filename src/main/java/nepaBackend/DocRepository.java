@@ -210,4 +210,16 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	long getDraftCount();
 	
 	List<EISDoc> findAllByAgency(String agency);
+
+	@Query(value = "SELECT * "
+			+ "FROM test.eisdoc "
+			+ "WHERE size<=0;",
+			nativeQuery = true)
+	List<EISDoc> findMissingSize();
+
+	@Query(value = "SELECT filename,folder,document_type "
+			+ "FROM test.eisdoc "
+			+ "WHERE size<=0;",
+			nativeQuery = true)
+	List<Object[]> findMissingNames();
 }

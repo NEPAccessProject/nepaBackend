@@ -746,7 +746,7 @@ public class EISController {
 		return returnValue;
 	}
 	
-	/** Fix errors by the federal government */
+	/** Fix errors by the federal government, return before/afters */
 	@CrossOrigin
 	@RequestMapping(path = "/fix_abbrev", method = RequestMethod.POST)
 	public ResponseEntity<String> fixAbbrev(@RequestHeader Map<String, String> headers) {
@@ -754,7 +754,7 @@ public class EISController {
 		String returnValue = "";
 		if(userIsAuthorized(token)) {
 			try {
-//				returnValue += fixAgency("ARD","ARD"); // TODO: Still don't know what ARD means
+				returnValue += fixAgency("ARD","Department of Agriculture"); // Adoption by probably Rural Development, should list as USDA
 				returnValue += fixAgency("AFS","Forest Service");
 				returnValue += fixAgency("BOEMRE","Bureau of Ocean Energy Management");
 				returnValue += fixAgency("BOR","Bureau of Reclamation");
