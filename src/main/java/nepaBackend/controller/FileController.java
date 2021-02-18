@@ -2060,40 +2060,6 @@ public class FileController {
 		}
 	}
 	
-
-	/** 
-	 * Returns response for filename from base path if available
-	 **/
-	@CrossOrigin
-	@RequestMapping(path = "/file_response", method = RequestMethod.GET)
-	public ResponseEntity<Object> getFileResponseFromFilename(@RequestParam String filename) {
-		
-		HttpURLConnection conn = null;
-		URL url = null;
-		
-		try {
-			url = new URL(dbURL + filename);
-			if(testing) {
-				url = new URL(testURL + filename);
-			}
-		} catch (MalformedURLException e1) {
-			throw new RuntimeException(e1);
-		}
-		
-		try {
-			conn = (HttpURLConnection) url.openConnection();
-			conn.setRequestMethod("HEAD");
-			
-			return new ResponseEntity<Object>(conn.getContent(), HttpStatus.OK);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		} finally {
-			if (conn != null) {
-				conn.disconnect();
-			}
-		}
-	}
-	
 	/** Saves pre-validated metadata record to database and returns the EISDoc with new ID */
 	private EISDoc saveMetadata(UploadInputs dto) throws org.springframework.orm.jpa.JpaSystemException{
 		EISDoc saveDoc = new EISDoc();
