@@ -382,15 +382,15 @@ public class FileController {
 				} 
 				else 
 				{
-					if(testing) 
-					{
+//					if(testing) 
+//					{
 						resultList.add(doc.getId().toString() + ": " + this.convertRecord(doc)
 						.getStatusCodeValue());
-					} 
-					else 
-					{
+//					} 
+//					else 
+//					{
 						this.convertRecord(doc);
-					}
+//					}
 				}
 			}
 			
@@ -1753,7 +1753,9 @@ public class FileController {
 		
 			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
 			// TODO: Handle folders/multiple files for future (currently only archives)
-			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
+			// TODO: Records with folders are deliberately skipped for now.
+			if(eis.getFilename() == null || eis.getFilename().length() == 0 
+					|| (eis.getFolder() != null && eis.getFolder().length() > 0)) { 
 				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
 			}
 			
