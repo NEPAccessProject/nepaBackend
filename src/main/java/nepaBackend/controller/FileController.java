@@ -389,7 +389,7 @@ public class FileController {
 //					} 
 //					else 
 //					{
-						this.convertRecord(doc);
+//						this.convertRecord(doc);
 //					}
 				}
 			}
