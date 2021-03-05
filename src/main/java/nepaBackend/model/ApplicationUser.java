@@ -27,10 +27,30 @@ public class ApplicationUser { // application_user
 
 	@Column(name = "role")
     private String role; // role describes permissions for using the app
-
+	
 	@Column(name = "last_reset", columnDefinition="TIMESTAMP")
 	private LocalDateTime lastReset;
-	
+
+    @Column(name = "first_name", length=191)
+    private String firstName;
+    
+    @Column(name = "last_name", length=191)
+    private String lastName;
+
+    @Column(name = "affiliation", length=1000)
+    private String affiliation;
+    
+    @Column(name = "organization", length=1000)
+    private String organization;
+
+    @Column(name = "job_title", length=1000)
+    private String jobTitle;
+
+    @Column(name = "verified", columnDefinition="TINYINT(1) default 0") // User has verified email
+    private boolean verified;
+
+    @Column(name = "active", columnDefinition="TINYINT(1) default 0") // User has been approved and can use the system
+    private boolean active;
 
 	public long getId() {
         return id;
