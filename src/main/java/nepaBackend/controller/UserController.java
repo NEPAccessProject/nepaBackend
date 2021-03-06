@@ -1,6 +1,7 @@
 package nepaBackend.controller;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -14,10 +15,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,6 +28,7 @@ import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.EmailLogRepository;
+import nepaBackend.Globals;
 import nepaBackend.SavedSearchRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EmailLog;
@@ -57,6 +61,73 @@ public class UserController {
         this.emailLogRepository = emailLogRepository;
         this.savedSearchRepository = savedSearchRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+    }
+    
+
+    /** TODO: Verify token, verify email based on token contents (could contain email or user id) */
+    @PostMapping("/verifyEmail")
+    private @ResponseBody ResponseEntity<Boolean> verifyEmail(@RequestHeader Map<String, String> headers) {
+    	return new ResponseEntity<Boolean>(false, HttpStatus.I_AM_A_TEAPOT);
+//    	String token = headers.get("authorization");
+//    	
+//    	if(isAdmin(token) || isCurator(token) || isApprover(token)) {
+//    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+//    	} else {
+//    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
+//
+//    		// Approvers cannot deactivate elevated roles
+//    		if(!approved && isApprover(token)) {
+//    			if(user.getRole()=="ADMIN" || user.getRole()=="CURATOR" || user.getRole()=="APPROVER") {
+//    	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+//    			}
+//    		}
+//    		
+//    		user.setActive(approved);
+//    		applicationUserRepository.save(user);
+//
+//    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
+//    	}
+    }
+    
+    @GetMapping("/getAll")
+    private @ResponseBody ResponseEntity<List<Object>> getUsersLimited(@RequestHeader Map<String, String> headers) {
+    	
+    	String token = headers.get("authorization");
+    	
+    	if(isAdmin(token) || isCurator(token) || isApprover(token)) {
+    		return new ResponseEntity<List<Object>>(applicationUserRepository.findLimited(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<Object>>(new ArrayList<Object>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+    
+    @PostMapping("/setUserApproved")
+    private @ResponseBody ResponseEntity<Boolean> approveUser(@RequestParam Long userId, 
+    			@RequestParam boolean approved, 
+    			@RequestHeader Map<String, String> headers) {
+    	
+//    	System.out.println(userId);
+//    	System.out.println(approved);
+    	
+    	String token = headers.get("authorization");
+    	
+    	if(!isAdmin(token) && !isCurator(token) && !isApprover(token)) {
+    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    	} else {
+    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
+
+    		// Approvers cannot deactivate elevated roles
+    		if(!approved && isApprover(token)) {
+    			if(user.getRole()=="ADMIN" || user.getRole()=="CURATOR" || user.getRole()=="APPROVER") {
+    	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    			}
+    		}
+    		
+    		user.setActive(approved);
+    		applicationUserRepository.save(user);
+
+    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
+    	}
     }
     
     // TODO: Test saved search functions
@@ -105,19 +176,22 @@ public class UserController {
     	return new ResponseEntity<Void>(HttpStatus.OK); 
     }
 
-    // Disabled
     @PostMapping("/register")
     private @ResponseBody ResponseEntity<Void> register(@RequestBody ApplicationUser user) {
     	// email address, username are included and saved
+    	// first last affiliation org and job title also included and saved
     	// role has to be set and password has to be encrypted
     	
     	if(usernameExists(user.getUsername())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
+    	} else {
+            user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+            user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
+            user.setLastName(Globals.normalizeSpace(user.getLastName()));
+            user.setRole("USER");
+            applicationUserRepository.save(user);
+    		return new ResponseEntity<Void>(HttpStatus.OK);
     	}
-        user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
-        user.setRole("USER");
-        applicationUserRepository.save(user);
-		return new ResponseEntity<Void>(HttpStatus.OK);
     }
     
     // Generate user route, with sanity and duplicate check
@@ -419,6 +493,18 @@ public class UserController {
 		return new ResponseEntity<Boolean>(result, returnStatus);
 	}
 	
+	// Return true if admin or curator or approver role
+	@PostMapping(path = "/checkApprover")
+	public ResponseEntity<Boolean> checkApprover(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		boolean result = isAdmin(token) || isCurator(token) || isApprover(token);
+		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
+		if(result) {
+			returnStatus = HttpStatus.OK;
+		}
+		return new ResponseEntity<Boolean>(result, returnStatus);
+	}
+	
 	// Helper function for checkAdmin
 	private boolean isAdmin(String token) {
 		boolean result = false;
@@ -446,6 +532,23 @@ public class UserController {
 
 			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
 			if(user.getRole().contentEquals("CURATOR")) {
+				result = true;
+			}
+		}
+		return result;
+
+	}
+
+	// Helper function for checkApprover
+	private boolean isApprover(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().contentEquals("APPROVER")) {
 				result = true;
 			}
 		}
