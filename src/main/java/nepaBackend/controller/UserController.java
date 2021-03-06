@@ -116,8 +116,8 @@ public class UserController {
     	} else {
     		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
 
-    		// Approvers cannot deactivate elevated roles
-    		if(!approved && isApprover(token)) {
+    		// Only admin can deactivate elevated roles
+    		if(!approved && (isApprover(token) || isCurator(token))) {
     			if(user.getRole()=="ADMIN" || user.getRole()=="CURATOR" || user.getRole()=="APPROVER") {
     	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     			}
