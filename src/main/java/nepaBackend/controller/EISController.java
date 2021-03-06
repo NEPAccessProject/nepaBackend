@@ -582,15 +582,15 @@ public class EISController {
 			for(int i = docs.size() - 1; i >= 0; i--) { // Decrementing because list shrinks
 				// State (remove if different)
 				if(!original.getState().contentEquals(docs.get(i).getState())) {
-					if(Globals.TESTING) {System.out.println("Removing because state doesn't match: " + docs.get(i).getState());}
+					if(Globals.TESTING) {System.out.println("Unmatching because state doesn't match: " + docs.get(i).getState());}
 					docs.remove(i);
 				// Agency (remove if different)
 				} else if (!original.getAgency().contentEquals(docs.get(i).getAgency())) {
-					if(Globals.TESTING) {System.out.println("Removing because state doesn't match: " + docs.get(i).getAgency());}
+					if(Globals.TESTING) {System.out.println("Unmatching because agency doesn't match: " + docs.get(i).getAgency());}
 					docs.remove(i);
 				// Type (remove if same)
 				} else if (original.getDocumentType().contentEquals(docs.get(i).getDocumentType())) {
-					if(Globals.TESTING) {System.out.println("Removing because type identical: " + docs.get(i).getDocumentType());}
+					if(Globals.TESTING) {System.out.println("Unmatching because type identical: " + docs.get(i).getDocumentType());}
 					docs.remove(i);
 				// Date (we've verified they're different types by now,
 				// so if one of them is final and one is draft but the draft is later
@@ -605,7 +605,7 @@ public class EISController {
 						&& original.getRegisterDate().compareTo(docs.get(i).getRegisterDate()) > 0)
 					) 
 				{
-					if(Globals.TESTING) {System.out.println("Removing because of date comparison: " + docs.get(i).getRegisterDate());}
+					if(Globals.TESTING) {System.out.println("Unmatching because of date comparison: " + docs.get(i).getRegisterDate());}
 					docs.remove(i);
 				}
 			}
