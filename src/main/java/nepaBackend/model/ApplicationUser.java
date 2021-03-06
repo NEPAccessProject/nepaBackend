@@ -46,7 +46,7 @@ public class ApplicationUser { // application_user
     @Column(name = "job_title", length=1000)
     private String jobTitle;
 
-    @Column(name = "verified", columnDefinition="TINYINT(1) default 0") // User has verified email
+	@Column(name = "verified", columnDefinition="TINYINT(1) default 0") // User has verified email
     private boolean verified;
 
     @Column(name = "active", columnDefinition="TINYINT(1) default 0") // User has been approved and can use the system
@@ -95,24 +95,79 @@ public class ApplicationUser { // application_user
 	public void setLastReset(LocalDateTime lastReset) {
 		this.lastReset = lastReset;
 	}
+	
+
+
+    public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+
+	public String getAffiliation() {
+		return affiliation;
+	}
+
+	public void setAffiliation(String affiliation) {
+		this.affiliation = affiliation;
+	}
+
+	public String getOrganization() {
+		return organization;
+	}
+
+	public void setOrganization(String organization) {
+		this.organization = organization;
+	}
+
+	public String getJobTitle() {
+		return jobTitle;
+	}
+
+	public void setJobTitle(String jobTitle) {
+		this.jobTitle = jobTitle;
+	}
+
+	public boolean isVerified() {
+		return verified;
+	}
+
+	public void setVerified(boolean verified) {
+		this.verified = verified;
+	}
+
+	public boolean isActive() {
+		return active;
+	}
+
+	public void setActive(boolean active) {
+		this.active = active;
+	}
+	
 
 	public boolean isAccountNonExpired() {
-		// TODO Auto-generated method stub
-		return true;
+		return active;
 	}
 
 	public boolean isAccountNonLocked() {
-		// TODO Auto-generated method stub
-		return true;
+		return active;
 	}
 
 	public boolean isCredentialsNonExpired() {
-		// TODO Auto-generated method stub
-		return true;
+		return active;
 	}
 
 	public boolean isAccountEnabled() {
-		// TODO Auto-generated method stub
-		return true;
+		return active;
 	}
 }
