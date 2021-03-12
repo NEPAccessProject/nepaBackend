@@ -1739,7 +1739,7 @@ public class FileController {
 		} catch(Exception e) {
 			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
 		}
-		if(eis.getId() < 1) {
+		if(eis.getId() < 1) { // we don't have a zero ID record currently
 			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
 		}
 		
