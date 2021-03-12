@@ -69,32 +69,6 @@ public class UserController {
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
     
-
-    /** TODO: Verify token, verify email based on token contents (could contain email or user id) */
-    @PostMapping("/verifyEmail")
-    private @ResponseBody ResponseEntity<Boolean> verifyEmail(@RequestHeader Map<String, String> headers) {
-    	return new ResponseEntity<Boolean>(false, HttpStatus.I_AM_A_TEAPOT);
-//    	String token = headers.get("authorization");
-//    	
-//    	if(isAdmin(token) || isCurator(token) || isApprover(token)) {
-//    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
-//    	} else {
-//    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
-//
-//    		// Approvers cannot deactivate elevated roles
-//    		if(!approved && isApprover(token)) {
-//    			if(user.getRole()=="ADMIN" || user.getRole()=="CURATOR" || user.getRole()=="APPROVER") {
-//    	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
-//    			}
-//    		}
-//    		
-//    		user.setActive(approved);
-//    		applicationUserRepository.save(user);
-//
-//    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
-//    	}
-    }
-    
     @GetMapping("/getAll")
     private @ResponseBody ResponseEntity<List<Object>> getUsersLimited(@RequestHeader Map<String, String> headers) {
     	
