@@ -1,7 +1,10 @@
 package nepaBackend.controller;
 
+import static com.auth0.jwt.algorithms.Algorithm.HMAC512;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -12,6 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailException;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -92,9 +98,9 @@ public class UserController {
     @GetMapping("/getAll")
     private @ResponseBody ResponseEntity<List<Object>> getUsersLimited(@RequestHeader Map<String, String> headers) {
     	
-    	String token = headers.get("authorization");
+//    	String token = headers.get("authorization");
     	
-    	if(isAdmin(token) || isCurator(token) || isApprover(token)) {
+    	if(checkAdmin(headers).getBody() || checkCurator(headers).getBody() || checkApprover(headers).getBody() ) {
     		return new ResponseEntity<List<Object>>(applicationUserRepository.findLimited(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object>>(new ArrayList<Object>(), HttpStatus.UNAUTHORIZED);
@@ -111,7 +117,7 @@ public class UserController {
     	
     	String token = headers.get("authorization");
     	
-    	if(!isAdmin(token) && !isCurator(token) && !isApprover(token)) {
+    	if(!checkAdmin(headers).getBody() && !checkAdmin(headers).getBody() && !checkAdmin(headers).getBody()) {
     		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     	} else {
     		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
@@ -124,6 +130,48 @@ public class UserController {
     		}
     		
     		user.setActive(approved);
+    		applicationUserRepository.save(user);
+
+    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
+    	}
+    }
+    
+    @PostMapping("/setUserVerified")
+    private @ResponseBody ResponseEntity<Boolean> verifyUser(@RequestParam Long userId, 
+    			@RequestParam boolean approved, 
+    			@RequestHeader Map<String, String> headers) {
+    	
+    	String token = headers.get("authorization");
+    	
+    	if(!checkAdmin(headers).getBody() && !checkAdmin(headers).getBody() && !checkAdmin(headers).getBody()) {
+    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    	} else {
+    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
+
+    		// Only admin can deactivate elevated roles
+    		if(!approved && (isApprover(token) || isCurator(token))) {
+    			if(user.getRole()=="ADMIN" || user.getRole()=="CURATOR" || user.getRole()=="APPROVER") {
+    	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    			}
+    		}
+    		
+    		user.setVerified(approved);
+    		applicationUserRepository.save(user);
+
+    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
+    	}
+    }
+    
+    @PostMapping("/setUserRole")
+    private @ResponseBody ResponseEntity<Boolean> setUserRole(@RequestParam Long userId, 
+    			@RequestParam String role, 
+    			@RequestHeader Map<String, String> headers) {
+    	if(!checkAdmin(headers).getBody()) {
+    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    	} else {
+    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
+    		
+    		user.setRole(role);
     		applicationUserRepository.save(user);
 
     		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
@@ -185,12 +233,23 @@ public class UserController {
     	if(usernameExists(user.getUsername())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
     	} else {
-            user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
-            user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
-            user.setLastName(Globals.normalizeSpace(user.getLastName()));
-            user.setRole("USER");
-            applicationUserRepository.save(user);
-    		return new ResponseEntity<Void>(HttpStatus.OK);
+    		try {
+                user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+                user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
+                user.setLastName(Globals.normalizeSpace(user.getLastName()));
+                user.setRole("USER");
+                applicationUserRepository.save(user);
+    		} catch(Exception e) {
+        		return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); // 500 if failed register
+    		}
+    		
+    		// email user verification link
+			boolean emailed = sendVerificationEmail(user);
+			if(emailed) {
+	    		return new ResponseEntity<Void>(HttpStatus.OK);
+			} else {
+        		return new ResponseEntity<Void>(HttpStatus.SERVICE_UNAVAILABLE); // 503 if failed email
+			}
     	}
     }
     
@@ -432,6 +491,59 @@ public class UserController {
 		}
 		return false;
     }
+    
+    private boolean sendVerificationEmail(ApplicationUser user) {
+    	boolean status = true;
+    	try {
+            MimeMessage message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+             
+            helper.setTo(user.getEmail());
+            helper.setText("This is an automatically generated email in response to"
+            		+ " a request to register an account linked to this email address."
+            		+ "\n\nYour username is: " + user.getUsername()
+            		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
+            		+ "\nThe link will remain valid for ten days."
+            		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
+            		+ "as your account is approved.");
+            helper.setSubject("NEPAccess Reset Password Request");
+             
+            sender.send(message);
+    		
+    	} catch (MailAuthenticationException e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+            
+            status = false;
+    	} catch (MailSendException e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+            
+            status = false;
+    	} catch (MailException e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+            
+            status = false;
+    	} catch (Exception e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+            
+            status = false;
+    	}
+    	
+		try {
+            logEmail(user.getEmail(), "", "Verification", true);
+		} catch (Exception ex) {
+			// Do nothing
+		}
+        
+        return status;
+    }
 
 	@PostMapping(path = "/details") // verify user has access (valid JWT)
 	public void checkDetails() {}
@@ -468,6 +580,68 @@ public class UserController {
 		// if it doesn't match, Unauthorized
 		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
 	}
+	
+	@PostMapping(path = "/verify")
+	public ResponseEntity<Void> verify(@RequestHeader Map<String, String> headers) {
+		
+		// get token, which has already been verified
+		String token = headers.get("authorization");
+		// get ID
+        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                .getId();
+
+		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		
+		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
+			// verify
+			user.setVerified(true);
+			applicationUserRepository.save(user);
+			return new ResponseEntity<Void>(HttpStatus.OK);
+		} else {
+			// Valid JWT but invalid user/email, somehow
+			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+		}
+	}
+
+    // Helper method generates a JWT that lasts for 10 days and returns a valid reset link
+	private String getVerificationLink(ApplicationUser user) {
+        String token = JWT.create()
+                .withSubject(user.getUsername())
+                .withExpiresAt(new Date(System.currentTimeMillis() + SecurityConstants.EXPIRATION_TIME))
+                .withJWTId(String.valueOf(
+        				(user).getId() 
+        		))
+                .sign(HMAC512( // Combine secret and password hash to create a single-use verification JWT
+                		(SecurityConstants.SECRET + user.getPassword())
+                		.getBytes()
+                ));
+		
+		return "http://mis-jvinalappl1.microagelab.arizona.edu/verify?token="+token;
+	}
+	
+
+    /**
+     * @param email
+     * @param errorString
+     * @param emailType
+     * @param sent
+     * @return
+     */
+    private boolean logEmail(String email, String errorString, String emailType, Boolean sent) {
+    	try {
+        	EmailLog log = new EmailLog();
+    		log.setEmail(email);
+    		log.setErrorType(errorString);
+    		log.setEmailType(emailType); // ie "Reset"
+    		log.setSent(sent);
+    		log.setLogTime(LocalDateTime.now());
+    		emailLogRepository.save(log);
+    		return true;
+    	} catch (Exception e) {
+    		// do nothing
+    	}
+    	return false;
+    }
 
 	// Return true if admin role
 	@PostMapping(path = "/checkAdmin")

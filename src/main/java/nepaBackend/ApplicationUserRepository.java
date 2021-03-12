@@ -12,7 +12,7 @@ public interface ApplicationUserRepository extends JpaRepository<ApplicationUser
     ApplicationUser findByEmail(String email);
     
 
-	@Query(value = "SELECT id,username,active,email,verified,first_name,last_name FROM application_user a",
+	@Query(value = "SELECT id,username,active,email,verified,first_name,last_name,role FROM application_user a",
 			nativeQuery = true)
     List<Object> findLimited();
 }
