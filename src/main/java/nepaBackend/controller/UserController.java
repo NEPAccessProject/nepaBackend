@@ -211,6 +211,7 @@ public class UserController {
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                 user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
+                user.setEmailAddress(Globals.normalizeSpace(user.getEmail()));
                 user.setVerified(false);
                 user.setActive(false);
                 user.setRole("USER");
@@ -510,7 +511,7 @@ public class UserController {
             		+ "\nThe link will remain valid for ten days."
             		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
             		+ "as your account is approved.");
-            helper.setSubject("NEPAccess Reset Password Request");
+            helper.setSubject("NEPAccess Registration Request");
              
             sender.send(message);
     		
