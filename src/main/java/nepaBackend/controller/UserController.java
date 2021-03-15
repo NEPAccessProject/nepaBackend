@@ -206,13 +206,17 @@ public class UserController {
     	
     	if(usernameExists(user.getUsername())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
-    	} else {
+    	} else if(user.getPassword() != null && user.getPassword().length() > 4) {
     		try {
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                 user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
                 user.setRole("USER");
-                applicationUserRepository.save(user);
+                if(isValidUser(user)) { 
+                    applicationUserRepository.save(user);
+                } else {
+            		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
+                }
     		} catch(Exception e) {
         		return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); // 500 if failed register
     		}
@@ -224,10 +228,34 @@ public class UserController {
 			} else {
         		return new ResponseEntity<Void>(HttpStatus.SERVICE_UNAVAILABLE); // 503 if failed email
 			}
+    	} else {
+    		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
     	}
     }
     
-    // Generate user route, with sanity and duplicate check
+    private boolean isValidUser(ApplicationUser user) {
+		// TODO: More clever validation
+    	// For now we'll just check for non-empty first/last/username/email/affiliation ("field")
+    	boolean returnStatus = true;
+    	if(user.getLastName().length() < 1) {
+    		returnStatus = false;
+    	}
+    	if(user.getFirstName().length() < 1) {
+    		returnStatus = false;
+    	}
+    	if(user.getUsername().length() < 1) {
+    		returnStatus = false;
+    	}
+    	if(user.getEmail().length() < 1) {
+    		returnStatus = false;
+    	}
+    	if(user.getAffiliation().length() < 1) {
+    		returnStatus = false;
+    	}
+		return returnStatus;
+	}
+
+	// Generate user route, with sanity and duplicate check
     // Add each user to database with encoded password
     // Return list of users with updated passwords (from BEFORE encoding, obviously)
     @PostMapping(path = "/generate", 
