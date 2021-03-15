@@ -160,7 +160,7 @@ public class ApplicationUser { // application_user
 	}
 
 	public boolean isAccountNonLocked() {
-		return active;
+		return (active && verified);
 	}
 
 	public boolean isCredentialsNonExpired() {
@@ -168,6 +168,6 @@ public class ApplicationUser { // application_user
 	}
 
 	public boolean isAccountEnabled() {
-		return active;
+		return (active && verified);
 	}
 }
