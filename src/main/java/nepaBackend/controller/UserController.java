@@ -211,6 +211,8 @@ public class UserController {
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                 user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
+                user.setVerified(false);
+                user.setActive(false);
                 user.setRole("USER");
                 if(isValidUser(user)) { 
                     applicationUserRepository.save(user);
