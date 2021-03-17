@@ -7,8 +7,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
 import javax.mail.MessagingException;
+import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -216,7 +216,7 @@ public class UserController {
                 user.setActive(false);
                 user.setRole("USER");
                 if(isValidUser(user)) { 
-                    applicationUserRepository.save(user);
+                    if(!Globals.TESTING) {applicationUserRepository.save(user);}
                 } else {
             		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
                 }
@@ -499,11 +499,14 @@ public class UserController {
     
     private boolean sendVerificationEmail(ApplicationUser user) {
     	boolean status = true;
+    	
     	try {
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(user.getEmail());
+            message.setFrom(new InternetAddress("Eller-NepAccess@email.arizona.edu"));
+            helper.setSubject("NEPAccess Registration Request");
             helper.setText("This is an automatically generated email in response to"
             		+ " a request to register an account linked to this email address."
             		+ "\n\nYour username is: " + user.getUsername()
@@ -511,7 +514,6 @@ public class UserController {
             		+ "\nThe link will remain valid for ten days."
             		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
             		+ "as your account is approved.");
-            helper.setSubject("NEPAccess Registration Request");
              
             sender.send(message);
     		
@@ -541,11 +543,13 @@ public class UserController {
             status = false;
     	}
     	
-		try {
-            logEmail(user.getEmail(), "", "Verification", true);
-		} catch (Exception ex) {
-			// Do nothing
-		}
+    	if(status) {
+    		try {
+                logEmail(user.getEmail(), "", "Verification", true);
+    		} catch (Exception ex) {
+    			// Do nothing
+    		}
+    	}
         
         return status;
     }
