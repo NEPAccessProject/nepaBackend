@@ -21,6 +21,7 @@ import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -589,7 +590,8 @@ public class UserController {
 		// if it doesn't match, Unauthorized
 		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
 	}
-	
+
+    @CrossOrigin
 	@PostMapping(path = "/verify")
 	public ResponseEntity<Void> verify(@RequestHeader Map<String, String> headers) {
 		
