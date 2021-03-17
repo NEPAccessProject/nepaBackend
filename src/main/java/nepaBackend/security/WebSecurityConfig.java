@@ -32,6 +32,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 //    	.antMatchers(HttpMethod.OPTIONS, "**") // does nothing?
 //    	.antMatchers("/reset**") // does nothing?
 //        .antMatchers("/reset") // does nothing?
+        .antMatchers("/user/verify")
         .antMatchers("/reset/change")
         .antMatchers("/reset/send")
         .antMatchers("/reset/check");
