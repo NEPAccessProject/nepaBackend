@@ -40,6 +40,7 @@ import nepaBackend.SavedSearchRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EmailLog;
 import nepaBackend.model.SavedSearch;
+import nepaBackend.pojo.ContactForm;
 import nepaBackend.pojo.Generate;
 import nepaBackend.pojo.PasswordChange;
 import nepaBackend.security.PasswordGenerator;
@@ -214,7 +215,8 @@ public class UserController {
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
                 user.setEmailAddress(Globals.normalizeSpace(user.getEmail()));
                 user.setVerified(false);
-                user.setActive(false);
+//                user.setActive(false);
+                user.setActive(true);
                 user.setRole("USER");
                 if(isValidUser(user)) { 
                     if(!Globals.TESTING) {applicationUserRepository.save(user);}
@@ -506,15 +508,21 @@ public class UserController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(user.getEmail());
-            message.setFrom(new InternetAddress("Eller-NepAccess@email.arizona.edu"));
+            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             helper.setSubject("NEPAccess Registration Request");
+//            helper.setText("This is an automatically generated email in response to"
+//            		+ " a request to register an account linked to this email address."
+//            		+ "\n\nYour username is: " + user.getUsername()
+//            		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
+//            		+ "\nThe link will remain valid for ten days."
+//            		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
+//            		+ "as your account is approved.");
             helper.setText("This is an automatically generated email in response to"
             		+ " a request to register an account linked to this email address."
             		+ "\n\nYour username is: " + user.getUsername()
             		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
             		+ "\nThe link will remain valid for ten days."
-            		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
-            		+ "as your account is approved.");
+            		+ "\n\nAfter verifying your email, you will be able to use the system when logged in.");
              
             sender.send(message);
     		
@@ -617,7 +625,89 @@ public class UserController {
 		}
 	}
 
-    // Helper method generates a JWT that lasts for 10 days and returns a valid reset link
+    @CrossOrigin
+	@PostMapping(path = "/contact")
+	public ResponseEntity<Void> contact(@RequestBody ContactForm contactForm, @RequestHeader Map<String, String> headers) {
+		
+		// get token, which has already been verified
+		String token = headers.get("authorization");
+		// get ID
+        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                .getId();
+
+		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		
+		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
+			// TODO: Send contents to Paul,Derbs,Me,Alex
+			boolean sendStatus = sendContactEmail(contactForm);
+			return new ResponseEntity<Void>(HttpStatus.OK);
+		} else {
+			// Valid JWT but invalid user/email, somehow
+			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+		}
+	}
+
+    private boolean sendContactEmail(ContactForm contactForm) {
+    	boolean status = true;
+    	
+    	try {
+            MimeMessage message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+             
+            helper.setTo(new String[] {
+            		"paulmirocha@arizona.edu", 
+            		"derbridge@email.arizona.edu", 
+            		"abinfordwalsh@email.arizona.edu", 
+            		SecurityConstants.EMAIL_HANDLE
+    		});
+            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            helper.setSubject("(NEPAccess Contact) " + contactForm.subject);
+            helper.setText("Contact from: " + contactForm.name
+            		+ "\nEmail address: " + contactForm.email
+            		+ "\n\n Body: " + contactForm.body
+            		+ "\n"
+            );
+             
+            sender.send(message);
+    		
+    	} catch (MailAuthenticationException e) {
+            logEmail(contactForm.email, e.toString(), "Contact", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+            
+            status = false;
+    	} catch (MailSendException e) {
+            logEmail(contactForm.email, e.toString(), "Contact", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+            
+            status = false;
+    	} catch (MailException e) {
+            logEmail(contactForm.email, e.toString(), "Contact", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+            
+            status = false;
+    	} catch (Exception e) {
+            logEmail(contactForm.email, e.toString(), "Contact", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+            
+            status = false;
+    	}
+    	
+    	if(status) {
+    		try {
+                logEmail(contactForm.email, "", "Contact", true);
+    		} catch (Exception ex) {
+    			// Do nothing
+    		}
+    	}
+        
+        return status;
+	}
+
+	// Helper method generates a JWT that lasts for 10 days and returns a valid reset link
 	private String getVerificationLink(ApplicationUser user) {
         String token = JWT.create()
                 .withSubject(user.getUsername())
