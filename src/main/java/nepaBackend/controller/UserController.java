@@ -604,6 +604,9 @@ public class UserController {
 		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
 		
 		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
+			if(user.isVerified()) {
+				return new ResponseEntity<Void>(HttpStatus.ALREADY_REPORTED);
+			}
 			// verify
 			user.setVerified(true);
 			applicationUserRepository.save(user);
