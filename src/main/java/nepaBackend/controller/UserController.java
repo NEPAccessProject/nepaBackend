@@ -625,9 +625,34 @@ public class UserController {
 		}
 	}
 
+
+    @CrossOrigin
+	@GetMapping(path = "/getFields")
+	public ResponseEntity<ContactForm> contact(@RequestHeader Map<String, String> headers) {
+		
+		// get token, which has already been verified
+		String token = headers.get("authorization");
+		// get ID
+        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                .getId();
+
+		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+        
+        ContactForm cForm = new ContactForm();
+        cForm.name = user.getFirstName() + " " + user.getLastName();
+        cForm.email = user.getEmail();
+		
+		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
+			return new ResponseEntity<ContactForm>(cForm, HttpStatus.OK);
+		} else {
+			// Valid JWT but invalid user/email, somehow
+			return new ResponseEntity<ContactForm>(HttpStatus.BAD_REQUEST);
+		}
+	}
+
     @CrossOrigin
 	@PostMapping(path = "/contact")
-	public ResponseEntity<Void> contact(@RequestBody ContactForm contactForm, @RequestHeader Map<String, String> headers) {
+	public ResponseEntity<Boolean> contact(@RequestBody ContactForm contactForm, @RequestHeader Map<String, String> headers) {
 		
 		// get token, which has already been verified
 		String token = headers.get("authorization");
@@ -638,16 +663,15 @@ public class UserController {
 		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
 		
 		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
-			// TODO: Send contents to Paul,Derbs,Me,Alex
-			boolean sendStatus = sendContactEmail(contactForm);
-			return new ResponseEntity<Void>(HttpStatus.OK);
+			boolean sendStatus = sendContactEmail(contactForm, id);
+			return new ResponseEntity<Boolean>(sendStatus, HttpStatus.OK);
 		} else {
 			// Valid JWT but invalid user/email, somehow
-			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+			return new ResponseEntity<Boolean>(false, HttpStatus.BAD_REQUEST);
 		}
 	}
 
-    private boolean sendContactEmail(ContactForm contactForm) {
+    private boolean sendContactEmail(ContactForm contactForm, String userId) {
     	boolean status = true;
     	
     	try {
@@ -664,8 +688,8 @@ public class UserController {
             helper.setSubject("(NEPAccess Contact) " + contactForm.subject);
             helper.setText("Contact from: " + contactForm.name
             		+ "\nEmail address: " + contactForm.email
+            		+ "\nUser ID: " + userId
             		+ "\n\n Body: " + contactForm.body
-            		+ "\n"
             );
              
             sender.send(message);
