@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.mail.MessagingException;
+import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -152,6 +153,8 @@ public class ResetEmailController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(resetUser.getEmail());
+            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            helper.setSubject("NEPAccess Reset Password Request");
             helper.setText("This is an automatically generated email in response to"
             		+ " a request to reset the password for the account linked"
             		+ " to this email address."
@@ -159,7 +162,6 @@ public class ResetEmailController {
             		+ "\n\nClick this link to reset your password: " + getResetLink(resetUser)
             		+ "\n\nPlease note that anyone with this link can change your password."
             		+ "  The link will remain valid for 24 hours or until your password is changed.");
-            helper.setSubject("NEPAccess Reset Password Request");
              
             sender.send(message);
             
