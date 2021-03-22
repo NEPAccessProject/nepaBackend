@@ -45,6 +45,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll() // allow registration
 //         .antMatchers(HttpMethod.POST, "/**").permitAll() // allow all (when post)
          .antMatchers(HttpMethod.POST, "/user/exists").permitAll()
+         .antMatchers(HttpMethod.POST, "/user/contact").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/check").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/**").permitAll()
