@@ -438,7 +438,7 @@ public class UserController {
 	}
 
 	// To check if an email exists earlier than trying to register it.
-    @PostMapping("/emailexists")
+    @PostMapping("/email-exists")
     public @ResponseBody boolean emailExists(@RequestBody String email) {
     	String sQuery = "SELECT COUNT(*) FROM application_user WHERE email = ?";
 		// Run query
