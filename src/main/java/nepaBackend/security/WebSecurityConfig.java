@@ -40,6 +40,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+    	http.requiresChannel()
+        .anyRequest()
+        .requiresSecure();
     	http.cors().and().csrf().disable().authorizeRequests()
     	 .antMatchers(HttpMethod.OPTIONS, "**").permitAll()
          .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll() // allow registration
