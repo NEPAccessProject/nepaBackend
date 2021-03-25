@@ -219,7 +219,7 @@ public class ResetEmailController {
                 		.getBytes()
                 ));
 		
-		return "http://mis-jvinalappl1.microagelab.arizona.edu/reset?token="+token;
+		return "https://www.nepaccess.org/reset?token="+token;
 	}
 
 	// Route for custom check of custom JWT generated for password resets

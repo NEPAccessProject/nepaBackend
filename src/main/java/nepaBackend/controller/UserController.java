@@ -744,7 +744,7 @@ public class UserController {
                 		.getBytes()
                 ));
 		
-		return "http://mis-jvinalappl1.microagelab.arizona.edu/verify?token="+token;
+		return "https://www.nepaccess.org/verify?token="+token;
 	}
 	
 
