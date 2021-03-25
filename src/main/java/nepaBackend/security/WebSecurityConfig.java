@@ -11,6 +11,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import nepaBackend.Globals;
 import nepaBackend.UserDetailsServiceImpl;
 
 import org.springframework.context.annotation.Bean;
@@ -40,9 +41,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-    	http.requiresChannel()
-        .anyRequest()
-        .requiresSecure();
+    	if(!Globals.TESTING) {
+        	http.requiresChannel()
+            .anyRequest()
+            .requiresSecure();
+    	}
     	http.cors().and().csrf().disable().authorizeRequests()
     	 .antMatchers(HttpMethod.OPTIONS, "**").permitAll()
          .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll() // allow registration
