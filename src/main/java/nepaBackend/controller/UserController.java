@@ -492,10 +492,10 @@ public class UserController {
 	}
 
 	// Test
-    @PostMapping("/recaptcha_test")
-    public @ResponseBody boolean recaptchaTest(@RequestParam String recaptcha) {
-    	return validateCaptcha(recaptcha).getBoolean("success");
-    }
+//    @PostMapping("/recaptcha_test")
+//    public @ResponseBody boolean recaptchaTest(@RequestParam String recaptcha) {
+//    	return validateCaptcha(recaptcha).getBoolean("success");
+//    }
 
 	// To check if an email exists earlier than trying to register it.
     @PostMapping("/email-exists")
