@@ -41,6 +41,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
+import com.google.gson.Gson;
 
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.EmailLogRepository;
@@ -210,13 +211,17 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    private @ResponseBody ResponseEntity<Void> register(@RequestParam ApplicationUser user, @RequestParam String recaptchaToken) {
+    private @ResponseBody ResponseEntity<Void> register(@RequestParam String jsonUser, @RequestParam String recaptchaToken) {
     	// email address, username are included and saved
     	// first last affiliation org and job title also included and saved
     	// role has to be set and password has to be encrypted
     	if(!recaptcha(recaptchaToken)) {
+//    		System.out.println("Recaptcha failed");
     		return new ResponseEntity<Void>(HttpStatus.FAILED_DEPENDENCY); 
     	}
+    	
+    	Gson gson=new Gson();
+    	ApplicationUser user=gson.fromJson(jsonUser,ApplicationUser.class);
     	
     	if(usernameExists(user.getUsername())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
