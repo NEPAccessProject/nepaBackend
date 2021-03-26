@@ -2,14 +2,28 @@ package nepaBackend.controller;
 
 import static com.auth0.jwt.algorithms.Algorithm.HMAC512;
 
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonReader;
 import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.net.ssl.HttpsURLConnection;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -201,10 +215,13 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    private @ResponseBody ResponseEntity<Void> register(@RequestBody ApplicationUser user) {
+    private @ResponseBody ResponseEntity<Void> register(@RequestParam ApplicationUser user, @RequestParam String recaptchaToken) {
     	// email address, username are included and saved
     	// first last affiliation org and job title also included and saved
     	// role has to be set and password has to be encrypted
+    	if(!recaptcha(recaptchaToken)) {
+    		return new ResponseEntity<Void>(HttpStatus.FAILED_DEPENDENCY); 
+    	}
     	
     	if(usernameExists(user.getUsername())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
@@ -437,12 +454,47 @@ public class UserController {
 		return usernameExists(username);
 	}
 	
+	private JsonObject validateCaptcha(String response)
+	{
+	    JsonObject jsonObject = null;
+	    URLConnection connection = null;
+	    InputStream is = null;
+	    String charset = java.nio.charset.StandardCharsets.UTF_8.name();
+
+	    String url = "https://www.google.com/recaptcha/api/siteverify";
+	    try {            
+	        String query = String.format("secret=%s&response=%s", 
+	        URLEncoder.encode(SecurityConstants.RECAPTCHA_SECRET_KEY, charset), 
+	        URLEncoder.encode(response, charset));
+
+	        connection = new URL(url + "?" + query).openConnection();
+	        is = connection.getInputStream();
+	        JsonReader rdr = Json.createReader(is);
+	        jsonObject = rdr.readObject();
+
+	    } catch (IOException ex) {
+//	        Logger.getLogger(Login.class.getName()).log(Level.SEVERE, null, ex);
+	    }
+	    finally {
+	        if (is != null) {
+	            try {
+	                is.close();
+	            } catch (IOException e) {
+	            }
+
+	        }
+	    }
+	    return jsonObject;
+	}
+	
+	private boolean recaptcha(String token) {
+		return validateCaptcha(token).getBoolean("success");
+	}
 
 	// Test
     @PostMapping("/recaptcha_test")
-    public @ResponseBody String recaptchaTest(@RequestBody String recaptcha) {
-    	System.out.println(recaptcha);
-    	return recaptcha;
+    public @ResponseBody JsonObject recaptchaTest(@RequestParam String recaptcha) {
+    	return validateCaptcha(recaptcha);
     }
 
 	// To check if an email exists earlier than trying to register it.
@@ -636,7 +688,11 @@ public class UserController {
 
     @CrossOrigin
 	@GetMapping(path = "/getFields")
-	public ResponseEntity<ContactForm> contact(@RequestHeader Map<String, String> headers) {
+	public ResponseEntity<ContactForm> contact(@RequestParam String recaptchaToken, @RequestHeader Map<String, String> headers) {
+
+    	if(!recaptcha(recaptchaToken)) {
+    		return new ResponseEntity<ContactForm>(HttpStatus.FAILED_DEPENDENCY); 
+    	}
 		
 		// get token, which has already been verified
 		String token = headers.get("authorization");
