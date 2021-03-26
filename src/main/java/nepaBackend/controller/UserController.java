@@ -2,12 +2,8 @@ package nepaBackend.controller;
 
 import static com.auth0.jwt.algorithms.Algorithm.HMAC512;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringReader;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLEncoder;
@@ -23,7 +19,6 @@ import javax.json.JsonReader;
 import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
-import javax.net.ssl.HttpsURLConnection;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -493,8 +488,8 @@ public class UserController {
 
 	// Test
     @PostMapping("/recaptcha_test")
-    public @ResponseBody JsonObject recaptchaTest(@RequestParam String recaptcha) {
-    	return validateCaptcha(recaptcha);
+    public @ResponseBody boolean recaptchaTest(@RequestParam String recaptcha) {
+    	return validateCaptcha(recaptcha).getBoolean("success");
     }
 
 	// To check if an email exists earlier than trying to register it.
