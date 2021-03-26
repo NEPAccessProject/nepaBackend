@@ -713,11 +713,14 @@ public class UserController {
 
     @CrossOrigin
 	@PostMapping(path = "/contact")
-	public ResponseEntity<Boolean> contact(@RequestParam ContactForm contactForm, @RequestParam String recaptchaToken, @RequestHeader Map<String, String> headers) {
+	public ResponseEntity<Boolean> contact(@RequestParam String contactData, @RequestParam String recaptchaToken, @RequestHeader Map<String, String> headers) {
 
     	if(!recaptcha(recaptchaToken)) {
     		return new ResponseEntity<Boolean>(false, HttpStatus.FAILED_DEPENDENCY); 
     	}
+
+    	Gson gson=new Gson();
+    	ContactForm contactForm=gson.fromJson(contactData,ContactForm.class);
     	
 		// get token, which has already been verified
 		String token = headers.get("authorization");
