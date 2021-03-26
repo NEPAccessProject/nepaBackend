@@ -683,11 +683,8 @@ public class UserController {
 
     @CrossOrigin
 	@GetMapping(path = "/getFields")
-	public ResponseEntity<ContactForm> contact(@RequestParam String recaptchaToken, @RequestHeader Map<String, String> headers) {
+	public ResponseEntity<ContactForm> getFields(@RequestHeader Map<String, String> headers) {
 
-    	if(!recaptcha(recaptchaToken)) {
-    		return new ResponseEntity<ContactForm>(HttpStatus.FAILED_DEPENDENCY); 
-    	}
 		
 		// get token, which has already been verified
 		String token = headers.get("authorization");
@@ -711,8 +708,12 @@ public class UserController {
 
     @CrossOrigin
 	@PostMapping(path = "/contact")
-	public ResponseEntity<Boolean> contact(@RequestBody ContactForm contactForm, @RequestHeader Map<String, String> headers) {
-		
+	public ResponseEntity<Boolean> contact(@RequestParam ContactForm contactForm, @RequestParam String recaptchaToken, @RequestHeader Map<String, String> headers) {
+
+    	if(!recaptcha(recaptchaToken)) {
+    		return new ResponseEntity<Boolean>(false, HttpStatus.FAILED_DEPENDENCY); 
+    	}
+    	
 		// get token, which has already been verified
 		String token = headers.get("authorization");
 		// get ID
