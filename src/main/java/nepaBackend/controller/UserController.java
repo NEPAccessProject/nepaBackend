@@ -436,6 +436,14 @@ public class UserController {
 		}
 		return usernameExists(username);
 	}
+	
+
+	// Test
+    @PostMapping("/recaptcha_test")
+    public @ResponseBody String recaptchaTest(@RequestBody String recaptcha) {
+    	System.out.println(recaptcha);
+    	return recaptcha;
+    }
 
 	// To check if an email exists earlier than trying to register it.
     @PostMapping("/email-exists")
