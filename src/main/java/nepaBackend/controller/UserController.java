@@ -718,26 +718,35 @@ public class UserController {
     	if(!recaptcha(recaptchaToken)) {
     		return new ResponseEntity<Boolean>(false, HttpStatus.FAILED_DEPENDENCY); 
     	}
+    	
+    	ApplicationUser user = null;
+    	String id = "Anonymous";
 
     	Gson gson=new Gson();
     	ContactForm contactForm=gson.fromJson(contactData,ContactForm.class);
     	
-//		// get token, which has already been verified
-//		String token = headers.get("authorization");
-//		// get ID
-//        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-//                .getId();
-//
-//		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+    	try {
+//    		// get token if available
+    		String token = headers.get("authorization");
+    		// get ID
+            id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                    .getId();
+
+    		user = applicationUserRepository.findById(Long.valueOf(id)).get();
+    	} catch(Exception e) {
+    		// no user
+    	}
 		
-//		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
-	//		boolean sendStatus = sendContactEmail(contactForm, id);
-	//		return new ResponseEntity<Boolean>(sendStatus, HttpStatus.OK);
-    	if(contactFormValid(contactForm)) {
-			boolean sendStatus = sendContactEmail(contactForm);
+		boolean sendStatus = false;
+		
+		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
+			sendStatus = sendContactEmail(contactForm, id);
+			return new ResponseEntity<Boolean>(sendStatus, HttpStatus.OK);
+		} else if(contactFormValid(contactForm)) {
+			sendStatus = sendContactEmail(contactForm);
 			return new ResponseEntity<Boolean>(sendStatus, HttpStatus.OK);
 		} else {
-			// Valid JWT but invalid user/email, somehow
+			// Valid JWT but invalid form inputs
 			return new ResponseEntity<Boolean>(false, HttpStatus.BAD_REQUEST);
 		}
 	}
