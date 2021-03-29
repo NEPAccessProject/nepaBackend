@@ -722,16 +722,19 @@ public class UserController {
     	Gson gson=new Gson();
     	ContactForm contactForm=gson.fromJson(contactData,ContactForm.class);
     	
-		// get token, which has already been verified
-		String token = headers.get("authorization");
-		// get ID
-        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-                .getId();
-
-		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+//		// get token, which has already been verified
+//		String token = headers.get("authorization");
+//		// get ID
+//        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+//                .getId();
+//
+//		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
 		
-		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
-			boolean sendStatus = sendContactEmail(contactForm, id);
+//		if(user != null && user.getEmail() != null && user.getEmail().length() > 0) {
+	//		boolean sendStatus = sendContactEmail(contactForm, id);
+	//		return new ResponseEntity<Boolean>(sendStatus, HttpStatus.OK);
+    	if(contactFormValid(contactForm)) {
+			boolean sendStatus = sendContactEmail(contactForm);
 			return new ResponseEntity<Boolean>(sendStatus, HttpStatus.OK);
 		} else {
 			// Valid JWT but invalid user/email, somehow
@@ -739,7 +742,26 @@ public class UserController {
 		}
 	}
 
-    private boolean sendContactEmail(ContactForm contactForm, String userId) {
+	private boolean contactFormValid(ContactForm contactForm) {
+    	boolean result = true;
+    	if(contactForm.body == null || contactForm.body.strip().length() < 1) {
+    		result = false;
+    	} else if(contactForm.subject == null || contactForm.subject.strip().length() < 1) {
+    		result = false;
+    	} else if(contactForm.name == null || contactForm.name.strip().length() < 1) {
+    		result = false;
+    	} else if(contactForm.email == null || contactForm.email.strip().length() < 1) {
+    		result = false;
+		}
+		return result;
+	}
+
+	// Version not requiring a user ID (anonymous contact)
+    private boolean sendContactEmail(ContactForm contactForm) {
+		return sendContactEmail(contactForm, "Anonymous");
+	}
+    // Contact email requesting user ID
+	private boolean sendContactEmail(ContactForm contactForm, String userId) {
     	boolean status = true;
     	
     	try {
