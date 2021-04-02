@@ -232,8 +232,7 @@ public class UserController {
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
                 user.setEmailAddress(Globals.normalizeSpace(user.getEmail()));
                 user.setVerified(false);
-//                user.setActive(false);
-                user.setActive(true);
+                user.setActive(false);
                 user.setRole("USER");
                 if(isValidUser(user)) { 
                     if(!Globals.TESTING) {applicationUserRepository.save(user);}
@@ -247,6 +246,7 @@ public class UserController {
     		// email user verification link
 			boolean emailed = sendVerificationEmail(user);
 			if(emailed) {
+				sendApprovalEmail(user);
 	    		return new ResponseEntity<Void>(HttpStatus.OK);
 			} else {
         		return new ResponseEntity<Void>(HttpStatus.SERVICE_UNAVAILABLE); // 503 if failed email
@@ -256,7 +256,68 @@ public class UserController {
     	}
     }
     
-    private boolean isValidUser(ApplicationUser user) {
+    private boolean sendApprovalEmail(ApplicationUser user) {
+
+    	boolean status = true;
+    	
+    	try {
+            MimeMessage message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+
+            helper.setTo(new String[] {
+            		"derbridge@email.arizona.edu", 
+            		"lauralh@email.arizona.edu"
+    		});
+            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            helper.setSubject("NEPAccess Approval Request");
+            helper.setText("This is an automatically generated email due to"
+            		+ " a new account being registered."
+            		+ "\n\nFrom username: " + user.getUsername()
+            		+ "\nEmail: " + user.getEmail()
+            		+ "\n\nUser can be approved at: https://www.nepaccess.org/approve"
+            		+ "\n(Users are not approved by default)"
+            );
+             
+            sender.send(message);
+    		
+    	} catch (MailAuthenticationException e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+            
+            status = false;
+    	} catch (MailSendException e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+            
+            status = false;
+    	} catch (MailException e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+            
+            status = false;
+    	} catch (Exception e) {
+            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+            
+            status = false;
+    	}
+    	
+    	if(status) {
+    		try {
+                logEmail(user.getEmail(), "", "Verification", true);
+    		} catch (Exception ex) {
+    			// Do nothing
+    		}
+    	}
+        
+        return status;
+	}
+
+	private boolean isValidUser(ApplicationUser user) {
 		// TODO: More clever validation
     	// For now we'll just check for non-empty first/last/username/email/affiliation ("field")
     	boolean returnStatus = true;
@@ -570,19 +631,19 @@ public class UserController {
             helper.setTo(user.getEmail());
             message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             helper.setSubject("NEPAccess Registration Request");
-//            helper.setText("This is an automatically generated email in response to"
-//            		+ " a request to register an account linked to this email address."
-//            		+ "\n\nYour username is: " + user.getUsername()
-//            		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
-//            		+ "\nThe link will remain valid for ten days."
-//            		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
-//            		+ "as your account is approved.");
             helper.setText("This is an automatically generated email in response to"
             		+ " a request to register an account linked to this email address."
             		+ "\n\nYour username is: " + user.getUsername()
             		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
             		+ "\nThe link will remain valid for ten days."
-            		+ "\n\nAfter verifying your email, you will be able to use the system when logged in.");
+            		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
+            		+ "as your account is approved.");
+//            helper.setText("This is an automatically generated email in response to"
+//            		+ " a request to register an account linked to this email address."
+//            		+ "\n\nYour username is: " + user.getUsername()
+//            		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
+//            		+ "\nThe link will remain valid for ten days."
+//            		+ "\n\nAfter verifying your email, you will be able to use the system when logged in.");
              
             sender.send(message);
     		
