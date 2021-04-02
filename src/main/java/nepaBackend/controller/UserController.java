@@ -281,25 +281,25 @@ public class UserController {
             sender.send(message);
     		
     	} catch (MailAuthenticationException e) {
-            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            logEmail(user.getEmail(), e.toString(), "Approval", false);
 
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
             
             status = false;
     	} catch (MailSendException e) {
-            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            logEmail(user.getEmail(), e.toString(), "Approval", false);
 
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
             
             status = false;
     	} catch (MailException e) {
-            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            logEmail(user.getEmail(), e.toString(), "Approval", false);
             
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
             
             status = false;
     	} catch (Exception e) {
-            logEmail(user.getEmail(), e.toString(), "Verification", false);
+            logEmail(user.getEmail(), e.toString(), "Approval", false);
             
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
             
@@ -308,7 +308,7 @@ public class UserController {
     	
     	if(status) {
     		try {
-                logEmail(user.getEmail(), "", "Verification", true);
+                logEmail(user.getEmail(), "", "Approval", true);
     		} catch (Exception ex) {
     			// Do nothing
     		}
