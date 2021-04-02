@@ -210,12 +210,13 @@ public class UserController {
     	return new ResponseEntity<Void>(HttpStatus.OK); 
     }
 
-    @PostMapping("/register")
+    @SuppressWarnings("unused")
+	@PostMapping("/register")
     private @ResponseBody ResponseEntity<Void> register(@RequestParam String jsonUser, @RequestParam String recaptchaToken) {
     	// email address, username are included and saved
     	// first last affiliation org and job title also included and saved
     	// role has to be set and password has to be encrypted
-    	if(!recaptcha(recaptchaToken)) {
+    	if(!recaptcha(recaptchaToken) && !Globals.TESTING) {
 //    		System.out.println("Recaptcha failed");
     		return new ResponseEntity<Void>(HttpStatus.FAILED_DEPENDENCY); 
     	}
@@ -257,64 +258,69 @@ public class UserController {
     }
     
     private boolean sendApprovalEmail(ApplicationUser user) {
-
-    	boolean status = true;
     	
-    	try {
-            MimeMessage message = sender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message);
-
-            helper.setTo(new String[] {
-            		"derbridge@email.arizona.edu", 
-            		"lauralh@email.arizona.edu"
-    		});
-            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
-            helper.setSubject("NEPAccess Approval Request");
-            helper.setText("This is an automatically generated email due to"
-            		+ " a new account being registered."
-            		+ "\n\nFrom username: " + user.getUsername()
-            		+ "\nEmail: " + user.getEmail()
-            		+ "\n\nUser can be approved at: https://www.nepaccess.org/approve"
-            		+ "\n(Users are not approved by default)"
-            );
-             
-            sender.send(message);
+    	if(Globals.TESTING) {
+    		return true;
+    	} else {
     		
-    	} catch (MailAuthenticationException e) {
-            logEmail(user.getEmail(), e.toString(), "Approval", false);
-
-//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
-            
-            status = false;
-    	} catch (MailSendException e) {
-            logEmail(user.getEmail(), e.toString(), "Approval", false);
-
-//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
-            
-            status = false;
-    	} catch (MailException e) {
-            logEmail(user.getEmail(), e.toString(), "Approval", false);
-            
-//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
-            
-            status = false;
-    	} catch (Exception e) {
-            logEmail(user.getEmail(), e.toString(), "Approval", false);
-            
-//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
-            
-            status = false;
+	    	boolean status = true;
+	    	
+	    	try {
+	            MimeMessage message = sender.createMimeMessage();
+	            MimeMessageHelper helper = new MimeMessageHelper(message);
+	
+	            helper.setTo(new String[] {
+	            		"derbridge@email.arizona.edu", 
+	            		"lauralh@email.arizona.edu"
+	    		});
+	            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+	            helper.setSubject("NEPAccess Approval Request");
+	            helper.setText("This is an automatically generated email due to"
+	            		+ " a new account being registered."
+	            		+ "\n\nFrom username: " + user.getUsername()
+	            		+ "\nEmail: " + user.getEmail()
+	            		+ "\n\nUser can be approved at: https://www.nepaccess.org/approve"
+	            		+ "\n(Users are not approved by default)"
+	            );
+	             
+	            sender.send(message);
+	    		
+	    	} catch (MailAuthenticationException e) {
+	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+	
+	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+	            
+	            status = false;
+	    	} catch (MailSendException e) {
+	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+	
+	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+	            
+	            status = false;
+	    	} catch (MailException e) {
+	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+	            
+	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+	            
+	            status = false;
+	    	} catch (Exception e) {
+	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+	            
+	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+	            
+	            status = false;
+	    	}
+	    	
+	    	if(status) {
+	    		try {
+	                logEmail(user.getEmail(), "", "Approval", true);
+	    		} catch (Exception ex) {
+	    			// Do nothing
+	    		}
+	    	}
+	        
+	        return status;
     	}
-    	
-    	if(status) {
-    		try {
-                logEmail(user.getEmail(), "", "Approval", true);
-    		} catch (Exception ex) {
-    			// Do nothing
-    		}
-    	}
-        
-        return status;
 	}
 
 	private boolean isValidUser(ApplicationUser user) {
@@ -772,11 +778,12 @@ public class UserController {
 		}
 	}
 
-    @CrossOrigin
+    @SuppressWarnings("unused")
+	@CrossOrigin
 	@PostMapping(path = "/contact")
 	public ResponseEntity<Boolean> contact(@RequestParam String contactData, @RequestParam String recaptchaToken, @RequestHeader Map<String, String> headers) {
 
-    	if(!recaptcha(recaptchaToken)) {
+    	if(!recaptcha(recaptchaToken) && !Globals.TESTING) {
     		return new ResponseEntity<Boolean>(false, HttpStatus.FAILED_DEPENDENCY); 
     	}
     	
@@ -837,13 +844,17 @@ public class UserController {
     	try {
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message);
-             
-            helper.setTo(new String[] {
-            		"paulmirocha@arizona.edu", 
-            		"derbridge@email.arizona.edu", 
-            		"abinfordwalsh@email.arizona.edu", 
-            		SecurityConstants.EMAIL_HANDLE
-    		});
+            
+            if(Globals.TESTING) {
+            	helper.setTo(SecurityConstants.EMAIL_HANDLE);
+            } else {
+	            helper.setTo(new String[] {
+	            		"paulmirocha@arizona.edu", 
+	            		"derbridge@email.arizona.edu", 
+	            		"abinfordwalsh@email.arizona.edu", 
+	            		SecurityConstants.EMAIL_HANDLE
+	    		});
+            }
             message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             helper.setSubject("(NEPAccess Contact) " + contactForm.subject);
             helper.setText("Contact from: " + contactForm.name
