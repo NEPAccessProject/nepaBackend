@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -511,6 +512,15 @@ public class EISController {
 //			System.out.println(e);
 			return new ResponseEntity<EISMatchData>(HttpStatus.NO_CONTENT);
 		}
+	}
+	
+	@CrossOrigin
+	@GetMapping(path = "/match_all_advanced")
+	public @ResponseBody ResponseEntity<Object> matchAllAdvanced(@RequestHeader Map<String, String> headers) {
+		// TODO: Admin only
+		// TODO: Return object[] results
+		return new ResponseEntity<Object>(matchService.getAllAdvanced(), HttpStatus.OK);
+//		return null;
 	}
 	
 	/** 

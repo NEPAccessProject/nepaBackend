@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Repository;
 
 import nepaBackend.model.EISMatch;
@@ -45,4 +46,62 @@ public interface EISMatchRepository extends JpaRepository<EISMatch, Long>{
 			nativeQuery = true)
 	List<EISMatch> queryBy(@Param("id") Long id, 
 							@Param("match_percent") BigDecimal match_percent);
+
+	
+	
+	/** Return list of matches where match_percent is greater or equal to .5
+	 * Includes IDs, titles, filenames, match %
+	 */
+	@Query(value = "SELECT document1, "
+			+ "eisdoc1.title AS title1, "
+			+ "eisdoc1.filename AS filename1, "
+			+ "document2, "
+			+ "eisdoc2.title AS title2, "
+			+ "eisdoc2.filename AS filename2, "
+			+ "match_percent "
+			+ "FROM test.eismatch "
+			+ "INNER JOIN eisdoc eisdoc1 ON (eismatch.document1 = eisdoc1.id) "
+			+ "INNER JOIN eisdoc eisdoc2 ON (eismatch.document2 = eisdoc2.id) "
+			+ "WHERE match_percent > 0.5 "
+			+ "ORDER BY document1 ASC, document2 ASC;",
+			nativeQuery = true)
+	List<Object> getMetaPairs();
+
+	/** Return list of matches where match_percent is greater or equal to .5
+	 * Includes IDs, titles, filenames, match %
+	 */
+	@Query(value = "SELECT document1, "
+			+ "eisdoc1.title AS title1, "
+			+ "eisdoc1.filename AS filename1, "
+			+ "document2, "
+			+ "eisdoc2.title AS title2, "
+			+ "eisdoc2.filename AS filename2, "
+			+ "match_percent "
+			+ "FROM test.eismatch "
+			+ "INNER JOIN eisdoc eisdoc1 ON (eismatch.document1 = eisdoc1.id) "
+			+ "INNER JOIN eisdoc eisdoc2 ON (eismatch.document2 = eisdoc2.id) "
+			+ "WHERE match_percent > 0.5 "
+			+ "AND WHERE (LENGTH(eisdoc1.filename) > 0 || LENGTH(eisdoc2.filename) > 0)"
+			+ "ORDER BY document1 ASC, document2 ASC;",
+			nativeQuery = true)
+	List<Object> getMetaPairsAtLeastOneFile();
+
+	/** Return list of matches where match_percent is greater or equal to .5
+	 * Includes IDs, titles, filenames, match %
+	 */
+	@Query(value = "SELECT document1, "
+			+ "eisdoc1.title AS title1, "
+			+ "eisdoc1.filename AS filename1, "
+			+ "document2, "
+			+ "eisdoc2.title AS title2, "
+			+ "eisdoc2.filename AS filename2, "
+			+ "match_percent "
+			+ "FROM test.eismatch "
+			+ "INNER JOIN eisdoc eisdoc1 ON (eismatch.document1 = eisdoc1.id) "
+			+ "INNER JOIN eisdoc eisdoc2 ON (eismatch.document2 = eisdoc2.id) "
+			+ "WHERE match_percent > 0.5 "
+			+ "AND WHERE (LENGTH(eisdoc1.filename) > 0 && LENGTH(eisdoc2.filename) > 0)"
+			+ "ORDER BY document1 ASC, document2 ASC;",
+			nativeQuery = true)
+	List<Object> getMetaPairsTwoFiles();
 }

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import nepaBackend.model.EISMatch;
@@ -23,5 +24,10 @@ public class EISMatchService {
 
 	public List<EISMatch> getAllBy(Long _id, BigDecimal match_percent) {
 		return matchRepository.queryBy(_id, match_percent);
+	}
+
+	public List<Object> getAllAdvanced() {
+		// TODO Auto-generated method stub
+		return matchRepository.getMetaPairs();
 	}
 }
