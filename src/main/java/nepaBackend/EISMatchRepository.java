@@ -81,7 +81,7 @@ public interface EISMatchRepository extends JpaRepository<EISMatch, Long>{
 			+ "INNER JOIN eisdoc eisdoc1 ON (eismatch.document1 = eisdoc1.id) "
 			+ "INNER JOIN eisdoc eisdoc2 ON (eismatch.document2 = eisdoc2.id) "
 			+ "WHERE match_percent > 0.5 "
-			+ "AND WHERE (LENGTH(eisdoc1.filename) > 0 || LENGTH(eisdoc2.filename) > 0)"
+			+ "AND (eisdoc1.size > 77 || eisdoc2.size > 77)"
 			+ "ORDER BY document1 ASC, document2 ASC;",
 			nativeQuery = true)
 	List<Object> getMetaPairsAtLeastOneFile();
@@ -100,7 +100,7 @@ public interface EISMatchRepository extends JpaRepository<EISMatch, Long>{
 			+ "INNER JOIN eisdoc eisdoc1 ON (eismatch.document1 = eisdoc1.id) "
 			+ "INNER JOIN eisdoc eisdoc2 ON (eismatch.document2 = eisdoc2.id) "
 			+ "WHERE match_percent > 0.5 "
-			+ "AND WHERE (LENGTH(eisdoc1.filename) > 0 && LENGTH(eisdoc2.filename) > 0)"
+			+ "AND (eisdoc1.size > 77 && eisdoc2.size > 77)"
 			+ "ORDER BY document1 ASC, document2 ASC;",
 			nativeQuery = true)
 	List<Object> getMetaPairsTwoFiles();

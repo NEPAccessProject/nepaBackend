@@ -515,12 +515,22 @@ public class EISController {
 	}
 	
 	@CrossOrigin
-	@GetMapping(path = "/match_all_advanced")
-	public @ResponseBody ResponseEntity<Object> matchAllAdvanced(@RequestHeader Map<String, String> headers) {
+	@GetMapping(path = "/match_all_pairs")
+	public @ResponseBody ResponseEntity<Object> getAllPairs(@RequestHeader Map<String, String> headers) {
 		// TODO: Admin only
-		// TODO: Return object[] results
-		return new ResponseEntity<Object>(matchService.getAllAdvanced(), HttpStatus.OK);
-//		return null;
+		return new ResponseEntity<Object>(matchService.getAllPairs(), HttpStatus.OK);
+	}
+	@CrossOrigin
+	@GetMapping(path = "/match_all_pairs_one")
+	public @ResponseBody ResponseEntity<Object> getAllPairsOne(@RequestHeader Map<String, String> headers) {
+		// TODO: Admin only
+		return new ResponseEntity<Object>(matchService.getAllPairsAtLeastOneFile(), HttpStatus.OK);
+	}
+	@CrossOrigin
+	@GetMapping(path = "/match_all_pairs_two")
+	public @ResponseBody ResponseEntity<Object> getAllPairsTwo(@RequestHeader Map<String, String> headers) {
+		// TODO: Admin only
+		return new ResponseEntity<Object>(matchService.getAllPairsTwoFiles(), HttpStatus.OK);
 	}
 	
 	/** 

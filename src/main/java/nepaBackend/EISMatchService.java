@@ -26,8 +26,18 @@ public class EISMatchService {
 		return matchRepository.queryBy(_id, match_percent);
 	}
 
-	public List<Object> getAllAdvanced() {
+	public List<Object> getAllPairs() {
 		// TODO Auto-generated method stub
 		return matchRepository.getMetaPairs();
+	}
+
+	public List<Object> getAllPairsAtLeastOneFile() {
+		// TODO Auto-generated method stub
+		return matchRepository.getMetaPairsAtLeastOneFile();
+	}
+
+	public List<Object> getAllPairsTwoFiles() {
+		// TODO Auto-generated method stub
+		return matchRepository.getMetaPairsTwoFiles();
 	}
 }
