@@ -97,6 +97,8 @@ public class EISController {
 //		
 //	}
 
+	// TODO: Don't save my own search logs since I'm usually testing stuff, 
+	// this requires getting headers and getting user from JWT
 	@CrossOrigin
 	@PostMapping(path = "/search", 
 	consumes = "application/json", 
@@ -456,7 +458,7 @@ public class EISController {
 				}
 			}
 			
-			searchLog.setUserId(null); // TODO: Non-anonymous user IDs
+			searchLog.setUserId(null); // TODO: Non-anonymous user IDs if opted-in
 			searchLog.setSavedTime(LocalDateTime.now());
 
 			searchLogRepository.save(searchLog);
@@ -531,6 +533,12 @@ public class EISController {
 	public @ResponseBody ResponseEntity<Object> getAllPairsTwo(@RequestHeader Map<String, String> headers) {
 		// TODO: Admin only
 		return new ResponseEntity<Object>(matchService.getAllPairsTwoFiles(), HttpStatus.OK);
+	}
+	@CrossOrigin
+	@GetMapping(path = "/search_logs")
+	public @ResponseBody ResponseEntity<List<Object>> getAllSearchLogs(@RequestHeader Map<String, String> headers) {
+		// TODO: Admin only
+		return new ResponseEntity<List<Object>>(searchLogRepository.countDistinctTitles(), HttpStatus.OK);
 	}
 	
 	/** 
@@ -690,7 +698,7 @@ public class EISController {
 	@PostMapping(path = "/check") // to simply verify user has access to /test/**
 	public void check() {
 	}
-	
+
 	/** Get all titles (too heavy to put into a select on frontend) */
 //	@CrossOrigin
 //	@PostMapping(path = "/titles")
