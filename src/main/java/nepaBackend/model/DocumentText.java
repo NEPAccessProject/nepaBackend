@@ -11,7 +11,9 @@ import javax.persistence.Table;
 
 import org.hibernate.search.annotations.Field;
 import org.hibernate.search.annotations.Indexed;
+import org.hibernate.search.annotations.Norms;
 import org.hibernate.search.annotations.Store;
+import org.hibernate.search.annotations.TermVector;
 
 @Table(name="document_text")
 @Entity
@@ -37,9 +39,10 @@ public class DocumentText {
     @JoinColumn(name="document_id")
 	private EISDoc eisdoc;
 
+    // norms is default YES but term vectors are default NO which is a huge problem for the highlighting efficiency of large documents
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
 	@Column(name="plaintext") // Need to manually change to longtext
-    @Field(store=Store.NO)
+    @Field(store=Store.NO,norms=Norms.YES,termVector=TermVector.WITH_POSITION_OFFSETS) 
 	private String plaintext;
 	
 	@Column(name="filename",columnDefinition="text")
