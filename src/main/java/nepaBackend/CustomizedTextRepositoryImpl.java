@@ -1801,8 +1801,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		long startTime = System.currentTimeMillis();
 		List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
 		Path index = Path.of("./data/lucene/nepaBackend.model.DocumentText");
-		IndexReader reader = null;
-			reader = DirectoryReader.open(FSDirectory.open(index));
+		IndexReader reader = DirectoryReader.open(FSDirectory.open(index));
 
 		try {
 			
@@ -1847,15 +1846,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		String fieldName = "document_text";
 		int fragCharSize = 200;
 
-		Query luceneQuery = null;
-			luceneQuery = qp.parse(searchInputs.title);
+		Query luceneQuery qp.parse(searchInputs.title);
 
 		for(MetadataWithContext3 un : results) {
 			List<String> highlightList = new ArrayList<String>();
 			// TODO: Filename
 			for(Long id: un.getIds()) {
-				String highlight = null;
-					highlight = highlighter.getBestFragment(
+				String highlight = highlighter.getBestFragment(
 							highlighter.getFieldQuery(luceneQuery), 
 							reader, 
 							id.intValue(), 
