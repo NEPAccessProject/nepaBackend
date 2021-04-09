@@ -1796,18 +1796,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 	}
 	
-	public List<MetadataWithContext3> allInOne(SearchInputs searchInputs) {
+	public List<MetadataWithContext3> allInOne(SearchInputs searchInputs) throws IOException, ParseException {
 
 		long startTime = System.currentTimeMillis();
 		List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
 		Path index = Path.of("./data/lucene");
 		IndexReader reader = null;
-		try {
 			reader = DirectoryReader.open(FSDirectory.open(index));
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
 
 		try {
 			
@@ -1853,28 +1848,19 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		int fragCharSize = 200;
 
 		Query luceneQuery = null;
-		try {
 			luceneQuery = qp.parse(searchInputs.title);
-		} catch (ParseException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+
 		for(MetadataWithContext3 un : results) {
 			List<String> highlightList = new ArrayList<String>();
 			// TODO: Filename
 			for(Long id: un.getIds()) {
 				String highlight = null;
-				try {
 					highlight = highlighter.getBestFragment(
 							highlighter.getFieldQuery(luceneQuery), 
 							reader, 
 							id.intValue(), 
 							fieldName, 
 							fragCharSize);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
 				highlightList.add("... <span class=\"fragment\">" + highlight + "</span> ...");
 			}
 			un.setHighlight(highlightList);
