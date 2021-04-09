@@ -7,6 +7,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.controller.MetadataWithContext2;
+import nepaBackend.controller.MetadataWithContext3;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.ScoredResult;
@@ -26,8 +27,10 @@ public interface CustomizedTextRepository {
 	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType);
+	List<MetadataWithContext3> allInOne(SearchInputs searchInputs);
 	ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException;
 	List<Object[]> getRaw(String title) throws ParseException;
 	List<MetadataWithContext2> getScored(String title) throws ParseException;
 	List<EISDoc> searchTitles(String terms) throws ParseException;
+	
 }

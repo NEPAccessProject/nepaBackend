@@ -260,6 +260,14 @@ public class FulltextController {
 		}
 	}
 
+	@CrossOrigin
+	@PostMapping(path = "/get_all")
+	ResponseEntity<List<MetadataWithContext3>> allInOne(@RequestBody SearchInputs searchInputs) {
+		return new ResponseEntity<List<MetadataWithContext3>>(
+				textRepository.allInOne(searchInputs),
+				HttpStatus.OK);
+	}
+
 	/** Mostly for testing, returns raw results from a .getResultList() call */
 	@CrossOrigin
 	@PostMapping(path = "/get_raw")

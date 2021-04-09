@@ -2,6 +2,7 @@ package nepaBackend;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,10 +14,13 @@ import javax.persistence.PersistenceContext;
 
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.QueryParser.Operator;
+import org.apache.lucene.search.IndexSearcher;
 //import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.highlight.Fragmenter;
@@ -25,6 +29,12 @@ import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleFragmenter;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
+import org.apache.lucene.search.highlight.TokenSources;
+import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
+import org.apache.lucene.search.vectorhighlight.FieldQuery;
+import org.apache.lucene.search.vectorhighlight.FragmentsBuilder;
+import org.apache.lucene.search.vectorhighlight.SimpleFragListBuilder;
+import org.apache.lucene.store.FSDirectory;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
@@ -33,6 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.controller.MetadataWithContext2;
+import nepaBackend.controller.MetadataWithContext3;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
@@ -1434,6 +1445,168 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		return combinedResults;
 	}
+	
+
+
+	private List<MetadataWithContext3> getScoredFVH(String title) throws ParseException {
+
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(title).strip());
+
+	    if(Globals.TESTING) {System.out.println("Search terms: " + formattedTerms);}
+	    
+		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+
+		// Lucene flattens (denormalizes) and so searching both tables at once is simple enough, 
+		// but the results will contain both types mixed together
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+
+		Query luceneQuery = mfqp.parse(formattedTerms);
+		
+		org.hibernate.search.jpa.FullTextQuery jpaQuery =
+				fullTextEntityManager.createFullTextQuery(luceneQuery);
+
+		// Ex: [[8383,"nepaBackend.model.EISDoc",0.8749341],[1412,"nepaBackend.model.DocumentText",0.20437382]]
+		jpaQuery.setProjection(
+				ProjectionConstants.ID
+				,ProjectionConstants.OBJECT_CLASS
+				,ProjectionConstants.SCORE
+				);
+		jpaQuery.setMaxResults(1000000);
+		jpaQuery.setFirstResult(0);
+		
+		// Lazy fetching isn't so easy here with combined results, so the goal is to get the order
+		// first and then get all of the results maintaining that order but without getting full
+		// texts which is slow and also overflows the heap
+		
+		// Could potentially try to get ProjectionConstants.ID and ProjectionConstants.SCORE
+		// for two separate searches, join and sort by score,
+		// then get the metadata and filenames.  This would maintain the order.
+		
+		// Returns a list containing both EISDoc and DocumentText objects.
+		List<Object[]> results = jpaQuery.getResultList();
+		
+		if(Globals.TESTING) {System.out.println("Initial results size: " + results.size());}
+		
+		List<ScoredResult> converted = new ArrayList<ScoredResult>();
+		Set<Long> metaIds = new HashSet<Long>();
+		Set<Long> textIds = new HashSet<Long>();
+		
+		int i = 0;
+		
+		for(Object[] result : results) {
+			ScoredResult convert = new ScoredResult();
+			convert.id = (Long) result[0];
+			convert.className = (Class<?>) result[1];
+			convert.score = (Float) result[2];
+			convert.idx = i;
+			if(convert.className.equals(EISDoc.class)) {
+				metaIds.add(convert.id);
+			} else {
+				textIds.add(convert.id);
+			}
+			converted.add(convert);
+			i++;
+		}
+		
+		// [8383,"nepaBackend.model.EISDoc"]
+		// ProjectionConstants.SCORE could also give score to sort by.
+		
+		// 1: Get EISDocs by IDs.
+		
+		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
+			.setParameter("ids", metaIds).getResultList();
+
+		if(Globals.TESTING){System.out.println("Docs results size: " + docs.size());}
+		
+		HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
+		for(EISDoc doc : docs) {
+			hashDocs.put(doc.getId(), doc);
+		}
+
+		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
+
+		List<Object[]> textIdMetaAndFilenames = em.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
+				.setParameter("ids", textIds).getResultList();
+
+		if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
+		
+		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
+		for(Object[] obj : textIdMetaAndFilenames) {
+			hashTexts.put(
+					(Long) obj[0], 
+					new ReducedText(
+						(Long) obj[0],
+						(EISDoc) obj[1],
+						(String) obj[2]
+					));
+		}
+		
+		List <MetadataWithContext3> combinedResults = new ArrayList<MetadataWithContext3>();
+
+		// 3: Join (combine) results from the two tables
+		// 3.1: Condense (add filenames to existing records rather than adding new records)
+		// 3.2: keep original order
+		
+		HashMap<Long, Integer> added = new HashMap<Long, Integer>();
+		int position = 0;
+		
+		for(ScoredResult ordered : converted) {
+			if(ordered.className.equals(EISDoc.class)) {
+				if(!added.containsKey(ordered.id)) {
+					// Add EISDoc into logical position
+					combinedResults.add(new MetadataWithContext3(
+							new ArrayList<Long>(),
+							hashDocs.get(ordered.id),
+							new ArrayList<String>(),
+							"",
+							ordered.score));
+					added.put(ordered.id, position);
+					position++;
+				}
+				// If we already have one, do nothing - (title result: no filenames to add.)
+			} else {
+				EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
+				if(!added.containsKey(eisFromDoc.getId())) {
+					// Add DocumentText into logical position
+					MetadataWithContext3 entry = new MetadataWithContext3(
+							new ArrayList<Long>(),
+							eisFromDoc,
+							new ArrayList<String>(),
+							hashTexts.get(ordered.id).filename,
+							ordered.score);
+					entry.addId(ordered.id);
+					combinedResults.add(entry);
+					added.put(eisFromDoc.getId(), position);
+					position++;
+				} else {
+					// Add this combinedResult's id to id list
+					combinedResults.get(added.get(eisFromDoc.getId())).addId(ordered.id);
+					// Add this combinedResult's filename to filename list
+					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
+							.getFilenames();
+					// > is not a valid directory/filename char, so should work as delimiter
+					// If currentFilename is blank (title match came first), no need to concat.  Just set.
+					if(currentFilename.isBlank()) {
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							hashTexts.get(ordered.id).filename
+						);
+					} else {
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
+						);
+					}
+				}
+			}
+		}
+		
+		return combinedResults;
+	}
 
 	/** Combination title/fulltext query including the metadata parameters like agency/state/...
 			 * and this is currently the default search; returns metadata plus filename 
@@ -1621,6 +1794,100 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			e.printStackTrace();
 			return new ArrayList<MetadataWithContext>();
 		}
+	}
+	
+	public List<MetadataWithContext3> allInOne(SearchInputs searchInputs) {
+
+		long startTime = System.currentTimeMillis();
+		List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
+		Path index = Path.of("./data/lucene");
+		IndexReader reader = null;
+		try {
+			reader = DirectoryReader.open(FSDirectory.open(index));
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+		try {
+			
+			List<EISDoc> records = getFilteredRecords(searchInputs);
+			
+			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			if(!searchInputs.title.isBlank()) {
+				String title = searchInputs.title;
+
+				// Collect IDs filtered by params
+				HashSet<Long> justRecordIds = new HashSet<Long>();
+				for(EISDoc record: records) {
+					justRecordIds.add(record.getId());
+				}
+
+				results = getScoredFVH(title);
+				
+				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+//				List<MetadataWithContext2> finalResults = new ArrayList<MetadataWithContext2>();
+//				for(int i = 0; i < results.size(); i++) {
+//					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+//						finalResults.add(results.get(i));
+//					}
+//				}
+			} else { // no title: simply return JDBC results...  however they have to be translated
+				for(EISDoc record : records) {
+					results.add(new MetadataWithContext3(new ArrayList<Long>(), record, new ArrayList<String>(), "", 0));
+				}
+				return results;
+			}
+			
+		} catch(Exception e) {
+			e.printStackTrace();
+			String problem = e.getLocalizedMessage();
+			MetadataWithContext3 result = new MetadataWithContext3(new ArrayList<Long>(), null, new ArrayList<String>(), problem, 0);
+			results.add(result);
+		}
+
+		
+		FastVectorHighlighter highlighter = new FastVectorHighlighter(true, true);
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		String fieldName = "document_text";
+		int fragCharSize = 200;
+
+		Query luceneQuery = null;
+		try {
+			luceneQuery = qp.parse(searchInputs.title);
+		} catch (ParseException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		for(MetadataWithContext3 un : results) {
+			List<String> highlightList = new ArrayList<String>();
+			// TODO: Filename
+			for(Long id: un.getIds()) {
+				String highlight = null;
+				try {
+					highlight = highlighter.getBestFragment(
+							highlighter.getFieldQuery(luceneQuery), 
+							reader, 
+							id.intValue(), 
+							fieldName, 
+							fragCharSize);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				highlightList.add("... <span class=\"fragment\">" + highlight + "</span> ...");
+			}
+			un.setHighlight(highlightList);
+		}
+
+		if(Globals.TESTING) {
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+		
+		return results;
 	}
 
 	/** Title matches brought to top
@@ -2084,6 +2351,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return combinedResults;
 	}
 	
+//	public List<String> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws IOException {
+//
+//	}
+	
 	public ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException {
 		long startTime = System.currentTimeMillis();
 		// Normalize whitespace and support added term modifiers
@@ -2094,7 +2365,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		qp.setDefaultOperator(Operator.AND);
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 		QueryScorer scorer = new QueryScorer(luceneTextOnlyQuery);
+		
 		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
+		
 		Fragmenter fragmenter = new SimpleFragmenter(bigFragmentSize);
 		highlighter.setTextFragmenter(fragmenter);
 		highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
