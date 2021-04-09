@@ -1800,7 +1800,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		long startTime = System.currentTimeMillis();
 		List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
-		Path index = Path.of("./data/lucene");
+		Path index = Path.of("./data/lucene/nepaBackend.model.DocumentText");
 		IndexReader reader = null;
 			reader = DirectoryReader.open(FSDirectory.open(index));
 
