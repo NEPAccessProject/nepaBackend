@@ -1,5 +1,6 @@
 package nepaBackend;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,7 +28,7 @@ public interface CustomizedTextRepository {
 	List<MetadataWithContext> CombinedSearchTitlePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext> CombinedSearchLucenePriority(SearchInputs searchInputs, SearchType searchType);
 	List<MetadataWithContext2> CombinedSearchNoContext(SearchInputs searchInputs, SearchType searchType);
-	List<MetadataWithContext3> allInOne(SearchInputs searchInputs);
+	List<MetadataWithContext3> allInOne(SearchInputs searchInputs) throws IOException, ParseException;
 	ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException;
 	List<Object[]> getRaw(String title) throws ParseException;
 	List<MetadataWithContext2> getScored(String title) throws ParseException;
