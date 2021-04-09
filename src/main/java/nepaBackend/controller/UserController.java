@@ -129,7 +129,7 @@ public class UserController {
     	
     	String token = headers.get("authorization");
     	
-    	if(!checkAdmin(headers).getBody() && !checkAdmin(headers).getBody() && !checkAdmin(headers).getBody()) {
+    	if(!checkAdmin(headers).getBody()) {
     		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     	} else {
     		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
