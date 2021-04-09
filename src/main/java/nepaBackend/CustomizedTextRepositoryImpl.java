@@ -1846,7 +1846,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		String fieldName = "document_text";
 		int fragCharSize = 200;
 
-		Query luceneQuery qp.parse(searchInputs.title);
+		Query luceneQuery = qp.parse(searchInputs.title);
 
 		for(MetadataWithContext3 un : results) {
 			List<String> highlightList = new ArrayList<String>();
