@@ -263,9 +263,16 @@ public class FulltextController {
 	@CrossOrigin
 	@PostMapping(path = "/get_all")
 	ResponseEntity<List<MetadataWithContext3>> allInOne(@RequestBody SearchInputs searchInputs) {
-		return new ResponseEntity<List<MetadataWithContext3>>(
-				textRepository.allInOne(searchInputs),
-				HttpStatus.OK);
+		try {
+			return new ResponseEntity<List<MetadataWithContext3>>(
+					textRepository.allInOne(searchInputs),
+					HttpStatus.OK);
+		} catch(Exception e) {
+			List<MetadataWithContext3> returnList = new ArrayList<MetadataWithContext3>();
+			MetadataWithContext3 datum = new MetadataWithContext3(null, null, null, e.getMessage(), 0);
+			returnList.add(datum);
+			return new ResponseEntity<List<MetadataWithContext3>>(returnList,HttpStatus.INTERNAL_SERVER_ERROR);
+		}
 	}
 
 	/** Mostly for testing, returns raw results from a .getResultList() call */
