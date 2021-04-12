@@ -54,7 +54,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .antMatchers(HttpMethod.POST, "/user/email-exists").permitAll()
          .antMatchers(HttpMethod.POST, "/user/contact").permitAll()
          .antMatchers(HttpMethod.POST, "/user/recaptcha_test").permitAll()
-         .antMatchers(HttpMethod.POST, "/text/new_test").permitAll()
+         .antMatchers(HttpMethod.GET, "/text/new_test").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/check").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/**").permitAll()
