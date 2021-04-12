@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class Globals {
 
-    public static final boolean TESTING = true;
+    public static final boolean TESTING = false;
 
     private static final String INDEX_DIRECTORY_PATH = "./data/lucene/nepaBackend.model.DocumentText";
     private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
