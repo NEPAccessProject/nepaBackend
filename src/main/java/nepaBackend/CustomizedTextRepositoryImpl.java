@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.persistence.EntityManager;
@@ -2238,17 +2239,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     
     // TODO: Missing EISDoc entirely, but this is a good chance just to test the raw speed
     // with term vectors
+	// TODO: Use logic built previously to build combined results, don't reinvent it
     public List<HighlightedResult> searchAndHighlight(String searchQuery) throws Exception {
-    	System.out.println("Search terms: " + searchQuery);
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
+	    			mutateTermModifiers(searchQuery.strip()));
+		
+    	System.out.println("Formatted terms: " + formattedTerms);
    	 
         // STEP A
     	searcher = new Searcher();
         QueryParser queryParser = new QueryParser("plaintext", new StandardAnalyzer());
+        queryParser.setDefaultOperator(Operator.AND);
+        
         Query query = queryParser.parse(searchQuery);
+//        TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
         TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
         ScoreDoc scoreDocs[] = topDocs.scoreDocs;
+        
         QueryScorer queryScorer = new QueryScorer(query, "plaintext");
         Fragmenter fragmenter = new SimpleSpanFragmenter(queryScorer);
+//        Fragmenter fragmenter = new SimpleFragmenter(250);
  
         Highlighter highlighter = new Highlighter(queryScorer); // Set the best scorer fragments
         highlighter.setTextFragmenter(fragmenter); // Set fragment to highlight
@@ -2265,17 +2275,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         searcher = new Searcher();
         List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	// TODO: Logic:
-        	// If no existing eisdoc related to this match, add new.
-        	// Otherwise, add to existing entry in resultList, which probably needs to be a HashMap.
-        	// Hibernate/JPA will have to get the eisdoc from the document_id from text.document_text.
-			HighlightedResult result = new HighlightedResult();
-            Document document = searcher.getDocument(scoreDoc.doc);
-            
-            
-            String id = document.get("id"); // need to get text from db, or in the future maybe from memory
+        	Document document = searcher.getDocument(scoreDoc.doc);
+            HighlightedResult result = new HighlightedResult();
+			
 			ArrayList<String> inputList = new ArrayList<String>();
-			inputList.add(id);
+			inputList.add(document.get("id"));
 			List<DocumentTextStrings> records = jdbcTemplate.query
 			(
 				"SELECT plaintext,filename FROM test.document_text WHERE id = (?)", 
@@ -2287,37 +2291,81 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			);
 			
 			if(records.size()>0) {
-	            // TODO: VERIFY NOT NULL (if null, we failed to index term vectors after all!):
 	            Fields termVectors = indexReader.getTermVectors(scoreDoc.doc);
-	            if(termVectors == null) {
-	            	System.out.println("Term vectors is null");
-	            } else {
-	            	System.out.print(" OK ");
-	            }
+
 	            TokenStream tokenStream = TokenSources.getTermVectorTokenStreamOrNull(
 	            		"plaintext", 
 	            		termVectors, 
 	            		-1);
-				String text = records.get(0).text;
-	            String fragment = highlighter.getBestFragment(tokenStream, text);
 	            
-	            // fast vector highlighter test. Gets null because it requires stored texts, 
-	            // but our text is in database.
-//	            String frag = fvh.getBestFragment(
-//	            		fvh.getFieldQuery(query), indexReader, scoreDoc.doc, "plaintext", 100);
-//	            System.out.println("FVH fragment: " + frag);
+	            String fragment = highlighter.getBestFragments(tokenStream, 
+	            		records.get(0).text, 
+	            		1, 
+	            		" ...</span><span class=\"fragment\">... ");
+	            
 				String filename = records.get(0).filename;
 				result.addFilename(filename);
 				result.addHighlight(fragment);
 				resultList.add(result); // TODO: Missing EISDoc entirely.
-				
-	            System.out.println("Fragment length: " + fragment.length());
 	            
 	            tokenStream.close();
 			}
-			
             
         }
+//        HashMap<String, Integer> idList = new HashMap<String,Integer>(scoreDocs.length);
+//        for(Entry<String, Integer> entry : idList.entrySet()){
+////          System.out.println( entry.getKey() + " => " + ": " + entry.getValue() );
+//          HighlightedResult result = new HighlightedResult();
+//			
+//			ArrayList<String> inputList = new ArrayList<String>();
+//			inputList.add(entry.getKey());
+//			List<DocumentTextStrings> records = jdbcTemplate.query
+//			(
+//				"SELECT plaintext,filename FROM test.document_text WHERE id = (?)", 
+//				inputList.toArray(new Object[] {}),
+//				(rs, rowNum) -> new DocumentTextStrings(
+//					rs.getString("plaintext"),
+//					rs.getString("filename")
+//				)
+//			);
+//			
+//			if(records.size()>0) {
+//	            Fields termVectors = indexReader.getTermVectors(entry.getValue());
+////	            if(termVectors == null) {
+////	            	System.out.println("Term vectors is null");
+////	            } else {
+////	            	System.out.print(" OK ");
+////	            }
+//	            
+//	            TokenStream tokenStream = TokenSources.getTermVectorTokenStreamOrNull(
+//	            		"plaintext", 
+//	            		termVectors, 
+//	            		-1);
+//	            
+////	            String fragment = highlighter.getBestFragment(tokenStream, records.get(0).text);
+//	            String fragment = highlighter.getBestFragments(tokenStream, 
+//	            		records.get(0).text, 
+//	            		1, 
+//	            		" ...</span><span class=\"fragment\">... ");
+////				
+//	            
+//	            // fast vector highlighter test. Gets null because it requires stored texts, 
+//	            // but our text is in database.
+////	            String frag = fvh.getBestFragment(
+////	            		fvh.getFieldQuery(query), indexReader, scoreDoc.doc, "plaintext", 100);
+////	            System.out.println("FVH fragment: " + frag);
+//				String filename = records.get(0).filename;
+//				result.addFilename(filename);
+//				result.addHighlight(fragment);
+//				resultList.add(result); // TODO: Missing EISDoc entirely.
+//				
+////	            System.out.println("Fragment length: " + fragment.length());
+//	            
+//	            tokenStream.close();
+//			}
+//          
+//      }
+//        System.out.println("Highlight count: " + resultList.size());
         return resultList;
     }
     
