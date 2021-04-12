@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.pojo.HighlightedResult;
 
 public interface TextRepository extends JpaRepository<DocumentText, Long>, CustomizedTextRepository {
 

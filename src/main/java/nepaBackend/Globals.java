@@ -1,5 +1,6 @@
 package nepaBackend;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -8,6 +9,27 @@ import java.util.Map;
 public class Globals {
 
     public static final boolean TESTING = false;
+    
+    public static final Path getIndexPath() {
+    	if(TESTING) {
+    		return Path.of(TESTING_INDEX_DIRECTORY_PATH);
+    	} else {
+    		return Path.of(INDEX_DIRECTORY_PATH);
+    	}
+    }
+    
+
+    public static final String getIndexString() {
+    	if(TESTING) {
+    		return (TESTING_INDEX_DIRECTORY_PATH);
+    	} else {
+    		return (INDEX_DIRECTORY_PATH);
+    	}
+    }
+
+
+    private static final String INDEX_DIRECTORY_PATH = "./data/lucene/nepaBackend.model.DocumentText";
+    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
 
     // Database/file server URL to base folder containing all files exposed to DAL for download
     public static final String DOWNLOAD_URL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";

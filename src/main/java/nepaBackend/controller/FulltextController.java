@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -27,11 +28,13 @@ import nepaBackend.enums.SearchType;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.Globals;
+import nepaBackend.LuceneHighlighter;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.SearchLog;
+import nepaBackend.pojo.HighlightedResult;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.UnhighlightedDTO;
 import nepaBackend.security.SecurityConstants;
@@ -260,18 +263,32 @@ public class FulltextController {
 		}
 	}
 
+//	@CrossOrigin
+//	@PostMapping(path = "/get_all")
+//	ResponseEntity<List<MetadataWithContext3>> allInOne(@RequestBody SearchInputs searchInputs) {
+//		try {
+//			return new ResponseEntity<List<MetadataWithContext3>>(
+//					textRepository.allInOne(searchInputs),
+//					HttpStatus.OK);
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			List<MetadataWithContext3> returnList = new ArrayList<MetadataWithContext3>();
+//			MetadataWithContext3 datum = new MetadataWithContext3(null, null, null, e.getMessage(), 0);
+//			returnList.add(datum);
+//			return new ResponseEntity<List<MetadataWithContext3>>(returnList,HttpStatus.INTERNAL_SERVER_ERROR);
+//		}
+//	}
+	
 	@CrossOrigin
-	@PostMapping(path = "/get_all")
-	ResponseEntity<List<MetadataWithContext3>> allInOne(@RequestBody SearchInputs searchInputs) {
+	@GetMapping(path = "/new_test")
+	ResponseEntity<List<HighlightedResult>> newTest(@RequestBody String query) {
 		try {
-			return new ResponseEntity<List<MetadataWithContext3>>(
-					textRepository.allInOne(searchInputs),
-					HttpStatus.OK);
-		} catch(Exception e) {
-			List<MetadataWithContext3> returnList = new ArrayList<MetadataWithContext3>();
-			MetadataWithContext3 datum = new MetadataWithContext3(null, null, null, e.getMessage(), 0);
-			returnList.add(datum);
-			return new ResponseEntity<List<MetadataWithContext3>>(returnList,HttpStatus.INTERNAL_SERVER_ERROR);
+//			LuceneHighlighter.searchIndexExample("test");
+//			LuceneHighlighter.searchAndHighLightKeywords("test");
+			return new ResponseEntity<List<HighlightedResult>>(textRepository.searchAndHighlight(query),HttpStatus.OK);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
 		}
 	}
 
