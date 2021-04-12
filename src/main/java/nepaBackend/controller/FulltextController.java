@@ -23,13 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
 
-import nepaBackend.TextRepository;
-import nepaBackend.enums.SearchType;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.Globals;
-import nepaBackend.LuceneHighlighter;
 import nepaBackend.SearchLogRepository;
+import nepaBackend.TextRepository;
+import nepaBackend.enums.SearchType;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;

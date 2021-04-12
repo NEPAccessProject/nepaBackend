@@ -8,13 +8,10 @@ import org.apache.lucene.queryparser.classic.ParseException;
 
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.controller.MetadataWithContext2;
-import nepaBackend.controller.MetadataWithContext3;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.HighlightedResult;
-import nepaBackend.pojo.ScoredResult;
 import nepaBackend.pojo.SearchInputs;
-import nepaBackend.pojo.Unhighlighted;
 import nepaBackend.pojo.UnhighlightedDTO;
 
 public interface CustomizedTextRepository {
