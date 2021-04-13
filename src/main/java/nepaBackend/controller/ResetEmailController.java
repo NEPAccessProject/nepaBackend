@@ -327,7 +327,8 @@ public class ResetEmailController {
     	return false;
     }
     
-    private void emailAdmin(String email, String errorType, String errorMessage) {
+    @SuppressWarnings("unused")
+	private void emailAdmin(String email, String errorType, String errorMessage) {
     	MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message);
         

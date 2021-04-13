@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import nepaBackend.model.EISMatch;
@@ -27,17 +26,14 @@ public class EISMatchService {
 	}
 
 	public List<Object> getAllPairs() {
-		// TODO Auto-generated method stub
 		return matchRepository.getMetaPairs();
 	}
 
 	public List<Object> getAllPairsAtLeastOneFile() {
-		// TODO Auto-generated method stub
 		return matchRepository.getMetaPairsAtLeastOneFile();
 	}
 
 	public List<Object> getAllPairsTwoFiles() {
-		// TODO Auto-generated method stub
 		return matchRepository.getMetaPairsTwoFiles();
 	}
 }

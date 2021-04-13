@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
 
 public interface FileLogRepository extends JpaRepository<FileLog, Long> {

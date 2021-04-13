@@ -1403,126 +1403,127 @@ public class FileController {
 		return idx >= 0 ? pathWithFilename.substring(idx + 1) : pathWithFilename;
 	}
 
-	// Never used locally and probably useless (legacy code for converting a pdf based on an eis with a filename, before folder column)
-	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
-		if(eis == null) {
-			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
-		}
-		
-		FileLog fileLog = new FileLog();
-		try {
-			fileLog.setDocumentId(eis.getId());
-		} catch(Exception e) {
-			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
-		}
-		
-		
-		if(eis.getId() < 1) {
-			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
-		}
-		
-		// Deduplication: Ignore when document ID already exists in EISDoc table
-		if(textRepository.existsByEisdoc(eis)) 
-		{
-			return new ResponseEntity<Void>(HttpStatus.FOUND);
-		} 
-		
-		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
-		// but presumably different filenames with hopefully different conents
-		final int BUFFER = 2048;
-		
-		try {
-			Tika tikaParser = new Tika();
-			tikaParser.setMaxStringLength(-1); // disable limit
-		
-			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
-			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
-				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
-			}
-			String filename = eis.getFilename();
-			
-			String relevantURL = dbURL;
-			if(testing) {
-				relevantURL = testURL;
-			}
-			URL fileURL = new URL(relevantURL + filename);
-			
-			// 1: Download the file
-			InputStream in = new BufferedInputStream(fileURL.openStream());
-			
-			int count;
-			byte[] data = new byte[BUFFER];
-			
-			
-			if(textRepository.existsByEisdoc(eis)) 
-			{
-				in.close();
-				return new ResponseEntity<Void>(HttpStatus.ALREADY_REPORTED);
-			} 
-			else 
-			{
-				if(testing) {
-					System.out.println("Converting PDF");
-				}
-				DocumentText docText = new DocumentText();
-				docText.setEisdoc(eis);
-				docText.setFilename(filename);
-				
-				// 2: Extract data and stream to Tika
-				try {
-					ByteArrayOutputStream baos = new ByteArrayOutputStream();
-					while (( count = in.read(data)) != -1) {
-						baos.write(data, 0, count);
-					}
-					
-					// 3: Convert to text
-					String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-					docText.setPlaintext(textResult);
-					
-					// 4: Add converted text to database for document(EISDoc) ID, filename
-					this.save(docText);
-				} catch(Exception e) {
-					// Log error
-					try {
-						if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
-							fileLog.setImported(false);
-						} else {
-							fileLog.setImported(true);
-						}
-						
-						fileLog.setErrorType(e.getLocalizedMessage());
-						fileLog.setLogTime(LocalDateTime.now());
-						fileLogRepository.save(fileLog);
-						e.printStackTrace();
-					} catch (Exception e2) {
-						if(testing) {
-							System.out.println("Error logging error...");
-							e2.printStackTrace();
-						}
-					}
-				} 
-			}
-
-			// 5: Cleanup
-			in.close();
-
-			return new ResponseEntity<Void>(HttpStatus.OK);
-		} catch (Exception e) {
-			e.printStackTrace();
-			try {
-				fileLog.setImported(false);
-				fileLog.setErrorType(e.getLocalizedMessage());
-				fileLog.setLogTime(LocalDateTime.now());
-				fileLogRepository.save(fileLog);
-			} catch (Exception e2) {
-				System.out.println("Error logging error...");
-				e2.printStackTrace();
-				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-			}
-			// could be IO exception getting the file if it doesn't exist
-			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-	}
+	/** Never used locally and probably useless 
+	(legacy code for converting a pdf based on an eis with a filename, before folder column)*/
+//	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
+//		if(eis == null) {
+//			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+//		}
+//		
+//		FileLog fileLog = new FileLog();
+//		try {
+//			fileLog.setDocumentId(eis.getId());
+//		} catch(Exception e) {
+//			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
+//		}
+//		
+//		
+//		if(eis.getId() < 1) {
+//			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
+//		}
+//		
+//		// Deduplication: Ignore when document ID already exists in EISDoc table
+//		if(textRepository.existsByEisdoc(eis)) 
+//		{
+//			return new ResponseEntity<Void>(HttpStatus.FOUND);
+//		} 
+//		
+//		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
+//		// but presumably different filenames with hopefully different conents
+//		final int BUFFER = 2048;
+//		
+//		try {
+//			Tika tikaParser = new Tika();
+//			tikaParser.setMaxStringLength(-1); // disable limit
+//		
+//			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
+//			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
+//				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
+//			}
+//			String filename = eis.getFilename();
+//			
+//			String relevantURL = dbURL;
+//			if(testing) {
+//				relevantURL = testURL;
+//			}
+//			URL fileURL = new URL(relevantURL + filename);
+//			
+//			// 1: Download the file
+//			InputStream in = new BufferedInputStream(fileURL.openStream());
+//			
+//			int count;
+//			byte[] data = new byte[BUFFER];
+//			
+//			
+//			if(textRepository.existsByEisdoc(eis)) 
+//			{
+//				in.close();
+//				return new ResponseEntity<Void>(HttpStatus.ALREADY_REPORTED);
+//			} 
+//			else 
+//			{
+//				if(testing) {
+//					System.out.println("Converting PDF");
+//				}
+//				DocumentText docText = new DocumentText();
+//				docText.setEisdoc(eis);
+//				docText.setFilename(filename);
+//				
+//				// 2: Extract data and stream to Tika
+//				try {
+//					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+//					while (( count = in.read(data)) != -1) {
+//						baos.write(data, 0, count);
+//					}
+//					
+//					// 3: Convert to text
+//					String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+//					docText.setPlaintext(textResult);
+//					
+//					// 4: Add converted text to database for document(EISDoc) ID, filename
+//					this.save(docText);
+//				} catch(Exception e) {
+//					// Log error
+//					try {
+//						if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
+//							fileLog.setImported(false);
+//						} else {
+//							fileLog.setImported(true);
+//						}
+//						
+//						fileLog.setErrorType(e.getLocalizedMessage());
+//						fileLog.setLogTime(LocalDateTime.now());
+//						fileLogRepository.save(fileLog);
+//						e.printStackTrace();
+//					} catch (Exception e2) {
+//						if(testing) {
+//							System.out.println("Error logging error...");
+//							e2.printStackTrace();
+//						}
+//					}
+//				} 
+//			}
+//
+//			// 5: Cleanup
+//			in.close();
+//
+//			return new ResponseEntity<Void>(HttpStatus.OK);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//			try {
+//				fileLog.setImported(false);
+//				fileLog.setErrorType(e.getLocalizedMessage());
+//				fileLog.setLogTime(LocalDateTime.now());
+//				fileLogRepository.save(fileLog);
+//			} catch (Exception e2) {
+//				System.out.println("Error logging error...");
+//				e2.printStackTrace();
+//				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+//			}
+//			// could be IO exception getting the file if it doesn't exist
+//			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+//		}
+//	}
 
 	private ResponseEntity<Void> convertNEPAFile(NEPAFile savedNEPAFile) {
 
