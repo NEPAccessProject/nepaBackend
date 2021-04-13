@@ -42,8 +42,7 @@ public class DocumentText {
     // norms is default YES but term vectors are default NO which is a huge problem for the highlighting efficiency of large documents
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
 	@Column(name="plaintext") // Need to manually change to longtext
-//    @Field(store=Store.NO,norms=Norms.YES,termVector=TermVector.WITH_POSITION_OFFSETS)
-    @Field(store=Store.NO)
+    @Field(store=Store.NO,norms=Norms.YES,termVector=TermVector.WITH_POSITION_OFFSETS) 
 	private String plaintext;
 	
 	@Column(name="filename",columnDefinition="text")
