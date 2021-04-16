@@ -9,9 +9,10 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
-import org.hibernate.search.annotations.Field;
-import org.hibernate.search.annotations.Indexed;
-import org.hibernate.search.annotations.Store;
+import org.hibernate.search.engine.backend.types.Projectable;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.FullTextField;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.GenericField;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 
 @Entity
 @Table(name="eisdoc") 
@@ -20,10 +21,11 @@ public class EISDoc {
     @Id
     @Column(name="id")
     @GeneratedValue(strategy=GenerationType.IDENTITY)
+    @GenericField(name="document_id",projectable=Projectable.YES)
     private Long id;  // TODO: ID/PK?
 	
     @Column(name="title",columnDefinition="text") // Note: Had to do ALTER TABLE `eisdoc` ADD FULLTEXT(title) for search
-    @Field(store=Store.NO)
+    @FullTextField(projectable=Projectable.NO)
     private String title;
   
     @Column(name="document_type")

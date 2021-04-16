@@ -5,13 +5,13 @@ import java.util.List;
 import nepaBackend.model.EISDoc;
 
 public class MetadataWithContext3 {
-	private List<Long> ids;
+	private List<Integer> ids;
 	private final EISDoc doc;
 	private List<String> highlights;
 	private String filenames;
 	private float score;
 	
-	public MetadataWithContext3(List<Long> ids, EISDoc doc, List<String> highlights, String filenames, float score) {
+	public MetadataWithContext3(List<Integer> ids, EISDoc doc, List<String> highlights, String filenames, float score) {
 		this.ids = ids;
 		this.doc = doc;
 		this.highlights = highlights;
@@ -19,12 +19,16 @@ public class MetadataWithContext3 {
 		this.setScore(score);
 	}
 	
-	public List<Long> getIds() {
+	public List<Integer> getIds() {
 		return ids;
 	}
+
+	public Integer getIdAt(int indx) {
+		return ids.get(indx);
+	}
 	
-	public void addId(Long id) {
-		this.ids.add(id);
+	public void addId(int luceneId) {
+		this.ids.add(luceneId);
 	}
 
 	public EISDoc getDoc() {

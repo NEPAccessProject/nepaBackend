@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.json.simple.parser.ParseException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,7 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.HighlightedResult;
 import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.Unhighlighted2DTO;
 import nepaBackend.pojo.UnhighlightedDTO;
 import nepaBackend.security.SecurityConstants;
 
@@ -92,8 +94,18 @@ public class FulltextController {
 	{
 		try {
 			return textRepository.search(terms, 100000, 0);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+		} catch(Exception e) { // ParseException, etc.
+			e.printStackTrace();
 			return null;
+		}
+	}
+	
+	@CrossOrigin
+	@GetMapping(path = "/search_6")
+	public List<List<?>> search6(@RequestBody String terms)
+	{
+		try {
+			return textRepository.searchHibernate6(terms);
 		} catch(Exception e) { // ParseException, etc.
 			e.printStackTrace();
 			return null;
@@ -130,8 +142,6 @@ public class FulltextController {
 				List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 						(textRepository.metaContext(terms, 100, 0, SearchType.ALL)));
 				return highlightsMeta;
-			} catch(org.hibernate.search.exception.EmptyQueryException e) {
-				return new ArrayList<MetadataWithContext>();
 			} catch(Exception e) {
 				e.printStackTrace();
 				return new ArrayList<MetadataWithContext>();
@@ -177,8 +187,6 @@ public class FulltextController {
 				convertedList.add(new MetadataWithContext(doc, "", ""));
 			}
 			return new ResponseEntity<List<MetadataWithContext>>(convertedList, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -196,8 +204,6 @@ public class FulltextController {
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchTitlePriority(searchInputs, SearchType.ALL)));
 			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -216,8 +222,6 @@ public class FulltextController {
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
 			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -228,21 +232,20 @@ public class FulltextController {
 	// Metadata without context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
 	@PostMapping(path = "/search_no_context")
-	public ResponseEntity<List<MetadataWithContext2>> searchNoContext(@RequestBody SearchInputs searchInputs)
+	public ResponseEntity<List<MetadataWithContext3>> searchNoContext(@RequestBody SearchInputs searchInputs)
 	{
 		saveSearchLog(searchInputs);
 
 		try { 
-			List<MetadataWithContext2> metaAndFilenames = 
-					textRepository.CombinedSearchNoContext(searchInputs, SearchType.ALL);
-			return new ResponseEntity<List<MetadataWithContext2>>(metaAndFilenames, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
+			List<MetadataWithContext3> metaAndFilenames = 
+					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL);
+			return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	
 
 	// Returns highlights for given list of IDs and filenames
 	@CrossOrigin
@@ -252,10 +255,73 @@ public class FulltextController {
 		try {
 			// Could turn IDs into list of eisdocs, hand those off instead?
 			List<List<String>> highlights = new ArrayList<List<String>>(
-					(textRepository.getHighlights(unhighlighted)));
+//					(textRepository.getHighlights(unhighlighted)));
+					(textRepository.getUnifiedHighlights(unhighlighted)));
 			return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<List<String>>>(HttpStatus.BAD_REQUEST);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<List<String>>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	// Returns highlights for given list of IDs and filenames (manually parsed)
+//	@CrossOrigin
+//	@PostMapping(path = "/get_highlightsFVH_manual")
+//	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody String unhighlighted)
+//	{
+//		try {
+//			List<Unhighlighted2> uns = new ArrayList<Unhighlighted2>();
+//			JSONParser jsp = new JSONParser();
+//			JSONObject jso = (JSONObject) jsp.parse(unhighlighted);
+////			System.out.println("Terms " + jso.get("terms"));
+//
+//			JSONArray jsa = (JSONArray) jso.get("unhighlighted");
+////			System.out.println("Array of objects " + jsa);
+////			System.out.println("First object " + (JSONObject) jsa.get(0));
+//			Iterator<JSONObject> iterator = jsa.iterator();
+//			while(iterator.hasNext()) {
+//				JSONObject internalJso = iterator.next();
+//				JSONArray lids = (JSONArray) internalJso.get("luceneIds");
+//				Iterator<Long> lidsIterator = lids.iterator();
+//				List<Long> lidsInts = new ArrayList<Long>(lids.size());
+//				while(lidsIterator.hasNext()) {
+//					lidsInts.add(lidsIterator.next());
+//				}
+//				String filenames = (String) internalJso.get("filename");
+//				Unhighlighted2 un2 = new Unhighlighted2(lidsInts,filenames);
+//				uns.add(un2);
+//			}
+//			
+//			Unhighlighted2DTO unhighlighted2DTO = new Unhighlighted2DTO();
+//			unhighlighted2DTO.setTerms((String) jso.get("terms"));
+//			unhighlighted2DTO.setUnhighlighted(uns);
+////			System.out.println("Length " + unhighlighted2DTO.getUnhighlighted().size());
+////			System.out.println("0 " + unhighlighted2DTO.getUnhighlighted().get(0));
+////			System.out.println("Filenames " + unhighlighted2DTO.getUnhighlighted().get(0).getFilename());
+////			System.out.println("Lucene ID list 0 " + unhighlighted2DTO.getUnhighlighted().get(0).getIds());
+//			List<List<String>> highlights = new ArrayList<List<String>>(
+//					(textRepository.getHighlightsFVH( unhighlighted2DTO )));
+//			return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+//		} catch (ParseException e1) {
+//			// TODO Auto-generated catch block
+//			e1.printStackTrace();
+//			return new ResponseEntity<List<List<String>>>(HttpStatus.BAD_REQUEST);
+//		} catch(Exception e) {
+//			e.printStackTrace();
+//			return new ResponseEntity<List<List<String>>>(HttpStatus.INTERNAL_SERVER_ERROR);
+//		}
+//	}
+	
+
+	// Returns highlights for given list of IDs and filenames
+	@CrossOrigin
+	@PostMapping(path = "/get_highlightsFVH")
+	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody Unhighlighted2DTO unhighlighted)
+	{
+		try {
+			List<List<String>> highlights = new ArrayList<List<String>>(
+					(textRepository.getHighlightsFVH( unhighlighted )));
+			return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<List<String>>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -301,8 +367,8 @@ public class FulltextController {
 			List<Object[]> results = new ArrayList<Object[]>(
 					(textRepository.getRaw(searchInputs.title)));
 			return new ResponseEntity<List<Object[]>>(results, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<Object[]>>(HttpStatus.BAD_REQUEST);
+//		} catch(org.hibernate.search.exception.EmptyQueryException e) {
+//			return new ResponseEntity<List<Object[]>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<Object[]>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -319,8 +385,6 @@ public class FulltextController {
 			List<MetadataWithContext2> results = 
 					textRepository.getScored(searchInputs.title);
 			return new ResponseEntity<List<MetadataWithContext2>>(results, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<MetadataWithContext2>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -339,8 +403,6 @@ public class FulltextController {
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
 			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
-		} catch(org.hibernate.search.exception.EmptyQueryException e) {
-			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.BAD_REQUEST);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);

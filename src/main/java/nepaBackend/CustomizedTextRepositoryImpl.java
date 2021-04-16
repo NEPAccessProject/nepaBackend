@@ -3,13 +3,15 @@ package nepaBackend;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.text.BreakIterator;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -21,12 +23,12 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.QueryParser.Operator;
 import org.apache.lucene.search.IndexSearcher;
-//import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
@@ -38,17 +40,30 @@ import org.apache.lucene.search.highlight.SimpleFragmenter;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.apache.lucene.search.highlight.SimpleSpanFragmenter;
 import org.apache.lucene.search.highlight.TokenSources;
+import org.apache.lucene.search.uhighlight.DefaultPassageFormatter;
+import org.apache.lucene.search.uhighlight.PassageFormatter;
+import org.apache.lucene.search.uhighlight.PassageScorer;
+import org.apache.lucene.search.uhighlight.UnifiedHighlighter;
+import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.hibernate.search.backend.lucene.index.LuceneIndexManager;
 import org.hibernate.search.engine.ProjectionConstants;
+import org.hibernate.search.engine.backend.index.IndexManager;
+import org.hibernate.search.engine.search.query.SearchResult;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
-//import org.hibernate.search.query.dsl.QueryBuilder;
+import org.hibernate.search.mapper.orm.common.EntityReference;
+import org.hibernate.search.mapper.orm.mapping.SearchMapping;
+import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
+import org.hibernate.search.mapper.orm.session.SearchSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.controller.MetadataWithContext2;
+import nepaBackend.controller.MetadataWithContext3;
+import nepaBackend.enums.EntityType;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
@@ -58,9 +73,10 @@ import nepaBackend.pojo.ReducedText;
 import nepaBackend.pojo.ScoredResult;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.Unhighlighted;
+import nepaBackend.pojo.Unhighlighted2;
+import nepaBackend.pojo.Unhighlighted2DTO;
 import nepaBackend.pojo.UnhighlightedDTO;
 
-// TODO: Probably want a way to search for many/expanded highlights/context from one archive only
 public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@PersistenceContext
 	private EntityManager em;
@@ -68,14 +84,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 	
-    private static Searcher searcher;
+    private static MultiSearcher searcher;
 
 	private static int numberOfFragmentsMin = 3;
 	private static int numberOfFragmentsMax = 3;
-//	private static int numberOfFragmentsMax = 5;
-//	private static int fragmentSize = 250;
 	private static int fragmentSize = 500;
-	private static int bigFragmentSize = 1500;
+	private static int bigFragmentSize = 500;
 	private static SimpleHTMLFormatter globalFormatter = new SimpleHTMLFormatter("<span class=\"highlight\">","</span>");
 	
 //	private static int fuzzyLevel = 1;
@@ -83,12 +97,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	/** Return all records matching terms in "plaintext" field (no highlights/context) 
 	 * (This function is basically unused since the card format changes in Oct. '20)
 	 * @throws ParseException */
-	@SuppressWarnings("unchecked")
 	@Override
 	public List<EISDoc> search(String terms, int limit, int offset) throws ParseException {
 		
 		String newTerms = mutateTermModifiers(terms);
 		
+		SearchSession session = org.hibernate.search.mapper.orm.Search.session(em);
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
 			
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
@@ -284,7 +298,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
 		qp.setDefaultOperator(Operator.AND);
-		
+				
 		// this may throw a ParseException which the caller has to deal with
 		Query luceneQuery = qp.parse(terms);
 		
@@ -554,15 +568,27 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	@Override
 	public boolean sync() {
-		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+		SearchSession searchSession = org.hibernate.search.mapper.orm.Search.session(em);
+		
+		MassIndexer indexer = searchSession.massIndexer( DocumentText.class, EISDoc.class ); 
+
 		try {
-			fullTextEntityManager.createIndexer().startAndWait();
-			return true;
-		} catch (InterruptedException e) {
-			// TODO log interruption?
-			e.printStackTrace();
+			indexer.startAndWait();
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
 			return false;
-		}
+		} 
+//		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
+//		try {
+//			fullTextEntityManager.createIndexer().startAndWait();
+//		} catch (InterruptedException e) {
+//			// TODO log interruption?
+//			e.printStackTrace();
+//			return false;
+//		}
+		
+		return true;
 	}
 	
 // As long as we use the ORM to delete DocumentText records, Lucene will know about it and delete them from its index
@@ -2106,10 +2132,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return combinedResults;
 	}
 	
-//	public List<String> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws IOException {
-//
-//	}
-	
 	public ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException, IOException {
 		long startTime = System.currentTimeMillis();
 		// Normalize whitespace and support added term modifiers
@@ -2121,8 +2143,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 		QueryScorer scorer = new QueryScorer(luceneTextOnlyQuery);
 
-		IndexReader reader = DirectoryReader.open(FSDirectory.open(Globals.getIndexPath()));
-		IndexSearcher searcher = new IndexSearcher(reader);
+//		IndexReader reader = DirectoryReader.open(FSDirectory.open(Globals.getIndexPath()));
+//		IndexSearcher searcher = new IndexSearcher(reader);
 		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
 		Highlighter highlighter = new Highlighter(globalFormatter, scorer);
 //		UnifiedHighlighter highlighter = new UnifiedHighlighter(searcher, stndrdAnalyzer);
@@ -2226,7 +2248,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
     public static ScoreDoc[] searchIndex(String searchQuery) throws Exception {
     	System.out.println("Search terms: " + searchQuery);
-        searcher = new Searcher();
+        searcher = new MultiSearcher();
         Analyzer analyzer = new StandardAnalyzer();
         QueryParser queryParser = new QueryParser("plaintext", analyzer);
         Query query = queryParser.parse(searchQuery);
@@ -2238,48 +2260,200 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     }
     
     // TODO: Missing EISDoc entirely, but this is a good chance just to test the raw speed
-    // with term vectors
-	// TODO: Use logic built previously to build combined results, don't reinvent it
+    // of the fast vector highlighter
+    // TODO: I'm not 100% sure why there are no title matches at all
+    // This route could be the future of highlight searches at the very least.  Just needs
+    // Lucene document IDs for the FVH.
     public List<HighlightedResult> searchAndHighlight(String searchQuery) throws Exception {
+    	try {
+    		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
+	    			mutateTermModifiers(searchQuery.strip()));
+		
+    	if(Globals.TESTING) {System.out.println("Formatted: " + formattedTerms);}
+   	 
+        // 1. Search; instantiate highlighter
+
+        searcher = new MultiSearcher();
+        Analyzer analyzer = new StandardAnalyzer();
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					analyzer);
+		mfqp.setDefaultOperator(Operator.AND);
+        Query query = mfqp.parse(formattedTerms);
+        System.out.println("Query "+query.toString());
+        
+    	// This appears to only get results that match on plaintext, 
+    	// or on both plaintext AND title?
+    	// So if we want both, we might need to do two separate searches and 
+    	// then merge them ordered by score?
+//        TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+        TopDocs topDocs = searcher.search(query, 1000000);
+        ScoreDoc scoreDocs[] = topDocs.scoreDocs;
+
+//        QueryParser qp = new QueryParser("title",analyzer);
+//        QueryParser qp2 = new QueryParser("plaintext",analyzer);
+
+//        TopDocs topDocs2 = searcher.search(qp.parse(formattedTerms), 1000000);
+//        TopDocs topDocs3 = searcher.search(qp2.parse(formattedTerms), 1000000);
+
+		SearchSession session = org.hibernate.search.mapper.orm.Search.session(em);
+		// just one Long ID and one null, index 0 of each list is text id if found, 1 is meta id
+		SearchResult<List<?>> hits = session.search( Arrays.asList(DocumentText.class, EISDoc.class) )
+				.select( f -> f.composite(
+						f.field("text_id"),
+						f.field("document_id")
+				) )
+				.where( f -> f.match().fields("title","plaintext")
+						.matching(formattedTerms))
+				.fetchAll();
+
+		// returns entire classes from database
+//		SearchResult<Object> hits2 = session.search( Arrays.asList(DocumentText.class, EISDoc.class) )
+//				.where( f -> f.match().fields("title","plaintext")
+//						.matching(formattedTerms))
+//				.fetchAll();
+
+		// reference only has low-level concepts like type name and document identifier
+//		SearchResult<EntityReference> hits3 = session.search( Arrays.asList(DocumentText.class, EISDoc.class) )
+//				.select( f -> f.entityReference() )
+//				.where( f -> f.match().fields("title","plaintext")
+//						.matching(formattedTerms))
+//				.fetchAll();
+		System.out.println(hits.total().hitCount() + " hits to string " + hits.hits().toString().substring(0,1000));
+        System.out.println("topDocs totalHits "+topDocs.totalHits.value);
+//        System.out.println("topDocs2 totalHits "+topDocs2.totalHits.value);
+//        System.out.println("topDocs3 totalHits "+topDocs3.totalHits.value);
+//		System.out.println(hits2.total().hitCount() + " hits2 to string " + hits2.hits().toString());
+//		System.out.println(hits3.total().hitCount() + " hits3 to string " + hits3.hits().toString());
+		
+//		System.out.println(hits3.hits().get(0).name());
+//		System.out.println(hits3.hits().get(0).id());
+        
+        FastVectorHighlighter fvh = new FastVectorHighlighter();
+ 
+        // 2. Instantiate indexReader on index on disk
+        File indexFile = new File(Globals.getIndexString());
+        Directory directory = FSDirectory.open(indexFile.toPath());
+        IndexReader indexReader = DirectoryReader.open(directory);
+ 
+        // 3. Build multi-object results
+        List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
+        int textCount = 0;
+        int metaCount = 0;
+        for (ScoreDoc scoreDoc : scoreDocs) {
+        	Document document = searcher.getDocument(scoreDoc.doc);
+        	
+        	// Print all fields and values (except plaintext) for testing
+//            for(IndexableField field : document.getFields()) {
+//            	if(!field.name().contentEquals("plaintext")) { // Don't print entire text
+//                	System.out.print("Field " + field.name() + "; " + field.stringValue());
+//            	}
+//            }
+            
+            if(document.get("text_id") == null) {
+            	metaCount++;
+            	// Meta result only, no highlight
+            } else {
+            	textCount++;
+                HighlightedResult result = new HighlightedResult();
+    			// Note: 1. This needs projectable plaintext; we don't need to query
+    			// the database for plaintext, although we do need filenames and eisdocs,
+                // and also we haven't searched on title here
+    			String fragment = fvh.getBestFragment(
+    					fvh.getFieldQuery(query), 
+    					indexReader, 
+    					scoreDoc.doc, 
+    					"plaintext", 
+    					250);
+    			
+//    			if(fragment != null) {
+//    				System.out.print(" Frag OK; length "+fragment.length());
+//    			} else {
+//    				System.out.print("MISS: Title match only?");
+//    			}
+    			
+    			ArrayList<String> inputList = new ArrayList<String>();
+    			inputList.add(document.get("text_id"));
+//    			System.out.println(" ID " + document.get("text_id"));
+
+    			// TODO: Get eisdoc AND filename here and then condense filenames by eisdoc before highlighting,
+    			// and then the only thing is we aren't doing a title search at all...  but the title definitely
+    			// will be represented in the body of these texts anyway - they just won't be scored the same.
+    			List<String> records = jdbcTemplate.query
+    			(
+    				"SELECT filename FROM test.document_text WHERE id = (?)", 
+    				inputList.toArray(new Object[] {}),
+    				(rs, rowNum) -> new String(
+    					rs.getString("filename")
+    				)
+    			);
+    			if(records.size()>0) {
+    				String filename = records.get(0);
+    				result.addFilename(filename);
+    				result.addHighlight(fragment);
+    				resultList.add(result); // TODO: Missing EISDoc entirely.
+    			}
+            }
+            
+        }
+        
+        indexReader.close();
+        System.out.println("Highlight count: " + resultList.size());
+        System.out.println(metaCount);
+        System.out.println(textCount);
+        return resultList;
+    	} catch(Exception e) {
+    		e.printStackTrace();
+    		return null;
+    	}
+	    
+    }
+    
+    // uses term vectors via token stream.  Relatively slow.
+    @Deprecated
+    public List<HighlightedResult> searchAndHighlightSlow(String searchQuery) throws Exception {
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
 	    			mutateTermModifiers(searchQuery.strip()));
 		
-    	System.out.println("Formatted terms: " + formattedTerms);
+    	if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
    	 
-        // STEP A
-    	searcher = new Searcher();
-        QueryParser queryParser = new QueryParser("plaintext", new StandardAnalyzer());
-        queryParser.setDefaultOperator(Operator.AND);
+        // 1. Search; instantiate highlighter
+
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+        Query query = mfqp.parse(formattedTerms);
         
-        Query query = queryParser.parse(searchQuery);
-//        TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+    	searcher = new MultiSearcher();
         TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
         ScoreDoc scoreDocs[] = topDocs.scoreDocs;
         
         QueryScorer queryScorer = new QueryScorer(query, "plaintext");
         Fragmenter fragmenter = new SimpleSpanFragmenter(queryScorer);
 //        Fragmenter fragmenter = new SimpleFragmenter(250);
- 
         Highlighter highlighter = new Highlighter(queryScorer); // Set the best scorer fragments
         highlighter.setTextFragmenter(fragmenter); // Set fragment to highlight
         highlighter.setMaxDocCharsToAnalyze(Integer.MAX_VALUE);
-        
-//        FastVectorHighlighter fvh = new FastVectorHighlighter();
  
-        // STEP B
+        // 2. Instantiate indexReader on index on disk
         File indexFile = new File(Globals.getIndexString());
         Directory directory = FSDirectory.open(indexFile.toPath());
         IndexReader indexReader = DirectoryReader.open(directory);
  
-        // STEP C
-        searcher = new Searcher();
+        // 3. Build multi-object results
         List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
         for (ScoreDoc scoreDoc : scoreDocs) {
         	Document document = searcher.getDocument(scoreDoc.doc);
+//        	if(document.get("_hibernate_class").contentEquals("nepaBackend.model.DocumentText") ) {
+//
+//        	} else {
+//        		
+//        	}
             HighlightedResult result = new HighlightedResult();
 			
 			ArrayList<String> inputList = new ArrayList<String>();
-			inputList.add(document.get("id"));
+			inputList.add(document.get("text_id"));
 			List<DocumentTextStrings> records = jdbcTemplate.query
 			(
 				"SELECT plaintext,filename FROM test.document_text WHERE id = (?)", 
@@ -2289,6 +2463,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					rs.getString("filename")
 				)
 			);
+			
 			
 			if(records.size()>0) {
 	            Fields termVectors = indexReader.getTermVectors(scoreDoc.doc);
@@ -2302,6 +2477,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	            		records.get(0).text, 
 	            		1, 
 	            		" ...</span><span class=\"fragment\">... ");
+				
 	            
 				String filename = records.get(0).filename;
 				result.addFilename(filename);
@@ -2365,8 +2541,565 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //			}
 //          
 //      }
-//        System.out.println("Highlight count: " + resultList.size());
+        System.out.println("Highlight count: " + resultList.size());
+        indexReader.close();
         return resultList;
     }
+	
+	/** Return all records matching terms in "plaintext" field (no highlights/context) 
+	 * @throws ParseException */
+	@Override
+	public List<List<?>> searchHibernate6(String terms) throws ParseException {
+		
+		String newTerms = mutateTermModifiers(terms.strip());
+		
+		SearchSession session = org.hibernate.search.mapper.orm.Search.session(em);
+
+		SearchResult<Long> results = session.search(DocumentText.class)
+				.select( f -> f.field("text_id", Long.class))
+				.where( f -> f.match().field("plaintext")
+						.matching(newTerms))
+				.fetchAll();
+		System.out.println("Results count:"+results.total().hitCount());
+		
+		// 1. Get all relevant IDs and remember position (TODO: verify ordered by score)
+		
+		// hits.hits() is a list of 2-length lists containing null in one index and a Long in the other
+		// depending on whether it matched on title (EISDoc) or plaintext (DocumentText)
+		// AKA which class it matched.
+		SearchResult<List<?>> hits = session.search( Arrays.asList(DocumentText.class, EISDoc.class) )
+				.select( f -> f.composite(
+						f.field("text_id", Long.class),
+						f.field("document_id", Long.class)
+				) )
+				.where( f -> f.match().fields("title","plaintext")
+						.matching(newTerms))
+				.fetchAll();
+		System.out.println("Hits count:"+hits.total().hitCount());
+		System.out.println(hits.toString());
+		System.out.println(hits.hits().toString());
+		
+		
+		HashMap<Long,Integer> textIds = new HashMap<Long,Integer>();
+		HashMap<Long,Integer> docIds = new HashMap<Long,Integer>();
+		
+		int index = 0;
+		for(List<?> obj : hits.hits()) {
+			if(obj.get(1) != null) {
+				textIds.put((Long) obj.get(1), index);
+			} else if(obj.get(0) != null) {
+				docIds.put((Long) obj.get(0), index);
+			}
+			
+			index = index + 1;
+		}
+
+		// 2. Build list of metadata and text IDs in order of whichever was found first, if either.
+		
+		// Except we need to get eisdocs from text records where title never matched.
+		// This is reinventing my own wheel.
+		// TODO: Reuse all the database and ordering logic I already wrote, except use the UnifiedHighlighter
+		// and term vectors.  Finally, see how long each step takes.
+		HashMap<Long,List<Long>> mapOfLists = new HashMap<Long,List<Long>>();
+		
+		for(int i = 0; i < Math.max(textIds.size(), docIds.size()); i++) {
+			
+		}
+		
+//		javax.persistence.Query query = em.createQuery("SELECT DISTINCT doc.eisdoc FROM DocumentText doc WHERE doc.id IN :ids");
+//		query.setParameter("ids", textIds);
+////	
+//		List<EISDoc> docs = query.getResultList();
+		
+		return hits.hits();
+	}
+
+	/** Combination title/fulltext query including the metadata parameters like agency/state/...
+				 * and this is currently the default search; returns metadata plus filename 
+				 * using Lucene's internal default scoring algorithm
+				 * @throws ParseException
+				 * */
+	@Override
+	public List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType) {
+		try {
+			
+
+			// Testing and for reference: getting the actual index
+//			SearchMapping mapping = org.hibernate.search.mapper.orm.Search.mapping(em.getEntityManagerFactory()); 
+//			IndexManager indexManager = mapping.indexManager( "EISDoc" ); 
+//			LuceneIndexManager luceneIndexManager = indexManager.unwrap( LuceneIndexManager.class ); 
+//			Analyzer indexingAnalyzer = luceneIndexManager.indexingAnalyzer(); 
+//			Analyzer searchAnalyzer = luceneIndexManager.searchAnalyzer(); 
+//			
+//			long size = luceneIndexManager.computeSizeInBytes(); 
+//			luceneIndexManager.computeSizeInBytesAsync() 
+//			        .thenAccept( sizeInBytes -> {
+//			            System.out.println(sizeInBytes/1000000 + " MB");
+//			        } );
+//			
+//			indexManager = mapping.indexManager( "DocumentText" ); 
+//			luceneIndexManager = indexManager.unwrap( LuceneIndexManager.class ); 
+//			
+//			size = luceneIndexManager.computeSizeInBytes(); 
+//			luceneIndexManager.computeSizeInBytesAsync() 
+//			        .thenAccept( sizeInBytes -> {
+//			            System.out.println(sizeInBytes/1000000 + " MB");
+//			        } );
+			
+			long initTime = System.currentTimeMillis();
+
+			long startTime = System.currentTimeMillis();
+			List<EISDoc> records = getFilteredRecords(searchInputs);
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Filtered records time: " + elapsedTime + "ms");
+			
+			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			if(!searchInputs.title.isBlank()) {
+				String title = searchInputs.title;
+
+				// Collect IDs filtered by params
+				HashSet<Long> justRecordIds = new HashSet<Long>();
+				for(EISDoc record: records) {
+					justRecordIds.add(record.getId());
+				}
+
+//				startTime = System.currentTimeMillis();
+				List<MetadataWithContext3> results = getScoredWithLuceneId(title);
+//				stopTime = System.currentTimeMillis();
+//				elapsedTime = stopTime - startTime;
+//				System.out.println("Score time: " + elapsedTime + "ms");
+				
+				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+				List<MetadataWithContext3> finalResults = new ArrayList<MetadataWithContext3>();
+				for(int i = 0; i < results.size(); i++) {
+					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
+						finalResults.add(results.get(i));
+					}
+				}
+				
+				if(Globals.TESTING) {
+					System.out.println("Records 1 " + records.size());
+					System.out.println("Records 2 (final result set of combined metadata and filenames) " + results.size());
+					stopTime = System.currentTimeMillis();
+					elapsedTime = stopTime - initTime;
+					System.out.println("Lucene search, results combining and ordering time: " + elapsedTime + "ms");
+				}
+				return results;
+			} else { // no title: simply return JDBC results...  however they have to be translated
+				List<MetadataWithContext3> finalResults = new ArrayList<MetadataWithContext3>();
+				for(EISDoc record : records) {
+					finalResults.add(new MetadataWithContext3(new ArrayList<Integer>(), record, new ArrayList<String>(), "", 0));
+				}
+//				stopTime = System.currentTimeMillis();
+//				elapsedTime = stopTime - initTime;
+//				System.out.println("Blank search + translation time: " + elapsedTime + "ms");
+				return finalResults;
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+			String problem = e.getLocalizedMessage();
+			MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
+			List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
+			results.add(result);
+			return results;
+		}
+	}
+		
+	// The only way to modify the fragment length with the unified highlighter is to do something with
+	// java.text.BreakIterator, apparently.
+	public ArrayList<ArrayList<String>> getUnifiedHighlights(UnhighlightedDTO unhighlighted) throws ParseException, IOException {
+		long startTime = System.currentTimeMillis();
+		long cumulativeTime = 0;
+		long cumulativeTime2 = 0;
+		
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+		
+		// build highlighter with StandardAnalyzer
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
+		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
+//			PassageScorer scorer = new PassageScorer();
+
+//			IndexReader reader = DirectoryReader.open(FSDirectory.open(Globals.getIndexPath()));
+		StandardAnalyzer stndrdAnalyzer = new StandardAnalyzer();
+//			stndrdAnalyzer.getStopwordSet();
+//			IndexSearcher searcher = new IndexSearcher(reader);
+//			UnifiedHighlighter highlighter = new UnifiedHighlighter(searcher, stndrdAnalyzer);
+		// if we're not using a searcher (getting text ourselves):
+		UnifiedHighlighter highlighter = new UnifiedHighlighter(null, stndrdAnalyzer);
+		
+//			highlighter.setFormatter(formatter);
+//			highlighter.setScorer(scorer);
+//			List<String> whew = jdbcTemplate.query
+//			(
+//				"SELECT MAX(LENGTH(plaintext)) FROM test.document_text", 
+//				(rs, rowNum) -> new String(
+//					rs.getString("MAX(LENGTH(plaintext))")
+//				)
+//			);
+//			highlighter.setMaxLength(Integer.parseInt(whew.get(0)));
+//			System.out.println("MaxLength " + highlighter.getMaxLength());
+		
+		DefaultPassageFormatter dfp = new DefaultPassageFormatter();
+//			dfp.
+		
+//			highlighter.setFormatter(new DefaultPassageFormatter());
+		
+		
+		ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
+		
+		for(Unhighlighted input : unhighlighted.getUnhighlighted()) {
+			long queryStartTime = System.currentTimeMillis();
+			ArrayList<String> result = new ArrayList<String>();
+
+			// Run query to get each text via eisdoc ID and filename?
+			// Need to split filenames by >
+			String[] filenames = input.getFilename().split(">");
+			List<String> texts = new ArrayList<String>();
+			for(String filename : filenames) {
+				ArrayList<String> inputList = new ArrayList<String>();
+				inputList.add(input.getId().toString());
+				inputList.add(filename);
+				List<String> records = jdbcTemplate.query
+				(
+					"SELECT plaintext FROM test.document_text WHERE document_id = (?) AND filename=(?)", 
+					inputList.toArray(new Object[] {}),
+					(rs, rowNum) -> new String(
+						rs.getString("plaintext")
+					)
+				);
+				if(records.size()>0) {
+					String text = records.get(0);
+					texts.add(text);
+
+					if(Globals.TESTING){
+						System.out.println("ID: " + input.getId().toString() + "; Filename: " + filename);
+					}
+				}
+			}
+			long queryStopTime = System.currentTimeMillis();
+
+			long elapsedTime = queryStopTime - queryStartTime;
+			cumulativeTime += elapsedTime;
+			
+			
+//				Optional<EISDoc> doc = DocRepository.findById(input.getId());
+//				String text = TextRepository.findByEisdocAndFilenameIn(doc.get(), filename).getText();
+			for(String text : texts) {
+//					TokenStream tokenStream = stndrdAnalyzer.tokenStream("plaintext", new StringReader(text));
+
+//			        TopDocs topDocs = searcher.search(luceneTextOnlyQuery, Integer.MAX_VALUE);
+//			        ScoreDoc scoreDocs[] = topDocs.scoreDocs;
+//			 
+//			        for (ScoreDoc scoreDoc : scoreDocs) {
+//			            Document document = searcher.doc(scoreDoc.doc);
+//			            System.out.println("text ID " + document.get("text_id"));
+//			        }
+				try {
+					// For this to work, we would need to store projectable plaintexts using Lucene.
+					// Then we would not get them from MySQL.
+					// Also, this would happen all at once and we would have to worry about
+					// combining filenames with metadata and such after the fact.
+//						String[] highlight = highlighter.highlight("plaintext", luceneTextOnlyQuery, topDocs, 1);
+//						if(highlight[0] != null) {System.out.println("Highlight: " + highlight[0]);}
+					// Also, we'd perhaps get the doc ID list ourselves.  Finally, either way,
+					// we'd want the highlights back out in order.  So again, logic changes.
+//						highlightFields(String[] fieldsIn, Query query, int[] docidsIn, int[] maxPassagesIn)
+//						Highlights the top-N passages from multiple fields, for the provided int[] docids.
+
+
+//			            Fields termVectors = reader.getTermVectors(scoreDoc.doc);
+
+//			            TokenStream tokenStream = TokenSources.getTermVectorTokenStreamOrNull(
+//			            		"plaintext", 
+//			            		termVectors, 
+//			            		-1);
+					
+					
+					long highlightStart = System.currentTimeMillis();
+					String highlight = highlighter.highlightWithoutSearcher(
+							"plaintext", 
+							luceneTextOnlyQuery, 
+							text, 
+							1)
+							.toString();
+					long highlightStop = System.currentTimeMillis();
+					long elapsedTime2 = highlightStop - highlightStart;
+					cumulativeTime2 += elapsedTime2;
+
+					if(highlight.length() > 0) {
+						result.add("<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(highlight).strip().concat(" ...</span>"));
+					}
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} finally {
+//						try {
+//							tokenStream.close();
+//						} catch (IOException e) {
+//							// TODO Auto-generated catch block
+//							e.printStackTrace();
+//						}
+				}
+			}
+			results.add(result);
+		}
+		stndrdAnalyzer.close();
+		
+
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+			System.out.println("Query/text retrieval time: " + cumulativeTime);
+			System.out.println("Highlight time: " + cumulativeTime2);
+		}
+		
+		return results;
+	}
+
+	/** Search both fields at once and return (quickly) in combined scored order */
+	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception {
+		long startTime = System.currentTimeMillis();
+		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
+    			mutateTermModifiers(terms.strip()));
+	
+		if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
+		 
+	    // 1. Search; instantiate highlighter
+	
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+	    Query query = mfqp.parse(formattedTerms);
+	    
+		searcher = new MultiSearcher();
+	    TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+	    ScoreDoc scoreDocs[] = topDocs.scoreDocs;
+        List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
+
+
+		List<ScoredResult> converted = new ArrayList<ScoredResult>();
+		Set<Long> metaIds = new HashSet<Long>();
+		Set<Long> textIds = new HashSet<Long>();
+		int i = 0;
+
+        for (ScoreDoc scoreDoc : scoreDocs) {
+        	Document document = searcher.getDocument(scoreDoc.doc);
+			ScoredResult convert = new ScoredResult();
+			convert.score = scoreDoc.score;
+			convert.idx = i;
+			convert.luceneId = scoreDoc.doc;
+//			System.out.print(" Lucene ID " + convert.luceneId);
+        	if(document.get("text_id") == null) {
+        		// Handle meta ID
+        		Long id = Long.parseLong(document.get("document_id"));
+//        		System.out.print(" meta ID " + id);
+        		metaIds.add(id);
+    			convert.id = id;
+    			convert.entityName = EntityType.META;
+        	} else if(document.get("document_id") == null){
+        		// Handle text ID
+        		Long id = Long.parseLong(document.get("text_id"));
+//        		System.out.print(" text ID " + id);
+        		textIds.add(id);
+    			convert.id = id;
+    			convert.entityName = EntityType.TEXT;
+        	}
+			converted.add(convert);
+			i++;
+        }
+	
+		Query luceneQuery = mfqp.parse(formattedTerms);
+		
+		
+		System.out.println("Title matches "+metaIds.size());	
+		System.out.println("Text matches "+textIds.size());
+		
+		// 1: Get EISDocs by IDs.
+		
+		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
+			.setParameter("ids", metaIds).getResultList();
+	
+		if(Globals.TESTING){System.out.println("Docs results size: " + docs.size());}
+		
+		HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
+		for(EISDoc doc : docs) {
+			hashDocs.put(doc.getId(), doc);
+		}
+	
+		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
+	
+		List<Object[]> textIdMetaAndFilenames = em.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
+				.setParameter("ids", textIds).getResultList();
+	
+		if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
+		
+		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
+		for(Object[] obj : textIdMetaAndFilenames) {
+			hashTexts.put(
+					(Long) obj[0], 
+					new ReducedText(
+						(Long) obj[0],
+						(EISDoc) obj[1],
+						(String) obj[2]
+					));
+		}
+		
+		List <MetadataWithContext3> combinedResults = new ArrayList<MetadataWithContext3>();
+	
+		// 3: Join (combine) results from the two tables
+		// 3.1: Condense (add filenames to existing records rather than adding new records)
+		// 3.2: keep original order
+		
+		HashMap<Long, Integer> added = new HashMap<Long, Integer>();
+		int position = 0;
+		
+		for(ScoredResult ordered : converted) {
+			if(ordered.entityName.equals(EntityType.META)) {
+				if(!added.containsKey(ordered.id)) {
+					// Add EISDoc into logical position
+					MetadataWithContext3 combinedResult = new MetadataWithContext3(
+							new ArrayList<Integer>(),
+							hashDocs.get(ordered.id),
+							new ArrayList<String>(),
+							"",
+							ordered.score);
+					
+					combinedResults.add(combinedResult);
+					
+					added.put(ordered.id, position);
+					position++;
+				}
+				// If we already have one, do nothing - (title result: no filenames to add.)
+			} else {
+				EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
+				if(!added.containsKey(eisFromDoc.getId())) {
+					// Add DocumentText into logical position plus lucene ID, filename
+					MetadataWithContext3 combinedResult = new MetadataWithContext3(
+							new ArrayList<Integer>(),
+							eisFromDoc,
+							new ArrayList<String>(),
+							hashTexts.get(ordered.id).filename,
+							ordered.score);
+					combinedResult.addId(ordered.luceneId);
+					
+					combinedResults.add(combinedResult);
+					added.put(eisFromDoc.getId(), position);
+					position++;
+				} else {
+					// Add this combinedResult's filename to filename list
+					// Add the lucene ID to this combinedResult's ID list
+					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
+							.getFilenames();
+					// > is not a valid directory/filename char, so should work as delimiter
+					// If currentFilename is blank (title match came first), no need to concat.  Just set.
+					if(currentFilename.isBlank()) {
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							hashTexts.get(ordered.id).filename
+						);
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.addId(ordered.luceneId);
+					} else {
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
+						);
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.addId(ordered.luceneId);
+					}
+				}
+			}
+		}
+		
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + resultList.size());
+			System.out.println("Results #?: " + combinedResults.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+		
+		return combinedResults;
+	}
+		
+	// TODO: CURRENT: Rework frontend to give lists of lucene IDs (lists of ints) with the "list" of filenames
+	// and then use this for probably much faster highlighting.
+	@Override
+	public ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception {
+		long startTime = System.currentTimeMillis();
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+		
+		// build highlighter with StandardAnalyzer
+		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		qp.setDefaultOperator(Operator.AND);
+		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
+
+        File indexFile = new File(Globals.getIndexString());
+        Directory directory = FSDirectory.open(indexFile.toPath());
+        IndexReader indexReader = DirectoryReader.open(directory);
+
+        FastVectorHighlighter fvh = new FastVectorHighlighter();
+		
+		
+		ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
+		
+		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
+			ArrayList<String> result = new ArrayList<String>();
+
+			// Run query to get each text via eisdoc ID and filename?
+			// Need to split filenames by >
+			String[] filenames = input.getFilename().split(">");
+			int i = 0;
+			for(String filename : filenames) {
+				int luceneId = input.getId(i).intValue();
+	        	Document document = searcher.getDocument(luceneId);
+				if(document != null) {
+					String text = document.get("plaintext");
+					// We can just get the highlight here, immediately.
+	    			String fragment = fvh.getBestFragment(
+	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
+	    					indexReader, 
+	    					luceneId, 
+	    					"plaintext", 
+	    					fragmentSize);
+
+					if(Globals.TESTING){
+						System.out.println("ID: " + input.getId(i) + "; Filename: " + filename
+								 + " text length " + text.length());
+					}
+					if(fragment.length() > 0) {
+						result.add("<span class=\"fragment\">... " 
+								+ org.apache.commons.lang3.StringUtils.normalizeSpace(fragment)
+								.strip()
+								.concat(" ...</span>")
+						);
+					}
+					text = ""; // help garbage collector
+				}
+			}
+
+			results.add(result);
+		}
+		
+
+		if(Globals.TESTING) {
+			System.out.println("Results #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Time elapsed: " + elapsedTime);
+		}
+		
+		return results;
+	}
     
 }

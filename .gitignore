@@ -9,3 +9,5 @@ src/main/resources/application-prod.properties
 /data/
 .temp**
 /nepaBackend.model.EISDoc/
+/DocumentText/
+/EISDoc/

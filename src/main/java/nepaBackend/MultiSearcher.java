@@ -2,6 +2,7 @@ package nepaBackend;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
@@ -10,15 +11,20 @@ import org.apache.lucene.store.FSDirectory;
  
 import java.io.File;
  
-public class Searcher { 
+public class MultiSearcher { 
  
 	private IndexSearcher indexSearcher;
   
-	public Searcher() throws Exception {
+	public MultiSearcher() throws Exception {
 		File indexFile = new File(Globals.getIndexString());
 		Directory directory = FSDirectory.open(indexFile.toPath());
-		IndexReader indexReader = DirectoryReader.open(directory);
-		indexSearcher = new IndexSearcher(indexReader);
+		IndexReader textReader = DirectoryReader.open(directory);
+
+		File indexFile2 = new File(Globals.getMetaIndexString());
+		Directory directory2 = FSDirectory.open(indexFile2.toPath());
+		IndexReader metaReader = DirectoryReader.open(directory2);
+		MultiReader multiIndexReader = new MultiReader(textReader, metaReader);
+		indexSearcher = new IndexSearcher(multiIndexReader);
  	}
  
 	public TopDocs search(Query query, int n) throws Exception {

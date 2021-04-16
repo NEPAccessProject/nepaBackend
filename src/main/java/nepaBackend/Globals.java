@@ -2,16 +2,18 @@ package nepaBackend;
 
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class Globals {
 
     public static final boolean TESTING = false;
 
     private static final String INDEX_DIRECTORY_PATH = "./data/lucene/nepaBackend.model.DocumentText";
-    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
+//    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
+    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\DocumentText";
+    private static final String META_INDEX_DIRECTORY_PATH = "./data/lucene/nepaBackend.model.EISDoc";
+    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\EISDoc";
+  	
     public static final Path getIndexPath() {
     	if(TESTING) {
     		return Path.of(TESTING_INDEX_DIRECTORY_PATH);
@@ -26,6 +28,13 @@ public class Globals {
     		return (INDEX_DIRECTORY_PATH);
     	}
     }
+	public static String getMetaIndexString() {
+    	if(TESTING) {
+    		return (META_TESTING_INDEX_DIRECTORY_PATH);
+    	} else {
+    		return (META_INDEX_DIRECTORY_PATH);
+    	}
+	}
 
     // Database/file server URL to base folder containing all files exposed to DAL for download
     public static final String DOWNLOAD_URL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
