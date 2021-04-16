@@ -8,10 +8,10 @@ public class Globals {
 
     public static final boolean TESTING = false;
 
-    private static final String INDEX_DIRECTORY_PATH = "/data/lucene/nepaBackend.model.DocumentText";
+    private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
 //    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
     private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\DocumentText";
-    private static final String META_INDEX_DIRECTORY_PATH = "/data/lucene/nepaBackend.model.EISDoc";
+    private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
     private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\EISDoc";
   	
     public static final Path getIndexPath() {
