@@ -3063,7 +3063,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				int luceneId = input.getId(i).intValue();
 	        	Document document = searcher.getDocument(luceneId);
 				if(document != null) {
-					String text = document.get("plaintext");
 					// We can just get the highlight here, immediately.
 	    			String fragment = fvh.getBestFragment(
 	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
@@ -3072,28 +3071,38 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    					"plaintext", 
 	    					fragmentSize);
 
-					if(Globals.TESTING){
-						System.out.println("ID: " + input.getId(i) + "; Filename: " + filename
-								 + " text length " + text.length());
-					}
 					// So apparently proximity search can return null fragments.
 					// I think this may only be when the fragment size is too small.
 					// For example, if two words are 100 words away from each other and the fragment
 					// is only 250 characters...  that's going to be out of range.
 					// I think the old highlighter used to put ellipses in between the individual terms
 					// to avoid this.
+					// Try UnifiedHighlighter as a backup?  It could be slower.  Also, it doesn't actually
+	    			// necessarily show both terms.
 					if(fragment != null) { 
 						result.add("<span class=\"fragment\">... " 
 								+ org.apache.commons.lang3.StringUtils.normalizeSpace(fragment)
 								.strip()
 								.concat(" ...</span>")
 						);
-					} else {
+					} else if(false) {
 						result.add("<span class=\"fragment\">"
 							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
 							.concat("</span>"));
+					} else {
+						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, new StandardAnalyzer());
+						String highlight = highlighter.highlightWithoutSearcher(
+								"plaintext", 
+								luceneTextOnlyQuery, 
+								document.get("plaintext"), 
+								1)
+								.toString();
+						result.add("<span class=\"fragment\">... " 
+								+ org.apache.commons.lang3.StringUtils.normalizeSpace(highlight)
+								.strip()
+								.concat(" ...</span>")
+						);
 					}
-					text = ""; // help garbage collector
 				}
 				i++;
 			}
