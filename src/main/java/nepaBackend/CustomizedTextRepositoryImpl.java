@@ -3085,6 +3085,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					}
 					text = ""; // help garbage collector
 				}
+				i++;
 			}
 
 			results.add(result);
