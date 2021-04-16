@@ -3076,7 +3076,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 						System.out.println("ID: " + input.getId(i) + "; Filename: " + filename
 								 + " text length " + text.length());
 					}
-					if(fragment.length() > 0) {
+					if(fragment != null) { // So apparently proximity search can return null fragments.
 						result.add("<span class=\"fragment\">... " 
 								+ org.apache.commons.lang3.StringUtils.normalizeSpace(fragment)
 								.strip()
