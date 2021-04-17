@@ -3057,12 +3057,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 			// Run query to get each text via eisdoc ID and filename?
 			// Need to split filenames by >
-			String[] filenames = input.getFilename().split(">");
-			int i = 0;
-			for(String filename : filenames) {
+//			String[] filenames = input.getFilename().split(">");
+			for(int i = 0; i < input.getLuceneIds().size(); i++) {
 				int luceneId = input.getId(i).intValue();
-	        	Document document = searcher.getDocument(luceneId);
-				if(document != null) {
+//	        	Document document = searcher.getDocument(luceneId);
+//				if(document != null) {
 					// We can just get the highlight here, immediately.
 	    			String fragment = fvh.getBestFragment(
 	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
@@ -3090,6 +3089,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
 							.concat("</span>"));
 					} else {
+			        	Document document = searcher.getDocument(luceneId);
 						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, new StandardAnalyzer());
 						String highlight = highlighter.highlightWithoutSearcher(
 								"plaintext", 
@@ -3103,7 +3103,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 								.concat(" ...</span>")
 						);
 					}
-				}
+//				}
 				i++;
 			}
 
