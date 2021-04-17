@@ -3104,7 +3104,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 						);
 					}
 //				}
-				i++;
 			}
 
 			results.add(result);
