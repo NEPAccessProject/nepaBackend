@@ -3100,11 +3100,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 						
 						if(highlight.length() > 500) { //c'mon
 							int firstHitAt = highlight.indexOf("<b>");
-							if(firstHitAt > 500) {
-								highlight = highlight.substring(firstHitAt - 125,Math.min(firstHitAt + 125, highlight.length()));
-							} else {
-								highlight = highlight.substring(Math.max(firstHitAt - 125, 0), Math.min(firstHitAt + 125, highlight.length()));
-							}
+							highlight = highlight.substring(Math.max(firstHitAt - 250, 0), Math.min(firstHitAt + 250, highlight.length()));
 						}
 						result.add("<span class=\"fragment\">... " 
 								+ org.apache.commons.lang3.StringUtils.normalizeSpace(highlight)
