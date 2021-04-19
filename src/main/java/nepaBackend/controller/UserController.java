@@ -226,7 +226,7 @@ public class UserController {
     	
     	if(usernameExists(user.getUsername())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
-    	} else if(user.getPassword() != null && user.getPassword().length() > 4) {
+    	} else if(passwordValid(user.getPassword())) {
     		try {
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                 user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
@@ -257,6 +257,14 @@ public class UserController {
     	}
     }
 
+    // TODO: Get specs for this and enforce on frontend also.
+	private boolean passwordValid(String password) {
+		if(password.length() > 0) {
+			return true;
+		}
+		return false;
+	}
+
 	/** email address, username are included and saved
 	* first last affiliation org and job title also included and saved
 	* role has to be set and password has to be encrypted
@@ -279,7 +287,7 @@ public class UserController {
         	
         	if(usernameExists(user.getUsername())) { // check for duplicates
         		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
-        	} else if(user.getPassword() != null && user.getPassword().length() > 4) {
+        	} else if(passwordValid(user.getPassword())) {
         		try {
                     user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                     user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
@@ -290,7 +298,7 @@ public class UserController {
                     user.setRole("USER");
                     if(isValidUser(user)) { 
                         applicationUserRepository.save(user);
-                    } else {
+                    } else { 
                 		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
                     }
         		} catch(Exception e) {
@@ -298,7 +306,7 @@ public class UserController {
         		}
         		
         		return new ResponseEntity<Void>(HttpStatus.OK);
-        	} else {
+        	} else { // bad password
         		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
         	}
     	}
