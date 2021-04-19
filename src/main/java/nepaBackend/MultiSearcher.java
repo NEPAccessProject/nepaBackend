@@ -10,6 +10,9 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
  
 import java.io.File;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
  
 public class MultiSearcher { 
  
@@ -33,6 +36,10 @@ public class MultiSearcher {
  
 	public Document getDocument(int docID) throws Exception {
 		return indexSearcher.doc(docID); // Returns a document at the nth ID
+	}
+
+	public Document getDocument(int docID, HashSet<String> fieldsToLoad) throws IOException {
+		return indexSearcher.doc(docID,fieldsToLoad); // Returns a document at the nth ID with fields loaded
 	}
 	
 }

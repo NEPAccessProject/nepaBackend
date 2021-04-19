@@ -56,6 +56,7 @@ import org.hibernate.search.jpa.Search;
 import org.hibernate.search.mapper.orm.common.EntityReference;
 import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
+import org.hibernate.search.mapper.orm.search.loading.EntityLoadingCacheLookupStrategy;
 import org.hibernate.search.mapper.orm.session.SearchSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -2305,6 +2306,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				) )
 				.where( f -> f.match().fields("title","plaintext")
 						.matching(formattedTerms))
+				.loading( o -> o.cacheLookupStrategy(
+						EntityLoadingCacheLookupStrategy.PERSISTENCE_CONTEXT_THEN_SECOND_LEVEL_CACHE
+				) ) // default: skip, but if we expect most hits to be cached this is useful
 				.fetchAll();
 
 		// returns entire classes from database
@@ -2679,11 +2683,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 				
 				if(Globals.TESTING) {
-					System.out.println("Records 1 " + records.size());
+					System.out.println("Meta record count after filtering: " + records.size());
 					System.out.println("Records 2 (final result set of combined metadata and filenames) " + results.size());
 					stopTime = System.currentTimeMillis();
 					elapsedTime = stopTime - initTime;
-					System.out.println("Lucene search, results combining and ordering time: " + elapsedTime + "ms");
+					System.out.println("Total (Filtering, lucene search, results combining and ordering time): " + elapsedTime + "ms");
 				}
 				return results;
 			} else { // no title: simply return JDBC results...  however they have to be translated
@@ -2862,7 +2866,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return results;
 	}
 
-	/** Search both fields at once and return (quickly) in combined scored order */
+	/** Search both fields at once with MultiSearcher and return in combined scored order with lucene IDs */
 	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception {
 		long startTime = System.currentTimeMillis();
 		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
@@ -2879,18 +2883,24 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    Query query = mfqp.parse(formattedTerms);
 	    
 		searcher = new MultiSearcher();
+		long searchStart = System.currentTimeMillis();
 	    TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+		long searchEnd = System.currentTimeMillis();
+		System.out.println("Search time " + (searchEnd - searchStart));
 	    ScoreDoc scoreDocs[] = topDocs.scoreDocs;
-        List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
 
-
-		List<ScoredResult> converted = new ArrayList<ScoredResult>();
+		List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
 		Set<Long> metaIds = new HashSet<Long>();
 		Set<Long> textIds = new HashSet<Long>();
 		int i = 0;
 
+		long convertStart = System.currentTimeMillis();
+    	// To try to ensure no plaintext overhead, specifically just load the IDs.
+		HashSet<String> fieldsToLoad = new HashSet<String>();
+		fieldsToLoad.add("text_id");
+		fieldsToLoad.add("document_id");
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.getDocument(scoreDoc.doc);
+        	Document document = searcher.getDocument(scoreDoc.doc, fieldsToLoad);
 			ScoredResult convert = new ScoredResult();
 			convert.score = scoreDoc.score;
 			convert.idx = i;
@@ -2914,8 +2924,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			converted.add(convert);
 			i++;
         }
-	
-		Query luceneQuery = mfqp.parse(formattedTerms);
+		long convertEnd = System.currentTimeMillis();
+		System.out.println("Convert time: " + (convertEnd - convertStart) + "ms");
 		
 		
 		System.out.println("Title matches "+metaIds.size());	
@@ -3019,8 +3029,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 		
 		if(Globals.TESTING) {
-			System.out.println("Results #: " + resultList.size());
-			System.out.println("Results #?: " + combinedResults.size());
+			System.out.println("Results # (individual title and text record hits): " + converted.size());
+			System.out.println("Results # Combined by metadata: " + combinedResults.size());
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
@@ -3116,11 +3126,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 
 		if(Globals.TESTING) {
-			System.out.println("Results #: " + results.size());
+			System.out.println("Highlights #: " + results.size());
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
-			System.out.println("Time elapsed: " + elapsedTime);
+			System.out.println("Total highlight time: " + elapsedTime);
 		}
 		
 		return results;
