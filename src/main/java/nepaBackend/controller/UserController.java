@@ -266,7 +266,6 @@ public class UserController {
     @PostMapping("/pre_register")
     private @ResponseBody ResponseEntity<Void> preRegister(
     			@RequestParam String jsonUser, 
-    			@RequestParam String recaptchaToken,
     			@RequestHeader Map<String,String> headers) 
     {
     	if(		!checkAdmin(headers).getBody() 
