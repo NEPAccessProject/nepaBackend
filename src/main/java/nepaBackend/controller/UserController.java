@@ -256,6 +256,54 @@ public class UserController {
     		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
     	}
     }
+
+	/** email address, username are included and saved
+	* first last affiliation org and job title also included and saved
+	* role has to be set and password has to be encrypted
+	* comes pre-verified, active but will need to check a checkbox to login temporarily
+	* and since admins are creating these the actual user won't know their password until given it 
+	* */
+    @PostMapping("/pre_register")
+    private @ResponseBody ResponseEntity<Void> preRegister(
+    			@RequestParam String jsonUser, 
+    			@RequestParam String recaptchaToken,
+    			@RequestHeader Map<String,String> headers) 
+    {
+    	if(		!checkAdmin(headers).getBody() 
+    			&& !checkCurator(headers).getBody() 
+    			&& !checkApprover(headers).getBody()) 
+    	{
+    		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
+    	} else {
+    		Gson gson=new Gson();
+        	ApplicationUser user=gson.fromJson(jsonUser,ApplicationUser.class);
+        	
+        	if(usernameExists(user.getUsername())) { // check for duplicates
+        		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
+        	} else if(user.getPassword() != null && user.getPassword().length() > 4) {
+        		try {
+                    user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+                    user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
+                    user.setLastName(Globals.normalizeSpace(user.getLastName()));
+                    user.setEmailAddress(Globals.normalizeSpace(user.getEmail()));
+                    user.setVerified(true);
+                    user.setActive(true);
+                    user.setRole("USER");
+                    if(isValidUser(user)) { 
+                        applicationUserRepository.save(user);
+                    } else {
+                		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
+                    }
+        		} catch(Exception e) {
+            		return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); // 500 if failed register
+        		}
+        		
+        		return new ResponseEntity<Void>(HttpStatus.OK);
+        	} else {
+        		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
+        	}
+    	}
+    }
     
     private boolean sendApprovalEmail(ApplicationUser user) {
     	
