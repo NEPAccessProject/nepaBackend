@@ -2896,6 +2896,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		long convertStart = System.currentTimeMillis();
     	// To try to ensure no plaintext overhead, specifically just load the IDs.
+		// Seems to cut the getDocument process time in half.
 		HashSet<String> fieldsToLoad = new HashSet<String>();
 		fieldsToLoad.add("text_id");
 		fieldsToLoad.add("document_id");
@@ -3061,6 +3062,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		
 		ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
+
+		// To try to slightly optimize if/when using UnifiedHighlighter
+		HashSet<String> fieldsToLoad = new HashSet<String>();
+		fieldsToLoad.add("plaintext");
 		
 		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
 			ArrayList<String> result = new ArrayList<String>();
@@ -3099,7 +3104,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
 							.concat("</span>"));
 					} else {
-			        	Document document = searcher.getDocument(luceneId);
+			        	Document document = searcher.getDocument(luceneId,fieldsToLoad);
 						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, new StandardAnalyzer());
 						String highlight = highlighter.highlightWithoutSearcher(
 								"plaintext", 
