@@ -296,12 +296,13 @@ public class UserController {
                     user.setVerified(true);
                     user.setActive(true);
                     user.setRole("USER");
-                    if(isValidUser(user)) { 
+                    if(isValidUserPreRegister(user)) { 
                         applicationUserRepository.save(user);
                     } else { 
                 		return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST); 
                     }
         		} catch(Exception e) {
+        			e.printStackTrace();
             		return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); // 500 if failed register
         		}
         		
@@ -376,6 +377,20 @@ public class UserController {
 	        
 	        return status;
     	}
+	}
+
+    // More lax requirements.
+	private boolean isValidUserPreRegister(ApplicationUser user) {
+		// TODO: More clever validation
+    	// For now we'll just check for non-empty first/last/username/email/affiliation ("field")
+    	boolean returnStatus = true;
+    	if(user.getUsername().length() < 1) {
+    		returnStatus = false;
+    	}
+    	if(user.getEmail().length() < 1) {
+    		returnStatus = false;
+    	}
+		return returnStatus;
 	}
 
 	private boolean isValidUser(ApplicationUser user) {
