@@ -46,9 +46,11 @@ import com.google.gson.Gson;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.EmailLogRepository;
 import nepaBackend.Globals;
+import nepaBackend.OptedOutRepository;
 import nepaBackend.SavedSearchRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EmailLog;
+import nepaBackend.model.OptedOut;
 import nepaBackend.model.SavedSearch;
 import nepaBackend.pojo.ContactForm;
 import nepaBackend.pojo.Generate;
@@ -67,15 +69,18 @@ public class UserController {
     private JavaMailSender sender;
 	
     private ApplicationUserRepository applicationUserRepository;
+    private OptedOutRepository optedOutRepository;
     private EmailLogRepository emailLogRepository;
     private SavedSearchRepository savedSearchRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public UserController(ApplicationUserRepository applicationUserRepository,
+    						OptedOutRepository optedOutRepository,
     						EmailLogRepository emailLogRepository,
     						SavedSearchRepository savedSearchRepository,
     						BCryptPasswordEncoder bCryptPasswordEncoder) {
         this.applicationUserRepository = applicationUserRepository;
+        this.optedOutRepository = optedOutRepository;
         this.emailLogRepository = emailLogRepository;
         this.savedSearchRepository = savedSearchRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
@@ -1217,5 +1222,31 @@ public class UserController {
     	// IDs will be 0
     	return new ResponseEntity<ApplicationUser[]>(returnUsers, HttpStatus.OK);
     }
+
+    @PostMapping(path = "/opt_out", 
+    		consumes = "application/json", 
+    		headers = "Accept=application/json")
+    public @ResponseBody ResponseEntity<Boolean> optOut(
+    		@RequestBody OptedOut optOutUser) {
+
+		// validate length constraints
+    	if( optOutUser.getName().length() < 1 
+    			|| (optOutUser.getEmail().length() == 0 
+    				|| optOutUser.getEmail().length() > 191
+    				) ) { 
+    		return new ResponseEntity<Boolean>(false,HttpStatus.BAD_REQUEST);
+    	} else {
+            try {
+                optedOutRepository.save(optOutUser);
+				return new ResponseEntity<Boolean>(true,HttpStatus.OK);
+            } catch(org.springframework.dao.DataIntegrityViolationException e) {
+				return new ResponseEntity<Boolean>(false,HttpStatus.ALREADY_REPORTED);
+            } catch(Exception e) { // duplicate email?
+				return new ResponseEntity<Boolean>(false,HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+            
+             
+    	}
+	}
     
 }
