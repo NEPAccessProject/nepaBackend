@@ -1099,8 +1099,121 @@ public class UserController {
 
 	}
 
-    // TODO: Route and tool to add/change/remove any user, for admin use only
+	/** 
+	 *  Bulk user generation.  
+	 *  Sends no emails.  (Purpose: Manually invite users from returned array)
+     *  @returns ApplicationUser[] with generated passwords
+     */
+    @PostMapping(path = "/generate2", 
+    		consumes = "application/json", 
+    		produces = "application/json", 
+    		headers = "Accept=application/json")
+    public @ResponseBody ResponseEntity<ApplicationUser[]> generate2(
+    		@RequestBody ApplicationUser users[], 
+			@RequestHeader Map<String, String> headers) {
 
-    // Login is already handled by /login on base domain by JWTAuthenticationFilter
-    // extending UsernamePasswordAuthenticationFilter.
+    	String token = headers.get("authorization");
+    	if(!isAdmin(token)) {
+    		return new ResponseEntity<ApplicationUser[]>(HttpStatus.UNAUTHORIZED);
+    	}
+    	
+    	ApplicationUser returnUsers[] = new ApplicationUser[users.length];
+		PasswordGenerator passwordGenerator = new PasswordGenerator.PasswordGeneratorBuilder()
+	            .useDigits(true)
+	            .useLower(true)
+	            .useUpper(true)
+	            .build();
+    	int i = 0;
+    	for(ApplicationUser user : users) {
+    		if(user != null) { // Don't process an empty line, in case that's possible
+
+        		
+        		if(user.getUsername() == null) {
+        			user.setUsername("");
+        		}
+        		user.setActive(true);
+        		user.setVerified(true);
+        		
+        		// Need returnUsers to keep track of literal passwords
+        		// because we need to ensure the new users get their credentials
+            	returnUsers[i] = new ApplicationUser();
+        		
+        		if(user.getUsername().length() < 1) { // No username provided?
+        			String[] split = (user.getEmail().split("@"));
+        			if(
+        					(split[1].equalsIgnoreCase("email.arizona.edu") 
+        					|| split[1].equalsIgnoreCase("arizona.edu") )
+        					&& !usernameInvalid(split[0])
+        			) {
+        				// Try using NetID if Arizona email, if valid (should just be first part)
+        				user.setUsername(split[0]);
+        			} else { 
+        				// Or use the email as the username
+        				user.setUsername(user.getEmail());
+        			}
+        		} 
+        		
+        		// validate (duplicates, length constraints, proper email)
+            	if( usernameInvalid(user.getUsername()) || emailInvalid(user.getEmail()) ) { 
+                	returnUsers[i].setEmailAddress(user.getEmail());
+            		// skip, deal with it externally when you get a result with no password
+            	} else {
+            		// Set username, generate and set password
+                    returnUsers[i].setUsername(user.getUsername());
+                    user.setRole("USER");
+                	returnUsers[i].setRole("USER");
+                	
+            	    String password = passwordGenerator.generate(8); // output ex.: lrU12fmM 75iwI90o
+                	returnUsers[i].setPassword(password);
+                	// bCrypt internally handles salt and outputs a 60 character encoded string
+                    user.setPassword(bCryptPasswordEncoder.encode(password)); 
+                    
+                    boolean saved = false; // No point in sending the email if not saved
+                    // TODO: Save all at once instead of individually?
+                    try {
+                        applicationUserRepository.save(user);
+                        saved = true;
+                    } catch(Exception e) {
+    					e.printStackTrace();
+    					saved = false;
+    		    		try {
+    		    			EmailLog log = new EmailLog();
+    		    			log.setEmail(user.getEmail());
+    		    			log.setUsername(user.getUsername());
+    		    			log.setSent(false);
+    		    			log.setEmailType("Generate2");
+    		    			log.setLogTime(LocalDateTime.now());
+    		    			log.setErrorType(e.toString());
+    		    			emailLogRepository.save(log);
+    		    		}catch(Exception logEx) {
+    		    			// Do nothing
+    		    		}
+                    }
+                    // Here's where we could email individual users, or details to admin, etc.
+                    if(saved && user.getEmail() != null) {
+                    	returnUsers[i].setActive(true);
+                    	returnUsers[i].setVerified(true);
+                    	returnUsers[i].setAffiliation(user.getAffiliation());
+                    	returnUsers[i].setFirstName(user.getFirstName());
+                    	returnUsers[i].setLastName(user.getLastName());
+                    	returnUsers[i].setOrganization(user.getOrganization());
+                    	returnUsers[i].setJobTitle(user.getJobTitle());
+                    } else {
+                    	
+                    }
+                    
+                     
+            	}
+
+            	i++;   
+    		} 
+    	}
+    	
+    	// Email full list to admin
+//	    	emailUserListToAdmin(returnUsers);
+    	
+    	// IDs will be 0
+    	return new ResponseEntity<ApplicationUser[]>(returnUsers, HttpStatus.OK);
+    }
+    
 }
