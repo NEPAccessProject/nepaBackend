@@ -1229,9 +1229,8 @@ public class UserController {
     public @ResponseBody ResponseEntity<Boolean> optOut(
     		@RequestBody OptedOut optOutUser) {
 
-		// validate length constraints
-    	if( optOutUser.getName().length() < 1 
-    			|| (optOutUser.getEmail().length() == 0 
+		// validate length constraints of email
+    	if( (optOutUser.getEmail().length() == 0 
     				|| optOutUser.getEmail().length() > 191
     				) ) { 
     		return new ResponseEntity<Boolean>(false,HttpStatus.BAD_REQUEST);
