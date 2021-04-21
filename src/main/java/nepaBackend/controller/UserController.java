@@ -1138,7 +1138,7 @@ public class UserController {
         		// because we need to ensure the new users get their credentials
             	returnUsers[i] = new ApplicationUser();
         		
-        		if(user.getUsername().length() < 1) { // No username provided?
+        		if(user.getUsername().length() < 1 && !emailInvalid(user.getEmail())) { // No username provided?
         			String[] split = (user.getEmail().split("@"));
         			if(
         					(split[1].equalsIgnoreCase("email.arizona.edu") 
@@ -1152,14 +1152,16 @@ public class UserController {
         				user.setUsername(user.getEmail());
         			}
         		} 
+
+                returnUsers[i].setUsername(user.getUsername());
+                returnUsers[i].setEmailAddress(user.getEmail());
         		
         		// validate (duplicates, length constraints, proper email)
             	if( usernameInvalid(user.getUsername()) || emailInvalid(user.getEmail()) ) { 
                 	returnUsers[i].setEmailAddress(user.getEmail());
             		// skip, deal with it externally when you get a result with no password
             	} else {
-            		// Set username, generate and set password
-                    returnUsers[i].setUsername(user.getUsername());
+            		// Generate and set password
                     user.setRole("USER");
                 	returnUsers[i].setRole("USER");
                 	
