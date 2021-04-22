@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.json.Json;
 import javax.json.JsonObject;
@@ -578,12 +580,18 @@ public class UserController {
     	// Note: IDs will be 0 on the return objects
     	return new ResponseEntity<ApplicationUser[]>(returnUsers, HttpStatus.OK);
     }
-
-    // TODO: Better sanity check than length and uniqueness
+    
+    final String regex = "^(.+)@(.+)$";
+    final Pattern pattern = Pattern.compile(regex);
 	// Helper method validates email
     private boolean emailInvalid(String email) {
-		if(email.length() == 0 || email.length() > 191) {
+		if(email == null || email.length() == 0) {
 			return true;
+		} else {
+	    	Matcher matcher = pattern.matcher(email);
+			if(!matcher.matches() || email.length() > 191) {
+				return true;
+			}
 		}
 		return emailExists(email);
 	}
