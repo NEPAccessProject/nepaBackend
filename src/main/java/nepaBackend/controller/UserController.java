@@ -1191,18 +1191,6 @@ public class UserController {
                     } catch(Exception e) {
     					e.printStackTrace();
     					saved = false;
-    		    		try {
-    		    			EmailLog log = new EmailLog();
-    		    			log.setEmail(user.getEmail());
-    		    			log.setUsername(user.getUsername());
-    		    			log.setSent(false);
-    		    			log.setEmailType("Generate2");
-    		    			log.setLogTime(LocalDateTime.now());
-    		    			log.setErrorType(e.toString());
-    		    			emailLogRepository.save(log);
-    		    		}catch(Exception logEx) {
-    		    			// Do nothing
-    		    		}
                     }
                     // Here's where we could email individual users, or details to admin, etc.
                     if(saved && user.getEmail() != null) {
