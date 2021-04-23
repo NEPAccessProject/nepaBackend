@@ -918,7 +918,7 @@ public class UserController {
 
 	// Version not requiring a user ID (anonymous contact)
     private boolean sendContactEmail(ContactForm contactForm) {
-		return sendContactEmail(contactForm, "Anonymous");
+		return sendContactEmail(contactForm, "N/A");
 	}
     // Contact email requesting user ID
 	private boolean sendContactEmail(ContactForm contactForm, String userId) {
@@ -977,6 +977,70 @@ public class UserController {
     	if(status) {
     		try {
                 logEmail(contactForm.email, "", "Contact", true);
+    		} catch (Exception ex) {
+    			// Do nothing
+    		}
+    	}
+        
+        return status;
+	}
+	
+    /** Send email with custom recipient address, subject, body */
+	private boolean sendEmail(String setTo, String subj, String bodyText) {
+		String[] strArray = { setTo };
+		return sendEmailToList(strArray, subj, bodyText);
+	}
+    /** Send email with custom to: list, subject, body */
+	private boolean sendEmailToList(String[] setToList, String subj, String bodyText) {
+    	boolean status = true;
+    	
+    	String emails = String.join(", ", setToList);
+    	
+    	try {
+            MimeMessage message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+            
+            if(Globals.TESTING) {
+            	helper.setTo(SecurityConstants.EMAIL_HANDLE);
+            	subj = "Test: " + subj;
+            } else {
+	            helper.setTo(setToList);
+            }
+            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            helper.setSubject(subj);
+            helper.setText(bodyText);
+             
+            sender.send(message);
+    		
+    	} catch (MailAuthenticationException e) {
+            logEmail(emails, e.toString(), "Custom", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+            
+            status = false;
+    	} catch (MailSendException e) {
+            logEmail(emails, e.toString(), "Custom", false);
+
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+            
+            status = false;
+    	} catch (MailException e) {
+            logEmail(emails, e.toString(), "Custom", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+            
+            status = false;
+    	} catch (Exception e) {
+            logEmail(emails, e.toString(), "Custom", false);
+            
+//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+            
+            status = false;
+    	}
+    	
+    	if(status) {
+    		try {
+                logEmail(emails, "", "Custom", true);
     		} catch (Exception ex) {
     			// Do nothing
     		}
@@ -1147,6 +1211,10 @@ public class UserController {
         		user.setActive(true);
         		user.setVerified(true);
         		
+        		if(user.getEmail() != null) {
+        			user.setEmailAddress(user.getEmail().strip());
+        		}
+        		
         		// Need returnUsers to keep track of literal passwords
         		// because we need to ensure the new users get their credentials
             	returnUsers[i] = new ApplicationUser();
@@ -1243,5 +1311,54 @@ public class UserController {
              
     	}
 	}
+    
+    @PostMapping(path = "/opted_out_email_sender", 
+    		consumes = "application/json", 
+    		produces = "application/json", 
+    		headers = "Accept=application/json")
+    public @ResponseBody ResponseEntity<String> optedOutSendEmail(
+    		@RequestBody String s, 
+			@RequestHeader Map<String, String> headers) 
+    {
+    	// TODO: Just lock out this route until we may actually want to use it
+    	if(true) {
+    		return new ResponseEntity<String>(HttpStatus.LOCKED);
+    	}
+    	
+    	
+    	Boolean authorized = false;
+    	String token = headers.get("authorization");
+    	if(isAdmin(token)) {
+    		authorized = true;
+    	}
+    	
+    	List<OptedOut> opters = optedOutRepository.findAll();
+    	
+    	String lastError = "";
+    	
+    	if(authorized) {
+    		int i = 0;
+    		for(OptedOut opter : opters) {
+        		try {
+        			// Do something with name in body or subject, send to email
+        	    	String subject = "Testing";
+        	    	String body = "Testing: " + opter.getName();
+        			sendEmail(opter.getEmail(),subject,body);
+        		} catch(Exception e) {
+        			lastError = e.getMessage();
+            		i++;
+        		}
+    		}
+
+    		// Probably shouldn't be any errors at this level.
+    		// Errors are caught and logged to database at the child level in this case.
+        	String result = "Errors: " + i + " Last: " + lastError;
+        	
+    		return new ResponseEntity<String>(result,HttpStatus.OK);
+    	} else {
+    		return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+    	}
+    	
+    }
     
 }
