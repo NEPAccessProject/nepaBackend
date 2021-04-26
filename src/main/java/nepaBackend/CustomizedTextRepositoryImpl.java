@@ -3,6 +3,7 @@ package nepaBackend;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.text.BreakIterator;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,6 +11,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
+
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
@@ -20,6 +23,7 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -37,14 +41,20 @@ import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.apache.lucene.search.highlight.SimpleSpanFragmenter;
 import org.apache.lucene.search.highlight.TokenSources;
 import org.apache.lucene.search.uhighlight.DefaultPassageFormatter;
+import org.apache.lucene.search.uhighlight.PassageFormatter;
+import org.apache.lucene.search.uhighlight.PassageScorer;
 import org.apache.lucene.search.uhighlight.UnifiedHighlighter;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.hibernate.search.backend.lucene.index.LuceneIndexManager;
 import org.hibernate.search.engine.ProjectionConstants;
+import org.hibernate.search.engine.backend.index.IndexManager;
 import org.hibernate.search.engine.search.query.SearchResult;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
+import org.hibernate.search.mapper.orm.common.EntityReference;
+import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
 import org.hibernate.search.mapper.orm.search.loading.EntityLoadingCacheLookupStrategy;
 import org.hibernate.search.mapper.orm.session.SearchSession;
@@ -75,7 +85,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 	
-    private static IndexSearcher searcher = Globals.searcher;
+    private static MultiSearcher searcher;
 
 	private static int numberOfFragmentsMin = 3;
 	private static int numberOfFragmentsMax = 3;
@@ -2239,7 +2249,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
     public static ScoreDoc[] searchIndex(String searchQuery) throws Exception {
     	System.out.println("Search terms: " + searchQuery);
-
+        searcher = new MultiSearcher();
         Analyzer analyzer = new StandardAnalyzer();
         QueryParser queryParser = new QueryParser("plaintext", analyzer);
         Query query = queryParser.parse(searchQuery);
@@ -2263,7 +2273,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     	if(Globals.TESTING) {System.out.println("Formatted: " + formattedTerms);}
    	 
         // 1. Search; instantiate highlighter
-    	
+
+        searcher = new MultiSearcher();
         Analyzer analyzer = new StandardAnalyzer();
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
@@ -2334,7 +2345,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         int textCount = 0;
         int metaCount = 0;
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.doc(scoreDoc.doc);
+        	Document document = searcher.getDocument(scoreDoc.doc);
         	
         	// Print all fields and values (except plaintext) for testing
 //            for(IndexableField field : document.getFields()) {
@@ -2418,6 +2429,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		mfqp.setDefaultOperator(Operator.AND);
         Query query = mfqp.parse(formattedTerms);
         
+    	searcher = new MultiSearcher();
         TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
         ScoreDoc scoreDocs[] = topDocs.scoreDocs;
         
@@ -2436,7 +2448,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         // 3. Build multi-object results
         List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.doc(scoreDoc.doc);
+        	Document document = searcher.getDocument(scoreDoc.doc);
 //        	if(document.get("_hibernate_class").contentEquals("nepaBackend.model.DocumentText") ) {
 //
 //        	} else {
@@ -2870,25 +2882,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		mfqp.setDefaultOperator(Operator.AND);
 	    Query query = mfqp.parse(formattedTerms);
 	    
+		searcher = new MultiSearcher();
 		long searchStart = System.currentTimeMillis();
 	    TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
 		long searchEnd = System.currentTimeMillis();
-		System.out.println("Search time " + (searchEnd - searchStart) + "ms");
+		System.out.println("Search time " + (searchEnd - searchStart));
 	    ScoreDoc scoreDocs[] = topDocs.scoreDocs;
 
-		long convertStart = System.currentTimeMillis();
 		List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
 		Set<Long> metaIds = new HashSet<Long>();
 		Set<Long> textIds = new HashSet<Long>();
 		int i = 0;
-		
+
+		long convertStart = System.currentTimeMillis();
     	// To try to ensure no plaintext overhead, specifically just load the IDs.
 		// Seems to cut the getDocument process time in half.
 		HashSet<String> fieldsToLoad = new HashSet<String>();
 		fieldsToLoad.add("text_id");
 		fieldsToLoad.add("document_id");
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.doc(scoreDoc.doc, fieldsToLoad);
+        	Document document = searcher.getDocument(scoreDoc.doc, fieldsToLoad);
 			ScoredResult convert = new ScoredResult();
 			convert.score = scoreDoc.score;
 			convert.idx = i;
@@ -3022,7 +3035,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
-			System.out.println("Total time elapsed to get combined results: " + elapsedTime + "ms");
+			System.out.println("Time elapsed: " + elapsedTime);
 		}
 		
 		return combinedResults;
@@ -3054,7 +3067,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		HashSet<String> fieldsToLoad = new HashSet<String>();
 		fieldsToLoad.add("plaintext");
 		
-		int counter = 0;
 		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
 			ArrayList<String> result = new ArrayList<String>();
 
@@ -3092,31 +3104,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
 							.concat("</span>"));
 					} else {
-						try {
-				        	Document document = searcher.doc(luceneId, fieldsToLoad);
-							UnifiedHighlighter highlighter = new UnifiedHighlighter(null, new StandardAnalyzer());
-							String highlight = highlighter.highlightWithoutSearcher(
-									"plaintext", 
-									luceneTextOnlyQuery, 
-									document.get("plaintext"), 
-									1)
-									.toString();
-							
-							if(highlight.length() > 500) { //c'mon
-								int firstHitAt = highlight.indexOf("<b>");
-								highlight = highlight.substring(Math.max(firstHitAt - 250, 0), Math.min(firstHitAt + 250, highlight.length()));
-							}
-							result.add("<span class=\"fragment\">... " 
-									+ org.apache.commons.lang3.StringUtils.normalizeSpace(highlight)
-									.strip()
-									.concat(" ...</span>")
-							);
-						} catch(Exception e) {
-							
+			        	Document document = searcher.getDocument(luceneId,fieldsToLoad);
+						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, new StandardAnalyzer());
+						String highlight = highlighter.highlightWithoutSearcher(
+								"plaintext", 
+								luceneTextOnlyQuery, 
+								document.get("plaintext"), 
+								1)
+								.toString();
+						
+						if(highlight.length() > 500) { //c'mon
+							int firstHitAt = highlight.indexOf("<b>");
+							highlight = highlight.substring(Math.max(firstHitAt - 250, 0), Math.min(firstHitAt + 250, highlight.length()));
 						}
+						result.add("<span class=\"fragment\">... " 
+								+ org.apache.commons.lang3.StringUtils.normalizeSpace(highlight)
+								.strip()
+								.concat(" ...</span>")
+						);
 					}
 //				}
-				counter++;
 			}
 
 			results.add(result);
@@ -3124,8 +3131,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 
 		if(Globals.TESTING) {
-			System.out.println("Highlights #: " + counter);
-			System.out.println("Combined #: " + results.size());
+			System.out.println("Highlights #: " + results.size());
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;

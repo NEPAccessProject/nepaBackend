@@ -4,13 +4,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.lucene.search.IndexSearcher;
-
 public class Globals {
-	
-	// We want the thread-safe IndexSearcher to be open as long as possible per 
-	// https://cwiki.apache.org/confluence/display/lucene/LuceneCaveats
-	public static final IndexSearcher searcher = IndexSearcherFactory.getIndexSearcher();
 
     public static final boolean TESTING = false;
 
