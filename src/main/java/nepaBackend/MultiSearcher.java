@@ -13,7 +13,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
- 
+
+@Deprecated
+// Issue with this class is that we want to declare thread-safe indexsearcher once, 
+// certainly not on every new search.
 public class MultiSearcher { 
  
 	private IndexSearcher indexSearcher;
@@ -30,16 +33,16 @@ public class MultiSearcher {
 		indexSearcher = new IndexSearcher(multiIndexReader);
  	}
  
-	public TopDocs search(Query query, int n) throws Exception {
-		return indexSearcher.search(query, n); 
-	}
- 
-	public Document getDocument(int docID) throws Exception {
-		return indexSearcher.doc(docID); // Returns a document at the nth ID
-	}
-
-	public Document getDocument(int docID, HashSet<String> fieldsToLoad) throws IOException {
-		return indexSearcher.doc(docID,fieldsToLoad); // Returns a document at the nth ID with fields loaded
-	}
+//	public TopDocs search(Query query, int n) throws Exception {
+//		return indexSearcher.search(query, n); 
+//	}
+// 
+//	public Document getDocument(int docID) throws Exception {
+//		return indexSearcher.doc(docID); // Returns a document at the nth ID
+//	}
+//
+//	public Document getDocument(int docID, HashSet<String> fieldsToLoad) throws IOException {
+//		return indexSearcher.doc(docID,fieldsToLoad); // Returns a document at the nth ID with fields loaded
+//	}
 	
 }
