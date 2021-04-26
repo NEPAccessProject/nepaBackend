@@ -231,10 +231,11 @@ public class UserController {
     	Gson gson=new Gson();
     	ApplicationUser user=gson.fromJson(jsonUser,ApplicationUser.class);
     	
-    	if(usernameExists(user.getUsername())) { // check for duplicates
+    	if(usernameExists(user.getUsername().strip())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
     	} else if(passwordValid(user.getPassword())) {
     		try {
+    			user.setUsername(user.getUsername().strip());
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                 user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
@@ -1210,6 +1211,8 @@ public class UserController {
         		}
         		user.setActive(true);
         		user.setVerified(true);
+        		
+    			user.setUsername(user.getUsername().strip());
         		
         		if(user.getEmail() != null) {
         			user.setEmailAddress(user.getEmail().strip());
