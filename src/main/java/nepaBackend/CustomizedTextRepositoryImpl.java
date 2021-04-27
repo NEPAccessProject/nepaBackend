@@ -85,16 +85,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 	
-	@Autowired
     private static IndexSearcher searcher = LuceneConfig.indexSearcher();
-	@Autowired
     private static StandardAnalyzer analyzer = LuceneConfig.analyzer();
-//	@Autowired
-//    private static IndexReader metaReader = LuceneConfig.metaReader();
-	@Autowired
-    private static IndexReader textReader = LuceneConfig.textReader();
-//	@Autowired
-//    private static IndexReader multiReader = LuceneConfig.multiReader();
+    private static Directory textDir = LuceneConfig.directoryDocumentText();
+    private static Directory metaDir = LuceneConfig.directoryEISDoc();
 
 	private static int numberOfFragmentsMin = 3;
 	private static int numberOfFragmentsMax = 3;
@@ -3086,7 +3080,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// We can just get the highlight here, immediately.
 	    			String fragment = fvh.getBestFragment(
 	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
-	    					textReader, 
+	    					LuceneConfig.textReader(), 
 	    					luceneId, 
 	    					"plaintext", 
 	    					fragmentSize);
