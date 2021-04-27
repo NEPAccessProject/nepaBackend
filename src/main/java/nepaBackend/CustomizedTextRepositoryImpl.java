@@ -86,6 +86,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 	
+	@Autowired
+	Analyzer analyzer;
+	
     private static MultiSearcher searcher;
 
 	private static int numberOfFragmentsMin = 3;
@@ -2877,7 +2880,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		 
 	    // 1. Search; instantiate highlighter
 		
-		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+//		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
 	
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
@@ -2888,7 +2891,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		long searchStart = System.currentTimeMillis();
 		searcher = new MultiSearcher();
 	    TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
-	    analyzer.close();
+//	    analyzer.close();
 		long searchEnd = System.currentTimeMillis();
 		
 		System.out.println("Search time " + (searchEnd - searchStart));
@@ -3056,7 +3059,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
 		
 		// build highlighter with StandardAnalyzer
-		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+//		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
 
 		QueryParser qp = new QueryParser("plaintext", analyzer);
 		qp.setDefaultOperator(Operator.AND);
@@ -3137,7 +3140,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			results.add(result);
 		}
 		
-		analyzer.close();
+//		analyzer.close();
 		
 
 		if(Globals.TESTING) {
