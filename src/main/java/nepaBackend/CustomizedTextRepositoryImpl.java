@@ -85,7 +85,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 	
-    private static MultiSearcher searcher;
+    private static IndexSearcher searcher = LuceneConfig.indexSearcher();
+    private static StandardAnalyzer analyzer = LuceneConfig.analyzer();
+    private static Directory textDir = LuceneConfig.directoryDocumentText();
+    private static Directory metaDir = LuceneConfig.directoryEISDoc();
 
 	private static int numberOfFragmentsMin = 3;
 	private static int numberOfFragmentsMax = 3;
@@ -2249,7 +2252,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
     public static ScoreDoc[] searchIndex(String searchQuery) throws Exception {
     	System.out.println("Search terms: " + searchQuery);
-        searcher = new MultiSearcher();
         Analyzer analyzer = new StandardAnalyzer();
         QueryParser queryParser = new QueryParser("plaintext", analyzer);
         Query query = queryParser.parse(searchQuery);
@@ -2274,7 +2276,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
    	 
         // 1. Search; instantiate highlighter
 
-        searcher = new MultiSearcher();
         Analyzer analyzer = new StandardAnalyzer();
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
@@ -2345,7 +2346,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         int textCount = 0;
         int metaCount = 0;
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.getDocument(scoreDoc.doc);
+        	Document document = searcher.doc(scoreDoc.doc);
         	
         	// Print all fields and values (except plaintext) for testing
 //            for(IndexableField field : document.getFields()) {
@@ -2429,7 +2430,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		mfqp.setDefaultOperator(Operator.AND);
         Query query = mfqp.parse(formattedTerms);
         
-    	searcher = new MultiSearcher();
         TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
         ScoreDoc scoreDocs[] = topDocs.scoreDocs;
         
@@ -2448,7 +2448,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         // 3. Build multi-object results
         List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.getDocument(scoreDoc.doc);
+        	Document document = searcher.doc(scoreDoc.doc);
 //        	if(document.get("_hibernate_class").contentEquals("nepaBackend.model.DocumentText") ) {
 //
 //        	} else {
@@ -2553,6 +2553,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	/** Return all records matching terms in "plaintext" field (no highlights/context) 
 	 * @throws ParseException */
 	@Override
+	@Deprecated
 	public List<List<?>> searchHibernate6(String terms) throws ParseException {
 		
 		String newTerms = mutateTermModifiers(terms.strip());
@@ -2712,6 +2713,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 	// The only way to modify the fragment length with the unified highlighter is to do something with
 	// java.text.BreakIterator, apparently.
+	@Deprecated
 	public ArrayList<ArrayList<String>> getUnifiedHighlights(UnhighlightedDTO unhighlighted) throws ParseException, IOException {
 		long startTime = System.currentTimeMillis();
 		long cumulativeTime = 0;
@@ -2872,21 +2874,22 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
     			mutateTermModifiers(terms.strip()));
 	
-		if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
+		System.out.println("Formatted terms: " + formattedTerms);
 		 
 	    // 1. Search; instantiate highlighter
 	
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
-					new StandardAnalyzer());
+					analyzer);
 		mfqp.setDefaultOperator(Operator.AND);
 	    Query query = mfqp.parse(formattedTerms);
 	    
-		searcher = new MultiSearcher();
 		long searchStart = System.currentTimeMillis();
 	    TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
 		long searchEnd = System.currentTimeMillis();
+		
 		System.out.println("Search time " + (searchEnd - searchStart));
+		
 	    ScoreDoc scoreDocs[] = topDocs.scoreDocs;
 
 		List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
@@ -2901,7 +2904,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		fieldsToLoad.add("text_id");
 		fieldsToLoad.add("document_id");
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.getDocument(scoreDoc.doc, fieldsToLoad);
+        	Document document = searcher.doc(scoreDoc.doc, fieldsToLoad);
 			ScoredResult convert = new ScoredResult();
 			convert.score = scoreDoc.score;
 			convert.idx = i;
@@ -2926,6 +2929,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			i++;
         }
 		long convertEnd = System.currentTimeMillis();
+		
 		System.out.println("Convert time: " + (convertEnd - convertStart) + "ms");
 		
 		
@@ -3054,10 +3058,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		qp.setDefaultOperator(Operator.AND);
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 
-        File indexFile = new File(Globals.getIndexString());
-        Directory directory = FSDirectory.open(indexFile.toPath());
-        IndexReader indexReader = DirectoryReader.open(directory);
-
         FastVectorHighlighter fvh = new FastVectorHighlighter();
 		
 		
@@ -3080,7 +3080,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// We can just get the highlight here, immediately.
 	    			String fragment = fvh.getBestFragment(
 	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
-	    					indexReader, 
+	    					LuceneConfig.textReader(), 
 	    					luceneId, 
 	    					"plaintext", 
 	    					fragmentSize);
@@ -3099,12 +3099,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 								.strip()
 								.concat(" ...</span>")
 						);
-					} else if(false) {
-						result.add("<span class=\"fragment\">"
-							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
-							.concat("</span>"));
 					} else {
-			        	Document document = searcher.getDocument(luceneId,fieldsToLoad);
+			        	Document document = searcher.doc(luceneId,fieldsToLoad);
 						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, new StandardAnalyzer());
 						String highlight = highlighter.highlightWithoutSearcher(
 								"plaintext", 
