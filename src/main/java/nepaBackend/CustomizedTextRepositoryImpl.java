@@ -18,6 +18,7 @@ import javax.persistence.PersistenceContext;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -2875,18 +2876,23 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
 		 
 	    // 1. Search; instantiate highlighter
+		
+		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
 	
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
-					new StandardAnalyzer());
+					analyzer);
 		mfqp.setDefaultOperator(Operator.AND);
 	    Query query = mfqp.parse(formattedTerms);
-	    
-		searcher = new MultiSearcher();
+
 		long searchStart = System.currentTimeMillis();
+		searcher = new MultiSearcher();
 	    TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+	    analyzer.close();
 		long searchEnd = System.currentTimeMillis();
+		
 		System.out.println("Search time " + (searchEnd - searchStart));
+		
 	    ScoreDoc scoreDocs[] = topDocs.scoreDocs;
 
 		List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
@@ -3050,7 +3056,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
 		
 		// build highlighter with StandardAnalyzer
-		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
+		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+
+		QueryParser qp = new QueryParser("plaintext", analyzer);
 		qp.setDefaultOperator(Operator.AND);
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 
@@ -3105,7 +3113,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							.concat("</span>"));
 					} else {
 			        	Document document = searcher.getDocument(luceneId,fieldsToLoad);
-						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, new StandardAnalyzer());
+						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
 						String highlight = highlighter.highlightWithoutSearcher(
 								"plaintext", 
 								luceneTextOnlyQuery, 
@@ -3128,6 +3136,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 			results.add(result);
 		}
+		
+		analyzer.close();
 		
 
 		if(Globals.TESTING) {
