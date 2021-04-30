@@ -3,7 +3,6 @@ package nepaBackend;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
-import java.text.BreakIterator;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,21 +10,17 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexableField;
-import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -43,20 +38,14 @@ import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.apache.lucene.search.highlight.SimpleSpanFragmenter;
 import org.apache.lucene.search.highlight.TokenSources;
 import org.apache.lucene.search.uhighlight.DefaultPassageFormatter;
-import org.apache.lucene.search.uhighlight.PassageFormatter;
-import org.apache.lucene.search.uhighlight.PassageScorer;
 import org.apache.lucene.search.uhighlight.UnifiedHighlighter;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.hibernate.search.backend.lucene.index.LuceneIndexManager;
 import org.hibernate.search.engine.ProjectionConstants;
-import org.hibernate.search.engine.backend.index.IndexManager;
 import org.hibernate.search.engine.search.query.SearchResult;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
-import org.hibernate.search.mapper.orm.common.EntityReference;
-import org.hibernate.search.mapper.orm.mapping.SearchMapping;
 import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
 import org.hibernate.search.mapper.orm.search.loading.EntityLoadingCacheLookupStrategy;
 import org.hibernate.search.mapper.orm.session.SearchSession;
@@ -90,8 +79,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	StandardAnalyzer analyzer;
 	
-//	@Autowired
-//	IndexReader textReader;
+	@Autowired
+	IndexReader textReader;
 //	@Autowired
 //	IndexReader metaReader;
 //	@Autowired
@@ -2148,6 +2137,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return combinedResults;
 	}
 	
+	@Deprecated
 	public ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException, IOException {
 		long startTime = System.currentTimeMillis();
 		// Normalize whitespace and support added term modifiers
@@ -3078,18 +3068,19 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		qp.setDefaultOperator(Operator.AND);
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 
-        File indexFile = new File(Globals.getIndexString());
-        Directory directory = FSDirectory.open(indexFile.toPath());
-        IndexReader indexReader = DirectoryReader.open(directory);
+//        File indexFile = new File(Globals.getIndexString());
+//        Directory directory = FSDirectory.open(indexFile.toPath());
+//        IndexReader indexReader = DirectoryReader.open(directory);
 
         FastVectorHighlighter fvh = new FastVectorHighlighter();
-		
 		
 		ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
 
 		// To try to slightly optimize if/when using UnifiedHighlighter
 		HashSet<String> fieldsToLoad = new HashSet<String>();
 		fieldsToLoad.add("plaintext");
+
+		UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
 		
 		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
 			ArrayList<String> result = new ArrayList<String>();
@@ -3104,7 +3095,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// We can just get the highlight here, immediately.
 	    			String fragment = fvh.getBestFragment(
 	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
-	    					indexReader, 
+	    					textReader, 
 	    					luceneId, 
 	    					"plaintext", 
 	    					fragmentSize);
@@ -3129,7 +3120,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //							.concat("</span>"));
 					} else {
 			        	Document document = indexSearcher.doc(luceneId,fieldsToLoad);
-						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
 						String highlight = highlighter.highlightWithoutSearcher(
 								"plaintext", 
 								luceneTextOnlyQuery, 

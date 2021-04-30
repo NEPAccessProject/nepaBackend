@@ -125,19 +125,19 @@ public class LuceneConfig {
      * @return IndexReader if successful, null if it runs into IOException
      * @throws 
      */
-//    @Bean
-//    public static IndexReader textReader() {
-//    	try {
-////    		File indexFile = new File(Globals.getIndexString());
-////    		Directory directory = FSDirectory.open(indexFile.toPath());
-//    		IndexReader textReader = DirectoryReader.open(directoryDocumentText());
-//    		
-//    		return textReader;
-//    	}
-//    	catch(IOException e) {
-//    		return null;
-//    	}
-//    }
+    @Bean
+    public static IndexReader textReader() {
+    	try {
+    		File indexFile = new File(Globals.getIndexString());
+    		Directory directory = FSDirectory.open(indexFile.toPath());
+    		IndexReader textReader = DirectoryReader.open(directory);
+    		
+    		return textReader;
+    	}
+    	catch(IOException e) {
+    		return null;
+    	}
+    }
     
 
 //    @Bean
@@ -183,14 +183,11 @@ public class LuceneConfig {
     @Bean
     public IndexSearcher indexSearcher() {
     	try {
-			File indexFile = new File(Globals.getIndexString());
-			Directory directory = FSDirectory.open(indexFile.toPath());
-			IndexReader textReader = DirectoryReader.open(directory);
     		File indexFile2 = new File(Globals.getMetaIndexString());
     		Directory directory2 = FSDirectory.open(indexFile2.toPath());
     		IndexReader metaReader = DirectoryReader.open(directory2);
     		
-			MultiReader multiIndexReader = new MultiReader(textReader, metaReader);
+			MultiReader multiIndexReader = new MultiReader(textReader(), metaReader);
 
     		IndexSearcher indexSearcher = new IndexSearcher(multiIndexReader);
     		
