@@ -208,7 +208,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return docs;
 	}
 	
-	/** Return all records matching terms in "title" field
+	/** Return all records matching terms in "title" field via Lucene.  
+	 * This is used by metadataSearch (title-only search) to join on filtered records that
+	 * match the fulltext search here.
 	 * @throws ParseException 
 	 */
 	@SuppressWarnings("unchecked")
@@ -226,7 +228,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		Query luceneQuery = qp.parse(newTerms);
 		
 		
-		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery (partially to make use of projections)
+		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
 			fullTextEntityManager.createFullTextQuery(luceneQuery, EISDoc.class);
 		
@@ -2893,13 +2895,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		long searchStart = System.currentTimeMillis();
 
-	    TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
+		ScoreDoc scoreDocs[] = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs;
 //	    analyzer.close();
 		long searchEnd = System.currentTimeMillis();
 		
 		System.out.println("Search time " + (searchEnd - searchStart));
-		
-	    ScoreDoc scoreDocs[] = topDocs.scoreDocs;
 
 		List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
 		Set<Long> metaIds = new HashSet<Long>();
@@ -2941,8 +2941,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		System.out.println("Convert time: " + (convertEnd - convertStart) + "ms");
 		
 		
-		System.out.println("Title matches "+metaIds.size());	
-		System.out.println("Text matches "+textIds.size());
+//		System.out.println("Title matches "+metaIds.size());	
+//		System.out.println("Text matches "+textIds.size());
 		
 		// 1: Get EISDocs by IDs.
 		
@@ -3041,14 +3041,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			}
 		}
 		
-		if(Globals.TESTING) {
+//		if(Globals.TESTING) {
 			System.out.println("Results # (individual title and text record hits): " + converted.size());
 			System.out.println("Results # Combined by metadata: " + combinedResults.size());
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
-			System.out.println("Time elapsed: " + elapsedTime);
-		}
+			System.out.println("Total score time: " + elapsedTime + "ms");
+//		}
 		
 		return combinedResults;
 	}
