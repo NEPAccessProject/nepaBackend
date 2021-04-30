@@ -86,7 +86,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	JdbcTemplate jdbcTemplate;
 	
-    private static MultiSearcher searcher;
+	@Autowired
+	static IndexSearcher indexSearcher;
+//    private static MultiSearcher searcher;
 
 	private static int numberOfFragmentsMin = 3;
 	private static int numberOfFragmentsMax = 3;
@@ -2250,12 +2252,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
     public static ScoreDoc[] searchIndex(String searchQuery) throws Exception {
     	System.out.println("Search terms: " + searchQuery);
-        searcher = new MultiSearcher();
+
         Analyzer analyzer = new StandardAnalyzer();
         QueryParser queryParser = new QueryParser("plaintext", analyzer);
         Query query = queryParser.parse(searchQuery);
  
-        TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+        TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
         ScoreDoc scoreDocs[] = topDocs.scoreDocs;
         
         return scoreDocs;
@@ -2275,7 +2277,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
    	 
         // 1. Search; instantiate highlighter
 
-        searcher = new MultiSearcher();
         Analyzer analyzer = new StandardAnalyzer();
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
@@ -2289,7 +2290,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     	// So if we want both, we might need to do two separate searches and 
     	// then merge them ordered by score?
 //        TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
-        TopDocs topDocs = searcher.search(query, 1000000);
+        TopDocs topDocs = indexSearcher.search(query, 1000000);
         ScoreDoc scoreDocs[] = topDocs.scoreDocs;
 
 //        QueryParser qp = new QueryParser("title",analyzer);
@@ -2346,7 +2347,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         int textCount = 0;
         int metaCount = 0;
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.getDocument(scoreDoc.doc);
+        	Document document = indexSearcher.doc(scoreDoc.doc);
         	
         	// Print all fields and values (except plaintext) for testing
 //            for(IndexableField field : document.getFields()) {
@@ -2430,8 +2431,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		mfqp.setDefaultOperator(Operator.AND);
         Query query = mfqp.parse(formattedTerms);
         
-    	searcher = new MultiSearcher();
-        TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+        TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
         ScoreDoc scoreDocs[] = topDocs.scoreDocs;
         
         QueryScorer queryScorer = new QueryScorer(query, "plaintext");
@@ -2449,7 +2449,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         // 3. Build multi-object results
         List<HighlightedResult> resultList = new ArrayList<HighlightedResult>(scoreDocs.length);
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.getDocument(scoreDoc.doc);
+        	Document document = indexSearcher.doc(scoreDoc.doc);
 //        	if(document.get("_hibernate_class").contentEquals("nepaBackend.model.DocumentText") ) {
 //
 //        	} else {
@@ -2886,8 +2886,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    Query query = mfqp.parse(formattedTerms);
 
 		long searchStart = System.currentTimeMillis();
-		searcher = new MultiSearcher();
-	    TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
+
+	    TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
 	    analyzer.close();
 		long searchEnd = System.currentTimeMillis();
 		
@@ -2907,7 +2907,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		fieldsToLoad.add("text_id");
 		fieldsToLoad.add("document_id");
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = searcher.getDocument(scoreDoc.doc, fieldsToLoad);
+        	Document document = indexSearcher.doc(scoreDoc.doc, fieldsToLoad);
 			ScoredResult convert = new ScoredResult();
 			convert.score = scoreDoc.score;
 			convert.idx = i;
@@ -3107,12 +3107,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 								.strip()
 								.concat(" ...</span>")
 						);
-					} else if(false) {
-						result.add("<span class=\"fragment\">"
-							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
-							.concat("</span>"));
+//					} else if(false) {
+//						result.add("<span class=\"fragment\">"
+//							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
+//							.concat("</span>"));
 					} else {
-			        	Document document = searcher.getDocument(luceneId,fieldsToLoad);
+			        	Document document = indexSearcher.doc(luceneId,fieldsToLoad);
 						UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
 						String highlight = highlighter.highlightWithoutSearcher(
 								"plaintext", 
