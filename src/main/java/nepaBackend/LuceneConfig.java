@@ -31,7 +31,7 @@ public class LuceneConfig {
      * @return
      */
     @Bean
-    public static StandardAnalyzer analyzer() {
+    public StandardAnalyzer analyzer() {
         return new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
     }
 
@@ -41,20 +41,20 @@ public class LuceneConfig {
      * @return Directory or null if IOException
      * @throws 
      */
-    @Bean
-    public static Directory directoryEISDoc() {
-        try {
-            Path path = Paths.get(Globals.getMetaIndexString());
-            File file = path.toFile();
-            if(!file.exists()) {
-                // If the folder does not exist, create
-                file.mkdirs();
-            }
-            return FSDirectory.open(path);
-        } catch(IOException e) {
-        	return null;
-        }
-    }
+//    @Bean
+//    public static Directory directoryEISDoc() {
+//        try {
+//            Path path = Paths.get(Globals.getMetaIndexString());
+//            File file = path.toFile();
+//            if(!file.exists()) {
+//                // If the folder does not exist, create
+//                file.mkdirs();
+//            }
+//            return FSDirectory.open(path);
+//        } catch(IOException e) {
+//        	return null;
+//        }
+//    }
     
 
     /**
@@ -63,21 +63,21 @@ public class LuceneConfig {
      * @return Directory or null if IOException
      * @throws 
      */
-    @Bean
-    public static Directory directoryDocumentText() {
-
-        try {
-	        Path path = Paths.get(Globals.getIndexString());
-	        File file = path.toFile();
-	        if(!file.exists()) {
-	            // If the folder does not exist, create
-	            file.mkdirs();
-	        }
-	        return FSDirectory.open(path);
-	    } catch(IOException e) {
-	    	return null;
-	    }
-    }
+//    @Bean
+//    public static Directory directoryDocumentText() {
+//
+//        try {
+//	        Path path = Paths.get(Globals.getIndexString());
+//	        File file = path.toFile();
+//	        if(!file.exists()) {
+//	            // If the folder does not exist, create
+//	            file.mkdirs();
+//	        }
+//	        return FSDirectory.open(path);
+//	    } catch(IOException e) {
+//	    	return null;
+//	    }
+//    }
     
     /**
      * indexWriter init
@@ -125,34 +125,34 @@ public class LuceneConfig {
      * @return IndexReader if successful, null if it runs into IOException
      * @throws 
      */
-    @Bean
-    public static IndexReader textReader() {
-    	try {
-//    		File indexFile = new File(Globals.getIndexString());
-//    		Directory directory = FSDirectory.open(indexFile.toPath());
-    		IndexReader textReader = DirectoryReader.open(directoryDocumentText());
-    		
-    		return textReader;
-    	}
-    	catch(IOException e) {
-    		return null;
-    	}
-    }
+//    @Bean
+//    public static IndexReader textReader() {
+//    	try {
+////    		File indexFile = new File(Globals.getIndexString());
+////    		Directory directory = FSDirectory.open(indexFile.toPath());
+//    		IndexReader textReader = DirectoryReader.open(directoryDocumentText());
+//    		
+//    		return textReader;
+//    	}
+//    	catch(IOException e) {
+//    		return null;
+//    	}
+//    }
     
 
-    @Bean
-    public static IndexReader metaReader() {
-    	try {
-//    		File indexFile2 = new File(Globals.getMetaIndexString());
-//    		Directory directory2 = FSDirectory.open(indexFile2.toPath());
-    		IndexReader metaReader = DirectoryReader.open(directoryEISDoc());
-    		
-    		return metaReader;
-    	}
-    	catch(IOException e) {
-    		return null;
-    	}
-    }
+//    @Bean
+//    public static IndexReader metaReader() {
+//    	try {
+////    		File indexFile2 = new File(Globals.getMetaIndexString());
+////    		Directory directory2 = FSDirectory.open(indexFile2.toPath());
+//    		IndexReader metaReader = DirectoryReader.open(directoryEISDoc());
+//    		
+//    		return metaReader;
+//    	}
+//    	catch(IOException e) {
+//    		return null;
+//    	}
+//    }
     
     /**
      * MultiReader initialized in config as bean with the goal that we only have to do this 
@@ -161,17 +161,17 @@ public class LuceneConfig {
      * @return MultiReader if successful, null if it runs into IOException
      * @throws 
      */
-    @Bean
-    public static MultiReader multiReader() {
-    	try {
-    		MultiReader multiIndexReader = new MultiReader(textReader(), metaReader());
-    		
-    		return multiIndexReader;
-    	}
-    	catch(IOException e) {
-    		return null;
-    	}
-    }
+//    @Bean
+//    public static MultiReader multiReader() {
+//    	try {
+//    		MultiReader multiIndexReader = new MultiReader(textReader(), metaReader());
+//    		
+//    		return multiIndexReader;
+//    	}
+//    	catch(IOException e) {
+//    		return null;
+//    	}
+//    }
     
     /**
      * Searcher initialized in config as bean with the goal that we only have to do this 
@@ -181,15 +181,41 @@ public class LuceneConfig {
      * @throws 
      */
     @Bean
-    public static IndexSearcher indexSearcher() {
-    	MultiReader indexReader = multiReader();
-		
-    	if(indexReader != null) {
-    		IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+    public IndexSearcher indexSearcher() {
+    	try {
+			File indexFile = new File(Globals.getIndexString());
+			Directory directory = FSDirectory.open(indexFile.toPath());
+			IndexReader textReader = DirectoryReader.open(directory);
+    		File indexFile2 = new File(Globals.getMetaIndexString());
+    		Directory directory2 = FSDirectory.open(indexFile2.toPath());
+    		IndexReader metaReader = DirectoryReader.open(directory2);
+    		
+			MultiReader multiIndexReader = new MultiReader(textReader, metaReader);
+
+    		IndexSearcher indexSearcher = new IndexSearcher(multiIndexReader);
     		
     		return indexSearcher;
-    	} else {
-    		return null;
+	    	
+		}
+		catch(IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+    	catch(Exception e) {
+			System.out.println("Non-IO Problem creating indexSearcher");
+    		e.printStackTrace();
+			return null;
     	}
-    }
+    	
+	}
+//    	MultiReader indexReader = multiReader();
+//		
+//    	if(indexReader != null) {
+//    		IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+//    		
+//    		return indexSearcher;
+//    	} else {
+//    		return null;
+//    	}
+//    }
 }

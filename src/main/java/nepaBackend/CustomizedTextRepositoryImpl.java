@@ -25,6 +25,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -87,8 +88,19 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	JdbcTemplate jdbcTemplate;
 	
 	@Autowired
-	static IndexSearcher indexSearcher;
-//    private static MultiSearcher searcher;
+	StandardAnalyzer analyzer;
+	
+//	@Autowired
+//	IndexReader textReader;
+//	@Autowired
+//	IndexReader metaReader;
+//	@Autowired
+//	MultiReader multiReader;
+	
+	@Autowired
+	IndexSearcher indexSearcher;
+	
+//	private static MultiSearcher indexSearcher;
 
 	private static int numberOfFragmentsMin = 3;
 	private static int numberOfFragmentsMax = 3;
@@ -2250,7 +2262,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	
 	
-    public static ScoreDoc[] searchIndex(String searchQuery) throws Exception {
+    public ScoreDoc[] searchIndex(String searchQuery) throws Exception {
     	System.out.println("Search terms: " + searchQuery);
 
         Analyzer analyzer = new StandardAnalyzer();
@@ -2276,6 +2288,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     	if(Globals.TESTING) {System.out.println("Formatted: " + formattedTerms);}
    	 
         // 1. Search; instantiate highlighter
+    	
+//    	indexSearcher = new MultiSearcher();
 
         Analyzer analyzer = new StandardAnalyzer();
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
@@ -2876,8 +2890,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
 		 
 	    // 1. Search; instantiate highlighter
+
+//		indexSearcher = new MultiSearcher();
 		
-		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+//		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
 	
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
@@ -2888,7 +2904,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		long searchStart = System.currentTimeMillis();
 
 	    TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
-	    analyzer.close();
+//	    analyzer.close();
 		long searchEnd = System.currentTimeMillis();
 		
 		System.out.println("Search time " + (searchEnd - searchStart));
@@ -3056,7 +3072,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
 		
 		// build highlighter with StandardAnalyzer
-		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+//		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
 
 		QueryParser qp = new QueryParser("plaintext", analyzer);
 		qp.setDefaultOperator(Operator.AND);
@@ -3137,7 +3153,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			results.add(result);
 		}
 		
-		analyzer.close();
+//		analyzer.close();
 		
 
 		if(Globals.TESTING) {
