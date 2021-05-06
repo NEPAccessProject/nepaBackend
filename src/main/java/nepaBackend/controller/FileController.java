@@ -1995,20 +1995,32 @@ public class FileController {
 	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination */
 	private Optional<EISDoc> getEISDocByTitleTypeDate(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
 
-		// Try with unmodified title
+
+
+		// Try without commas (legacy data has no commas)
+		String noCommaTitle = title.replaceAll(",", "");
 		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-				title.strip(), 
+				noCommaTitle.strip(), 
 				type.strip(), 
 				LocalDate.parse(date));
 
-		// Try without apostrophes? (legacy data has no apostrophes)
+		// Try without apostrophes or commas? (legacy data has no apostrophes)
 		if(!docToReturn.isPresent()) {
-			String noApostropheTitle = title.replaceAll("'", "");
+			String noApostropheTitle = noCommaTitle.replaceAll("'", "");
 			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-					noApostropheTitle, 
+					noApostropheTitle.strip(), 
 					type.strip(), 
 					LocalDate.parse(date));
 		}
+		
+		// Try with unmodified title
+		if(!docToReturn.isPresent()) {
+			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
+					title.strip(), 
+					type.strip(), 
+					LocalDate.parse(date));
+		}
+
 		
 		return docToReturn;
 	}
