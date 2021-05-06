@@ -1027,24 +1027,29 @@ public class UserController {
     		
     	} catch (MailAuthenticationException e) {
             logEmail(emails, e.toString(), "Custom", false);
+            
+            e.printStackTrace();
 
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
             
             status = false;
     	} catch (MailSendException e) {
             logEmail(emails, e.toString(), "Custom", false);
+            e.printStackTrace();
 
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
             
             status = false;
     	} catch (MailException e) {
             logEmail(emails, e.toString(), "Custom", false);
+            e.printStackTrace();
             
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
             
             status = false;
     	} catch (Exception e) {
             logEmail(emails, e.toString(), "Custom", false);
+            e.printStackTrace();
             
 //	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
             
@@ -1055,6 +1060,7 @@ public class UserController {
     		try {
                 logEmail(emails, "", "Custom", true);
     		} catch (Exception ex) {
+    			ex.printStackTrace();
     			// Do nothing
     		}
     	}
