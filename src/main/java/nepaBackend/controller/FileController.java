@@ -2177,7 +2177,11 @@ public class FileController {
 		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
 			// skip, leave original
 		} else {
-			oldRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
+			try {
+				oldRecord.setCommentDate(parseDate(itr.epa_comment_letter_date));
+			} catch (IllegalArgumentException e) {
+				// never mind
+			}
 		}
 		
 		if(itr.state != null && !itr.state.isBlank()) {
