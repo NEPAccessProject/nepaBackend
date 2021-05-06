@@ -46,11 +46,13 @@ import com.auth0.jwt.JWT;
 import com.google.gson.Gson;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ContactRepository;
 import nepaBackend.EmailLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.OptedOutRepository;
 import nepaBackend.SavedSearchRepository;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.model.Contact;
 import nepaBackend.model.EmailLog;
 import nepaBackend.model.OptedOut;
 import nepaBackend.model.SavedSearch;
@@ -71,17 +73,20 @@ public class UserController {
     private JavaMailSender sender;
 	
     private ApplicationUserRepository applicationUserRepository;
+    private ContactRepository contactRepository;
     private OptedOutRepository optedOutRepository;
     private EmailLogRepository emailLogRepository;
     private SavedSearchRepository savedSearchRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public UserController(ApplicationUserRepository applicationUserRepository,
+    						ContactRepository contactRepository,
     						OptedOutRepository optedOutRepository,
     						EmailLogRepository emailLogRepository,
     						SavedSearchRepository savedSearchRepository,
     						BCryptPasswordEncoder bCryptPasswordEncoder) {
         this.applicationUserRepository = applicationUserRepository;
+        this.contactRepository = contactRepository;
         this.optedOutRepository = optedOutRepository;
         this.emailLogRepository = emailLogRepository;
         this.savedSearchRepository = savedSearchRepository;
@@ -977,6 +982,13 @@ public class UserController {
     	
     	if(status) {
     		try {
+        		// Log contact fields to database
+        		Contact contact = new Contact(
+        				contactForm.body,
+        				contactForm.subject,
+        				contactForm.name,
+        				contactForm.email);
+        		contactRepository.save(contact);
                 logEmail(contactForm.email, "", "Contact", true);
     		} catch (Exception ex) {
     			// Do nothing
