@@ -1376,4 +1376,42 @@ public class UserController {
     	
     }
     
+    // convenience while trying to get new config to work
+    @PostMapping(path = "/email_test", 
+    		consumes = "application/json", 
+    		produces = "application/json", 
+    		headers = "Accept=application/json")
+    public @ResponseBody ResponseEntity<String> emailTest(
+			@RequestHeader Map<String, String> headers) 
+    {
+    	
+    	Boolean authorized = false;
+    	String token = headers.get("authorization");
+    	if(isAdmin(token)) {
+    		authorized = true;
+    	}
+    	
+    	String lastError = "";
+    	
+    	if(authorized) {
+    		try {
+    			// Do something with name in body or subject, send to email
+    	    	String subject = "Test subject";
+    	    	String body = "Test body";
+    			sendEmail(SecurityConstants.EMAIL_HANDLE,subject,body);
+    		} catch(Exception e) {
+    			lastError = e.getMessage();
+    		}
+
+    		// Probably shouldn't be any errors at this level.
+    		// Errors are caught and logged to database at the child level in this case.
+        	String result = "Errors go here: " + lastError;
+        	
+    		return new ResponseEntity<String>(result,HttpStatus.OK);
+    	} else {
+    		return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+    	}
+    	
+    }
+    
 }
