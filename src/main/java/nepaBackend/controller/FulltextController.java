@@ -175,9 +175,12 @@ public class FulltextController {
 	// Metadata search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
 	@PostMapping(path = "/search")
-	public ResponseEntity<List<MetadataWithContext>> search(@RequestBody SearchInputs searchInputs)
+	public ResponseEntity<List<MetadataWithContext>> search(@RequestBody SearchInputs searchInputs,
+			@RequestHeader Map<String, String> headers)
 	{
-		saveSearchLog(searchInputs, "title");
+		String token = headers.get("authorization");
+		Long userId = idFromToken(token);
+		saveSearchLog(searchInputs, "title", userId);
 
 		try { 
 			List<EISDoc> metaList = new ArrayList<EISDoc>(
@@ -198,7 +201,7 @@ public class FulltextController {
 	@PostMapping(path = "/search_title_priority")
 	public ResponseEntity<List<MetadataWithContext>> searchPriorityTitle(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs, "all");
+		saveSearchLog(searchInputs, "all",(long) 30);
 
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
@@ -216,7 +219,7 @@ public class FulltextController {
 	@PostMapping(path = "/search_lucene_priority")
 	public ResponseEntity<List<MetadataWithContext>> searchPriorityLucene(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs, "all");
+		saveSearchLog(searchInputs, "all",(long) 30);
 
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
@@ -232,9 +235,12 @@ public class FulltextController {
 	// Metadata without context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
 	@PostMapping(path = "/search_no_context")
-	public ResponseEntity<List<MetadataWithContext3>> searchNoContext(@RequestBody SearchInputs searchInputs)
+	public ResponseEntity<List<MetadataWithContext3>> searchNoContext(@RequestBody SearchInputs searchInputs,
+			@RequestHeader Map<String, String> headers)
 	{
-		saveSearchLog(searchInputs, "all");
+		String token = headers.get("authorization");
+		Long userId = idFromToken(token);
+		saveSearchLog(searchInputs, "all", userId);
 
 		try { 
 			List<MetadataWithContext3> metaAndFilenames = 
@@ -573,16 +579,35 @@ public class FulltextController {
 			}
 		}
 		return result;
-
+	}
+	
+	private Long idFromToken(String token) {
+		if(token != null) {
+			/** By necessity token is verified as valid via filter by this point as long as it's going through the 
+			 * public API.  Alternatively you can store admin credentials in the token and hand that to the filter,
+			 * but then if admin access is revoked, that token still has admin access until it expires.
+			 * Therefore this is a slightly more secure flow. */
+			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+					.getId();
+			return Long.parseLong(id);
+		} else {
+			return null;
+		}
 	}
 
-	private void saveSearchLog(SearchInputs searchInputs, String searchMode) {
+	private void saveSearchLog(SearchInputs searchInputs, String searchMode, Long userId) {
+
+		// current admin user ID is 30; this could change depending on if/how db is migrated
+		if(userId != null && userId == 30) { 
+			// don't save
+		} else {
 			try {
 				SearchLog searchLog = new SearchLog();
 				searchLog.setTerms(searchInputs.title);
 				searchLog.setSearchMode(searchMode);
 				
-				searchLog.setUserId(null); // TODO: Non-anonymous user IDs
+				searchLog.setUserId(userId); // TODO: Opt-in/out option?
+				
 	
 				searchLogRepository.save(searchLog);
 				
@@ -591,8 +616,9 @@ public class FulltextController {
 	//				log.debug(e);
 	//			}
 			}
-		
 		}
+		
+	}
 	
 	
 }
