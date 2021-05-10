@@ -13,12 +13,12 @@ public interface SearchLogRepository extends JpaRepository<SearchLog, Long> {
 	
 	/** @return List of top 50 searches containing: Long (count); String (title) */
 	@Query(
-			value = "SELECT title,count(title) FROM test.search_log "
-					+ "WHERE title IS NOT NULL "
-					+ "GROUP BY title "
-					+ "ORDER BY count(title) DESC "
+			value = "SELECT terms,count(terms) FROM test.search_log "
+					+ "WHERE terms IS NOT NULL "
+					+ "GROUP BY terms "
+					+ "ORDER BY count(terms) DESC "
 					+ "LIMIT 50", 
 			nativeQuery=true
 	) 
-	List<Object> countDistinctTitles();
+	List<Object> countDistinctTerms();
 }

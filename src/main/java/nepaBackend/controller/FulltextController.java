@@ -177,7 +177,7 @@ public class FulltextController {
 	@PostMapping(path = "/search")
 	public ResponseEntity<List<MetadataWithContext>> search(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs);
+		saveSearchLog(searchInputs, "title");
 
 		try { 
 			List<EISDoc> metaList = new ArrayList<EISDoc>(
@@ -198,7 +198,7 @@ public class FulltextController {
 	@PostMapping(path = "/search_title_priority")
 	public ResponseEntity<List<MetadataWithContext>> searchPriorityTitle(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs);
+		saveSearchLog(searchInputs, "all");
 
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
@@ -216,7 +216,7 @@ public class FulltextController {
 	@PostMapping(path = "/search_lucene_priority")
 	public ResponseEntity<List<MetadataWithContext>> searchPriorityLucene(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs);
+		saveSearchLog(searchInputs, "all");
 
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
@@ -234,7 +234,7 @@ public class FulltextController {
 	@PostMapping(path = "/search_no_context")
 	public ResponseEntity<List<MetadataWithContext3>> searchNoContext(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs);
+		saveSearchLog(searchInputs, "all");
 
 		try { 
 			List<MetadataWithContext3> metaAndFilenames = 
@@ -397,8 +397,6 @@ public class FulltextController {
 	@PostMapping(path = "/search_test")
 	public ResponseEntity<List<MetadataWithContext>> searchTest(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs);
-
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
@@ -578,121 +576,13 @@ public class FulltextController {
 
 	}
 
-	private void saveSearchLog(SearchInputs searchInputs) {
+	private void saveSearchLog(SearchInputs searchInputs, String searchMode) {
 			try {
 				SearchLog searchLog = new SearchLog();
-				
-				// TODO: For the future, load Dates of format yyyy-MM=dd into db.
-				// This will change STR_TO_DATE(register_date, '%m/%d/%Y') >= ?
-				// to just register_date >= ?
-				// Right now the db has Strings of MM/dd/yyyy
-				
-				// Populate lists
-				if(Globals.saneInput(searchInputs.startPublish)) {
-					searchLog.setStartPublish(searchInputs.startPublish);
-				}
-				
-				if(Globals.saneInput(searchInputs.endPublish)) {
-					searchLog.setEndPublish(searchInputs.endPublish);
-				}
-	
-				if(Globals.saneInput(searchInputs.startComment)) {
-					searchLog.setStartComment(searchInputs.startComment);
-				}
-				
-				if(Globals.saneInput(searchInputs.endComment)) {
-					searchLog.setEndComment(searchInputs.endComment);
-				}
-	
-				searchLog.setDocumentTypes("All"); // handles all or blank (equivalent to all)
-				if(Globals.saneInput(searchInputs.typeAll)) { 
-					// do nothing
-				} else {
-					ArrayList<String> typesList = new ArrayList<>();
-					if(Globals.saneInput(searchInputs.typeFinal)) {
-						typesList.add("Final");
-					}
-	
-					if(Globals.saneInput(searchInputs.typeDraft)) {
-						typesList.add("Draft");
-					}
-					
-					if(Globals.saneInput(searchInputs.typeOther)) {
-						List<String> typesListOther = Arrays.asList("Draft Supplement",
-								"Final Supplement",
-								"Second Draft Supplemental",
-								"Second Draft",
-								"Adoption",
-								"LF",
-								"Revised Final",
-								"LD",
-								"Third Draft Supplemental",
-								"Second Final",
-								"Second Final Supplemental",
-								"DC",
-								"FC",
-								"RF",
-								"RD",
-								"Third Final Supplemental",
-								"DD",
-								"Revised Draft",
-								"NF",
-								"F2",
-								"D2",
-								"F3",
-								"DE",
-								"FD",
-								"DF",
-								"FE",
-								"A3",
-								"A1");
-						typesList.addAll(typesListOther);
-					}
-					if(typesList.size() > 0) {
-						searchLog.setDocumentTypes( String.join(",", typesList) );
-					}
-	
-				}
-	
-				// TODO: Temporary logic, filenames should each have their own field in the database later 
-				// and they may also be a different format
-				// (this will eliminate the need for the _% LIKE logic also)
-				// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
-				if(Globals.saneInput(searchInputs.needsComments)) {
-					searchLog.setNeedsComments(searchInputs.needsComments);
-				}
-	
-				if(Globals.saneInput(searchInputs.needsDocument)) { 
-					searchLog.setNeedsDocument(searchInputs.needsDocument);
-				}
-				
-				if(Globals.saneInput(searchInputs.state)) {
-					searchLog.setState(String.join(",", searchInputs.state));
-				}
-	
-				if(Globals.saneInput(searchInputs.agency)) {
-					searchLog.setAgency(String.join(",", searchInputs.agency));
-				}
-				
-				if(Globals.saneInput(searchInputs.title)) {
-					searchLog.setTitle(searchInputs.title);
-				}
-				
-				if(Globals.saneInput(searchInputs.searchMode)) {
-					searchLog.setSearchMode(searchInputs.searchMode);
-				}
-				
-				searchLog.setHowMany(1000); 
-				if(Globals.saneInput(searchInputs.limit)) {
-					if(searchInputs.limit > 100000) {
-						searchLog.setHowMany(100000); // TODO: Review 100k as upper limit
-					} else {
-						searchLog.setHowMany(searchInputs.limit);
-					}
-				}
+				searchLog.setTerms(searchInputs.title);
+				searchLog.setSearchMode(searchMode);
 				
 				searchLog.setUserId(null); // TODO: Non-anonymous user IDs
-				searchLog.setSavedTime(LocalDateTime.now());
 	
 				searchLogRepository.save(searchLog);
 				
@@ -700,7 +590,6 @@ public class FulltextController {
 	//			if (log.isDebugEnabled()) {
 	//				log.debug(e);
 	//			}
-	//			System.out.println(e);
 			}
 		
 		}

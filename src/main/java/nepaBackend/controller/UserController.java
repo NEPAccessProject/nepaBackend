@@ -50,12 +50,10 @@ import nepaBackend.ContactRepository;
 import nepaBackend.EmailLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.OptedOutRepository;
-import nepaBackend.SavedSearchRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.Contact;
 import nepaBackend.model.EmailLog;
 import nepaBackend.model.OptedOut;
-import nepaBackend.model.SavedSearch;
 import nepaBackend.pojo.ContactForm;
 import nepaBackend.pojo.Generate;
 import nepaBackend.pojo.PasswordChange;
@@ -76,20 +74,17 @@ public class UserController {
     private ContactRepository contactRepository;
     private OptedOutRepository optedOutRepository;
     private EmailLogRepository emailLogRepository;
-    private SavedSearchRepository savedSearchRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public UserController(ApplicationUserRepository applicationUserRepository,
     						ContactRepository contactRepository,
     						OptedOutRepository optedOutRepository,
     						EmailLogRepository emailLogRepository,
-    						SavedSearchRepository savedSearchRepository,
     						BCryptPasswordEncoder bCryptPasswordEncoder) {
         this.applicationUserRepository = applicationUserRepository;
         this.contactRepository = contactRepository;
         this.optedOutRepository = optedOutRepository;
         this.emailLogRepository = emailLogRepository;
-        this.savedSearchRepository = savedSearchRepository;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
     
@@ -174,52 +169,6 @@ public class UserController {
 
     		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
     	}
-    }
-    
-    // TODO: Test saved search functions
-    @PostMapping("/getSearches")
-    private @ResponseBody ResponseEntity<List<SavedSearch>> getSearchesByUserId(@RequestBody Long userId) {
-    	List<SavedSearch> searches = null;
-    	try {
-        	searches = savedSearchRepository.findByUserId(userId);
-    	} catch(Exception e) {
-        	return new ResponseEntity<List<SavedSearch>>(HttpStatus.INTERNAL_SERVER_ERROR); 
-    	}
-    	return new ResponseEntity<List<SavedSearch>>(searches, HttpStatus.OK); 
-    }
-    
-    /** Save new (or update if existing) SavedSearch */
-    @PostMapping("/saveSearch")
-    private @ResponseBody ResponseEntity<Void> saveSearch(@RequestBody SavedSearch savedSearch) {
-    	try {
-    		savedSearch.setSavedTime(LocalDateTime.now());
-        	savedSearchRepository.save(savedSearch);
-    	} catch(Exception e) {
-        	return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); 
-    	}
-    	return new ResponseEntity<Void>(HttpStatus.OK); 
-    }
-    
-    @PostMapping("/deleteSearch")
-    private @ResponseBody ResponseEntity<Void> deleteSavedSearchById(@RequestBody Long id) {
-    	try {
-        	savedSearchRepository.deleteById(id);
-    	} catch(Exception e) {
-        	return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); 
-    	}
-    	return new ResponseEntity<Void>(HttpStatus.OK); 
-    }
-
-    @PostMapping("/deleteSearches")
-    private @ResponseBody ResponseEntity<Void> deleteSavedSearchesByIds(@RequestBody List<Long> ids) {
-    	try {
-    		for (Long id : ids) {
-            	savedSearchRepository.deleteById(id);
-    		}
-    	} catch(Exception e) {
-        	return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); 
-    	}
-    	return new ResponseEntity<Void>(HttpStatus.OK); 
     }
 
     @SuppressWarnings("unused")

@@ -22,64 +22,64 @@ public class EISDoc {
     @Column(name="id")
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @GenericField(name="document_id",projectable=Projectable.YES)
-    private Long id;  // TODO: ID/PK?
+    private Long id; // ensure bigint(20) auto-increment, primary key
 	
-    @Column(name="title",columnDefinition="text") // Note: Had to do ALTER TABLE `eisdoc` ADD FULLTEXT(title) for search
+    @Column(name="title",columnDefinition="text")
     @FullTextField(projectable=Projectable.NO)
     private String title;
   
-    @Column(name="document_type")
-    private String documentType;  // TODO: Enum?
+    @Column(name="document_type",columnDefinition="VARCHAR(255)")
+    private String documentType;
   
-    @Column(name="comment_date")
+    @Column(name="comment_date",columnDefinition="DATE")
     private LocalDate commentDate; 
   
-    @Column(name="register_date")
+    @Column(name="register_date",columnDefinition="DATE")
     private LocalDate registerDate; 
   
-    @Column(name="agency")
-    private String agency; // TODO: Enum?
+    @Column(name="agency",columnDefinition="text")
+    private String agency;
 
-    @Column(name="department")
-    private String department; // TODO: Enum?
+    @Column(name="department",columnDefinition="VARCHAR(255)")
+    private String department;
 
-    @Column(name="cooperating_agency", columnDefinition="text")
-    private String cooperatingAgency; 
-
-    @Column(name="summary_text", columnDefinition="text")
-    private String summaryText; 
+    @Column(name="cooperating_agency",columnDefinition="text")
+    private String cooperatingAgency;
     
-	@Column(name="state")
-    private String state; // TODO: Enum?
+	@Column(name="state",columnDefinition="text")
+    private String state;
   
-    @Column(name="filename")
+    @Column(name="filename",columnDefinition="VARCHAR(256)")
     private String filename; // name of zip file of EIS PDF(s) (optional)
 
-    @Column(name="comments_filename")
+    @Column(name="comments_filename",columnDefinition="VARCHAR(256)")
     private String commentsFilename; // name of zip file of comment PDF(s) (optional)
 
-    @Column(name="folder")
+    @Column(name="folder",columnDefinition="text")
     private String folder; // path to multiple associated files (optional)
     
-    @Column(name="size")
+    @Column(name="size",columnDefinition="BIGINT(20)")
     private Long size; // size of folder or archive on disk (optional)
 
-	@Column(name="web_link")
+	@Column(name="web_link", columnDefinition="text")
     private String link; // source link (optional)
 
 	@Column(name="notes", columnDefinition="text")
     private String notes; // (optional)
+
+    @Column(name="summary_text",columnDefinition="text")
+    private String summaryText; 
 	
-    @Column(name="noi_date")
+    @Column(name="noi_date",columnDefinition="DATE")
     private LocalDate noiDate; 
 
-    @Column(name="draft_noa")
+    @Column(name="draft_noa",columnDefinition="DATE")
     private LocalDate draftNoa; 
 
-    @Column(name="final_noa")
+    @Column(name="final_noa",columnDefinition="DATE")
     private LocalDate finalNoa; 
 
-    @Column(name="first_rod_date")
+    @Column(name="first_rod_date",columnDefinition="DATE")
     private LocalDate firstRodDate; 
     
     // String location; // Location for proposed project is desired, but don't have metadata
