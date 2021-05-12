@@ -636,10 +636,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
     		return org.apache.commons.lang3.StringUtils.normalizeSpace(terms).replace(" | ",  " || ")
 //    				.replace("and", "AND") // support for AND is implicit currently
-//    				.replace("or", "OR") // Lowercase term modifiers could easily trip people up accidentally
+//    				.replace("or", "OR") // Lowercase term modifiers could easily trip people up accidentally if they're pasting something in and they don't actually want to OR them
 //    				.replace("not", "NOT")
 //    				.replace("&", "AND")
-//    				.replace("!", "*")
+    				.replace("!", "-")
 //    				.replace("%", "-")
 //    				.replace("/", "~") // westlaw? options, can also add confusion
     				.strip(); // QueryParser doesn't support |, does support ?, OR, NOT
@@ -2267,9 +2267,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         return scoreDocs;
     }
     
-    // TODO: Missing EISDoc entirely, but this is a good chance just to test the raw speed
-    // of the fast vector highlighter
-    // TODO: I'm not 100% sure why there are no title matches at all
     // This route could be the future of highlight searches at the very least.  Just needs
     // Lucene document IDs for the FVH.
     public List<HighlightedResult> searchAndHighlight(String searchQuery) throws Exception {
@@ -2331,8 +2328,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				.where( f -> f.match().fields("title","plaintext")
 //						.matching(formattedTerms))
 //				.fetchAll();
-		System.out.println(hits.total().hitCount() + " hits to string " + hits.hits().toString().substring(0,1000));
-        System.out.println("topDocs totalHits "+topDocs.totalHits.value);
+//		System.out.println(hits.total().hitCount() + " hits to string " + hits.hits().toString().substring(0,1000));
+//        System.out.println("topDocs totalHits "+topDocs.totalHits.value);
 //        System.out.println("topDocs2 totalHits "+topDocs2.totalHits.value);
 //        System.out.println("topDocs3 totalHits "+topDocs3.totalHits.value);
 //		System.out.println(hits2.total().hitCount() + " hits2 to string " + hits2.hits().toString());
@@ -2893,42 +2890,50 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		mfqp.setDefaultOperator(Operator.AND);
 	    Query query = mfqp.parse(formattedTerms);
 
-		long searchStart = System.currentTimeMillis();
+//		long searchStart = System.currentTimeMillis();
 
 		ScoreDoc scoreDocs[] = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs;
 //	    analyzer.close();
-		long searchEnd = System.currentTimeMillis();
-		
-		System.out.println("Search time " + (searchEnd - searchStart));
+//		long searchEnd = System.currentTimeMillis();
+//		
+//		System.out.println("Search time " + (searchEnd - searchStart));
+//		System.out.println("Search count " + scoreDocs.length);
 
 		List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
 		Set<Long> metaIds = new HashSet<Long>();
 		Set<Long> textIds = new HashSet<Long>();
 		int i = 0;
 
-		long convertStart = System.currentTimeMillis();
+//		List<Long> times = new ArrayList<Long>(scoreDocs.length);
+		
+//		long convertStart = System.currentTimeMillis();
     	// To try to ensure no plaintext overhead, specifically just load the IDs.
 		// Seems to cut the getDocument process time in half.
 		HashSet<String> fieldsToLoad = new HashSet<String>();
 		fieldsToLoad.add("text_id");
 		fieldsToLoad.add("document_id");
         for (ScoreDoc scoreDoc : scoreDocs) {
-        	Document document = indexSearcher.doc(scoreDoc.doc, fieldsToLoad);
+//    		long docStart = System.currentTimeMillis();
+        	Document document = indexSearcher.getIndexReader().document(scoreDoc.doc, fieldsToLoad);
+//    		long docEnd = System.currentTimeMillis();
+//    		times.add(docEnd - docStart);
 			ScoredResult convert = new ScoredResult();
 			convert.score = scoreDoc.score;
 			convert.idx = i;
 			convert.luceneId = scoreDoc.doc;
 //			System.out.print(" Lucene ID " + convert.luceneId);
-        	if(document.get("text_id") == null) {
+			String textId = document.get("text_id");
+			String metaId = document.get("document_id");
+        	if(textId == null) {
         		// Handle meta ID
-        		Long id = Long.parseLong(document.get("document_id"));
+        		Long id = Long.parseLong(metaId);
 //        		System.out.print(" meta ID " + id);
         		metaIds.add(id);
     			convert.id = id;
     			convert.entityName = EntityType.META;
-        	} else if(document.get("document_id") == null){
+        	} else {
         		// Handle text ID
-        		Long id = Long.parseLong(document.get("text_id"));
+        		Long id = Long.parseLong(textId);
 //        		System.out.print(" text ID " + id);
         		textIds.add(id);
     			convert.id = id;
@@ -2937,8 +2942,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			converted.add(convert);
 			i++;
         }
-		long convertEnd = System.currentTimeMillis();
-		System.out.println("Convert time: " + (convertEnd - convertStart) + "ms");
+        
+//		long convertEnd = System.currentTimeMillis();
+		// This is time consuming, but not sure how we could reduce it.
+		// We need the IDs as well as the lucene IDs.  The search itself is very fast, but only gets
+		// lucene IDs...  then gathering the IDs using those takes a relatively long time for thousands
+		// of hits.
+		// Basically we can't do this faster because we need to carry around the lucene IDs because
+		// that's needed for term vector highlighting.  So the search is a little slower so that the
+		// highlighting is much faster.  Unfortunately don't see an alternative to getting .doc for everything
+//		System.out.println("Convert time: " + (convertEnd - convertStart) + "ms");
+//		double average = 0.0d;
+//		long total = 0l;
+//		for(int j = 0; j < times.size(); j++) {
+//			long l = times.get(j);
+//			double tmp = l / (double) times.size();
+//			average += tmp;
+//			total += l;
+//		}
+//		System.out.println("Average document time: " + (average) + "ms");
+//		System.out.println("Total document time: " + (total) + "ms");
 		
 		
 //		System.out.println("Title matches "+metaIds.size());	
@@ -3041,20 +3064,19 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			}
 		}
 		
-//		if(Globals.TESTING) {
+		if(Globals.TESTING) {
 			System.out.println("Results # (individual title and text record hits): " + converted.size());
 			System.out.println("Results # Combined by metadata: " + combinedResults.size());
 			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
 			System.out.println("Total score time: " + elapsedTime + "ms");
-//		}
+		}
 		
 		return combinedResults;
 	}
-		
-	// TODO: CURRENT: Rework frontend to give lists of lucene IDs (lists of ints) with the "list" of filenames
-	// and then use this for probably much faster highlighting.
+	
+	/** Fastest highlighting available, requires full term vectors indexed */
 	@Override
 	public ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception {
 		long startTime = System.currentTimeMillis();
