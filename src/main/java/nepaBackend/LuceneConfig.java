@@ -18,6 +18,9 @@ import org.apache.lucene.store.FSDirectory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+// "You should keep the index open as long as possible. Both IndexReader and
+// IndexSearcher are thread-safe and don't require additional synchronization. 
+// One could cache the index searcher e.g. in the application context."
 @Configuration
 public class LuceneConfig {
     /**

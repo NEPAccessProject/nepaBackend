@@ -51,7 +51,9 @@ public class AdminController {
     }
     
     
-    /** Given DocumentText ID, delete the DocumentText and any NEPAFile(s) for it from the linked EISDoc */
+    /** Given DocumentText ID, delete the DocumentText and any NEPAFile(s) for it from the linked EISDoc.
+     * Does not delete the actual file, so a bulk file process call will pick it back up unless
+     * the file is deleted manually */
     @CrossOrigin
     @RequestMapping(path = "/delete_text", method = RequestMethod.POST)
     ResponseEntity<String> deleteFileByDocumentTextId(@RequestBody String id, @RequestHeader Map<String, String> headers) {
@@ -104,6 +106,11 @@ public class AdminController {
 				// If we decide to delete the file itself, we would want to clear the filename
 //				eisDoc.setFilename("");
 //				docRepository.save(eisDoc);
+				
+				// since we aren't right now, this file would be re-processed if we called sync()
+				// and therefore it's very reversible.
+				// If we didn't set the file log to imported=false, and we had logic to not re-import if
+				// logged as imported, then it would never be re-processed.
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
     		}
