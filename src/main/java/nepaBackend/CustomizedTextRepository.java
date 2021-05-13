@@ -41,5 +41,6 @@ public interface CustomizedTextRepository {
 	List<List<?>> searchHibernate6(String terms) throws ParseException;
 	List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType);
 	ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception;
+	ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(Unhighlighted2DTO unhighlighted) throws Exception;
 	
 }

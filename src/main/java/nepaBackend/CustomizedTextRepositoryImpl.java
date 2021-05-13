@@ -3131,10 +3131,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// Try UnifiedHighlighter as a backup?  It could be slower.  Also, it doesn't actually
 	    			// necessarily show both terms.
 					if(fragment != null) { 
-						result.add("<span class=\"fragment\">... " 
-								+ org.apache.commons.lang3.StringUtils.normalizeSpace(fragment)
+						result.add(
+//								"<span class=\"fragment\">... " + 
+								org.apache.commons.lang3.StringUtils.normalizeSpace(fragment)
 								.strip()
-								.concat(" ...</span>")
+//								.concat(" ...</span>")
 						);
 //					} else if(false) {
 //						result.add("<span class=\"fragment\">"
@@ -3153,10 +3154,106 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							int firstHitAt = highlight.indexOf("<b>");
 							highlight = highlight.substring(Math.max(firstHitAt - 250, 0), Math.min(firstHitAt + 250, highlight.length()));
 						}
-						result.add("<span class=\"fragment\">... " 
-								+ org.apache.commons.lang3.StringUtils.normalizeSpace(highlight)
+						result.add(
+//								"<span class=\"fragment\">... " + 
+								org.apache.commons.lang3.StringUtils.normalizeSpace(highlight)
 								.strip()
-								.concat(" ...</span>")
+//								.concat(" ...</span>")
+						);
+					}
+//				}
+			}
+
+			results.add(result);
+		}
+		
+//		analyzer.close();
+		
+
+		if(Globals.TESTING) {
+			System.out.println("Highlights #: " + results.size());
+			
+			long stopTime = System.currentTimeMillis();
+			long elapsedTime = stopTime - startTime;
+			System.out.println("Total highlight time: " + elapsedTime);
+		}
+		
+		return results;
+	}
+	
+	/** Fastest highlighting available, requires full term vectors indexed, no markup */
+	@Override
+	public ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(Unhighlighted2DTO unhighlighted) throws Exception {
+		long startTime = System.currentTimeMillis();
+		// Normalize whitespace and support added term modifiers
+	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+		
+		// build highlighter with StandardAnalyzer
+//		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+
+		QueryParser qp = new QueryParser("plaintext", analyzer);
+		qp.setDefaultOperator(Operator.AND);
+		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
+
+//        File indexFile = new File(Globals.getIndexString());
+//        Directory directory = FSDirectory.open(indexFile.toPath());
+//        IndexReader indexReader = DirectoryReader.open(directory);
+
+        FastVectorHighlighter fvh = new FastVectorHighlighter();
+		
+		ArrayList<ArrayList<String>> results = new ArrayList<ArrayList<String>>();
+
+		// To try to slightly optimize if/when using UnifiedHighlighter
+		HashSet<String> fieldsToLoad = new HashSet<String>();
+		fieldsToLoad.add("plaintext");
+
+		UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
+		
+		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
+			ArrayList<String> result = new ArrayList<String>();
+
+			// Run query to get each text via eisdoc ID and filename?
+			// Need to split filenames by >
+//			String[] filenames = input.getFilename().split(">");
+			for(int i = 0; i < input.getLuceneIds().size(); i++) {
+				int luceneId = input.getId(i).intValue();
+//	        	Document document = searcher.getDocument(luceneId);
+//				if(document != null) {
+					// We can just get the highlight here, immediately.
+	    			String fragment = fvh.getBestFragment(
+	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
+	    					textReader, 
+	    					luceneId, 
+	    					"plaintext", 
+	    					fragmentSize);
+
+					// So apparently proximity search can return null fragments.
+					// I think this may only be when the fragment size is too small.
+					// For example, if two words are 100 words away from each other and the fragment
+					// is only 250 characters...  that's going to be out of range.
+					// I think the old highlighter used to put ellipses in between the individual terms
+					// to avoid this.
+					// Try UnifiedHighlighter as a backup?  It could be slower.  Also, it doesn't actually
+	    			// necessarily show both terms.
+					if(fragment != null) { 
+//						result.add("<span class=\"fragment\">... " 
+//								+ org.apache.commons.lang3.StringUtils.normalizeSpace(fragment)
+//								.strip()
+//								.concat(" ...</span>")
+//						);
+						result.add(fragment);
+//					} else if(false) {
+//						result.add("<span class=\"fragment\">"
+//							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
+//							.concat("</span>"));
+					} else {
+			        	Document document = indexSearcher.doc(luceneId,fieldsToLoad);
+						result.add(highlighter.highlightWithoutSearcher(
+								"plaintext", 
+								luceneTextOnlyQuery, 
+								document.get("plaintext"), 
+								1)
+								.toString()
 						);
 					}
 //				}

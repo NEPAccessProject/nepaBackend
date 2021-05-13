@@ -324,10 +324,17 @@ public class FulltextController {
 	@PostMapping(path = "/get_highlightsFVH")
 	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody Unhighlighted2DTO unhighlighted)
 	{
+		System.out.println("Markup: " + unhighlighted.isMarkup());
 		try {
-			List<List<String>> highlights = new ArrayList<List<String>>(
-					(textRepository.getHighlightsFVH( unhighlighted )));
-			return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+			if(unhighlighted.isMarkup()) {
+				List<List<String>> highlights = new ArrayList<List<String>>(
+						(textRepository.getHighlightsFVH( unhighlighted )));
+				return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+			} else {
+				List<List<String>> highlights = new ArrayList<List<String>>(
+						(textRepository.getHighlightsFVHNoMarkup( unhighlighted )));
+				return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+			}
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<List<String>>>(HttpStatus.INTERNAL_SERVER_ERROR);
