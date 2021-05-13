@@ -3080,14 +3080,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Override
 	public ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception {
 		long startTime = System.currentTimeMillis();
-		int fragmentSizeCustom = unhighlighted.getFragmentSizeValue();
-		if(fragmentSizeCustom == 0) {
-			fragmentSizeCustom = 250;
-		} else if(fragmentSizeCustom == 1) {
-			fragmentSizeCustom = 500;
-		} else {
-			fragmentSizeCustom = 1000;
-		}
+		int fragmentSizeCustom = setFragmentSize(unhighlighted.getFragmentSizeValue());
 		
 		// Normalize whitespace and support added term modifiers
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
@@ -3190,6 +3183,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return results;
 	}
 	
+	private int setFragmentSize(int fragmentSizeValue) {
+		if(fragmentSizeValue == 0) {
+			return 250;
+		} else if(fragmentSizeValue == 1) {
+			return 500;
+		} else if(fragmentSizeValue == 2) {
+			return 1000;
+		} else {
+			return 2000;
+		}
+	}
+
 	/** Fastest highlighting available, requires full term vectors indexed, no markup */
 	@Override
 	public ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(Unhighlighted2DTO unhighlighted) throws Exception {
