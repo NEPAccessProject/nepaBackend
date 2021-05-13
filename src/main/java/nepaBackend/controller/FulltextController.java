@@ -324,7 +324,6 @@ public class FulltextController {
 	@PostMapping(path = "/get_highlightsFVH")
 	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody Unhighlighted2DTO unhighlighted)
 	{
-		System.out.println("Markup: " + unhighlighted.isMarkup());
 		try {
 			if(unhighlighted.isMarkup()) {
 				List<List<String>> highlights = new ArrayList<List<String>>(

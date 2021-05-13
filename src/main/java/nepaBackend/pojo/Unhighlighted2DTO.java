@@ -6,15 +6,17 @@ public class Unhighlighted2DTO {
 	private List<Unhighlighted2> unhighlighted;
 	private String terms;
 	private boolean markup;
+	private int fragmentSizeValue;
 
 	public Unhighlighted2DTO() {
 		
 	}
 
-	public Unhighlighted2DTO(List<Unhighlighted2> unhighlighted, String terms, boolean markup) {
+	public Unhighlighted2DTO(List<Unhighlighted2> unhighlighted, String terms, boolean markup, int fragmentSizeValue) {
 		this.unhighlighted = unhighlighted;
 		this.terms = terms;
 		this.setMarkup(markup);
+		this.fragmentSizeValue = fragmentSizeValue;
 	}
 
 	public void setUnhighlighted(List<Unhighlighted2> unhighlighted) {
@@ -39,6 +41,14 @@ public class Unhighlighted2DTO {
 
 	public void setMarkup(boolean markup) {
 		this.markup = markup;
+	}
+
+	public int getFragmentSizeValue() {
+		return fragmentSizeValue;
+	}
+
+	public void setFragmentSizeValue(int fragmentSizeValue) {
+		this.fragmentSizeValue = fragmentSizeValue;
 	}
 	
 }

@@ -3080,6 +3080,15 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Override
 	public ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception {
 		long startTime = System.currentTimeMillis();
+		int fragmentSizeCustom = unhighlighted.getFragmentSizeValue();
+		if(fragmentSizeCustom == 0) {
+			fragmentSizeCustom = 250;
+		} else if(fragmentSizeCustom == 1) {
+			fragmentSizeCustom = 500;
+		} else {
+			fragmentSizeCustom = 1000;
+		}
+		
 		// Normalize whitespace and support added term modifiers
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
 		
@@ -3120,7 +3129,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    					textReader, 
 	    					luceneId, 
 	    					"plaintext", 
-	    					fragmentSize);
+	    					fragmentSizeCustom);
 
 					// So apparently proximity search can return null fragments.
 					// I think this may only be when the fragment size is too small.
@@ -3208,6 +3217,15 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		fieldsToLoad.add("plaintext");
 
 		UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
+
+		int fragmentSizeCustom = unhighlighted.getFragmentSizeValue();
+		if(fragmentSizeCustom == 0) {
+			fragmentSizeCustom = 250;
+		} else if(fragmentSizeCustom == 1) {
+			fragmentSizeCustom = 500;
+		} else {
+			fragmentSizeCustom = 1000;
+		}
 		
 		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
 			ArrayList<String> result = new ArrayList<String>();
@@ -3225,7 +3243,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	    					textReader, 
 	    					luceneId, 
 	    					"plaintext", 
-	    					fragmentSize);
+	    					fragmentSizeCustom);
 
 					// So apparently proximity search can return null fragments.
 					// I think this may only be when the fragment size is too small.
