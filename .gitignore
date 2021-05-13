@@ -11,3 +11,4 @@ src/main/resources/application-prod.properties
 /nepaBackend.model.EISDoc/
 /DocumentText/
 /EISDoc/
+src/main/java/nepaBackend/LuceneHighlighter.java
