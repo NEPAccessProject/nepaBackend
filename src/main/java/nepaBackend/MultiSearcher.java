@@ -41,5 +41,13 @@ public class MultiSearcher {
 	public Document getDocument(int docID, HashSet<String> fieldsToLoad) throws IOException {
 		return indexSearcher.doc(docID,fieldsToLoad); // Returns a document at the nth ID with fields loaded
 	}
+
+	public Document doc(int docID) throws IOException {
+		return indexSearcher.doc(docID); // Returns a document at the nth ID
+	}
+
+	public Document doc(int docID, HashSet<String> fieldsToLoad) throws IOException {
+		return indexSearcher.doc(docID,fieldsToLoad);
+	}
 	
 }
