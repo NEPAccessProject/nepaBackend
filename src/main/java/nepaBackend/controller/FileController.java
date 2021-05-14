@@ -771,6 +771,8 @@ public class FileController {
 	private ResponseEntity<List<String>> importCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
 		
+		fillAgencies();
+		
 		String token = headers.get("authorization");
 		
 		if(!isCurator(token) && !isAdmin(token)) 
@@ -804,7 +806,6 @@ public class FileController {
 				// Handle any agency abbreviations
 				itr.agency = agencyAbbreviationToFull(itr.agency);
 				
-				// TODO: Need a title-only option for Buomsoo's data, to update all title matches
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
 
@@ -881,7 +882,7 @@ public class FileController {
 					    	if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
-					    		results.add("Item " + count + ": OK: " + itr.title);
+					    		results.add("Item " + count + ": Created: " + itr.title);
 
 					    		// Log successful record import (need accountability for new metadata)
 								FileLog recordLog = new FileLog();
@@ -902,7 +903,6 @@ public class FileController {
 			    }
 			    count++;
 			}
-	    	// TODO: Run Tika on new files later, record results (need new bulk file import function for this part)
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -1997,29 +1997,43 @@ public class FileController {
 
 
 
-		// Try without commas (legacy data has no commas)
-		String noCommaTitle = title.replaceAll(",", "");
+		// Try without apostrophes (legacy data has no apostrophes?)
+		String noApostropheTitle = title.replaceAll("'", "");
 		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-				noCommaTitle.strip(), 
+				noApostropheTitle, 
 				type.strip(), 
 				LocalDate.parse(date));
-
-		// Try without apostrophes or commas? (legacy data has no apostrophes)
-		if(!docToReturn.isPresent()) {
-			String noApostropheTitle = noCommaTitle.replaceAll("'", "");
-			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-					noApostropheTitle.strip(), 
-					type.strip(), 
-					LocalDate.parse(date));
-		}
 		
-		// Try with unmodified title
 		if(!docToReturn.isPresent()) {
+			
+			// Try without commas (legacy data has no commas?)
+			String noCommaTitle = title.replaceAll(",", "");
 			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-					title.strip(), 
+					noCommaTitle, 
 					type.strip(), 
 					LocalDate.parse(date));
+			
+			// Try without apostrophes or commas? (legacy data has no apostrophes)
+			if(!docToReturn.isPresent()) {
+				String noApostrophesCommasTitle = noCommaTitle.replaceAll("'", "");
+				docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
+						noApostrophesCommasTitle, 
+						type.strip(), 
+						LocalDate.parse(date));
+				
+				// Try with unmodified title
+				if(!docToReturn.isPresent()) {
+					docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
+							title, 
+							type.strip(), 
+							LocalDate.parse(date));
+				} // else no match
+			}
 		}
+
+
+		
+
 
 		
 		return docToReturn;
@@ -2313,6 +2327,32 @@ public class FileController {
 
 		return valid;
 	}
+	private boolean canMatch(UploadInputs dto) {
+	//		System.out.println(dto.title);
+	//		System.out.println(dto.federal_register_date);
+	//		System.out.println(dto.document);
+	//		System.out.println(dto.filename);
+		boolean valid = true;
+
+		if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
+			valid = false;
+			return valid; // Just stop here and don't have to worry about validating null values
+		}
+		// Check for empty
+		if(dto.title.isBlank()) {
+			valid = false; // Need title
+		}
+
+		if(dto.document.isBlank()) {
+			valid = false; // Need type
+		}
+
+		if(dto.federal_register_date.isBlank()) {
+			valid = false; // Need date
+		}
+
+		return valid;
+	}
 
 	/** Return whether JWT is from Admin role */
 	private boolean isAdmin(String token) {
@@ -2429,6 +2469,8 @@ public class FileController {
 				@RequestHeader Map<String, String> headers) 
 				throws IOException { 
 		
+		fillAgencies();
+		
 		String token = headers.get("authorization");
 		
 		if(!isCurator(token) && !isAdmin(token)) 
@@ -2494,7 +2536,7 @@ public class FileController {
 						// If file doesn't exist, then create new record
 						else if(!recordThatMayExist.isPresent()) 
 						{ 
-				    		results.add("Item " + count + ": OK: " + itr.title);
+				    		results.add("Item " + count + ": Created: " + itr.title);
 				    	} else {
 							results.add("Item " + count + ": Duplicate (no action): " + itr.title);
 				    	}
@@ -2608,6 +2650,103 @@ public class FileController {
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
 
+	/** 
+	 * Takes .tsv file with required headers and imports each valid, non-duplicate record.  Updates existing records
+	 * 
+	 * Valid records: Must have title/register_date/filename or folder/document_type, register_date must conform to one of
+	 * the formats in parseFormatters[]
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
+	 * and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/title_fix", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> titleFix(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		
+		fillAgencies();
+		
+		String token = headers.get("authorization");
+		
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		List<String> results = new ArrayList<String>();
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+		    // Ensure metadata is valid
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				
+				// Handle any leading/trailing invisible characters, double spacing
+				itr.title = Globals.normalizeSpace(itr.title);
+				// Handle any agency abbreviations
+				itr.agency = agencyAbbreviationToFull(itr.agency);
+				
+			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
+			    if(canMatch(itr)) {
+
+			    	// Save only valid dates
+			    	boolean error = false;
+					try {
+						LocalDate parsedDate = parseDate(itr.federal_register_date);
+						itr.federal_register_date = parsedDate.toString();
+					} catch (IllegalArgumentException e) {
+						System.out.println("Threw IllegalArgumentException");
+						results.add("Item " + count + ": " + e.getMessage());
+						error = true;
+					} catch (Exception e) {
+						results.add("Item " + count + ": Register Date Format Error " + e.getMessage());
+						error = true;
+					}
+					
+					if(!error) {
+						// Deduplication
+						
+						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
+						
+						
+						// If record exists, update the title
+						if( recordThatMayExist.isPresent() ) {
+							EISDoc oldRecord = recordThatMayExist.get();
+							
+							String oldTitle = oldRecord.getTitle();
+							
+							if(oldTitle.contentEquals(itr.title)) {
+								results.add("Item " + count + ": No change needed:" + oldTitle + " Versus:" + itr.title);
+							} else {
+								
+								results.add("Item " + count + ": Title Updated FROM:" + oldTitle + " TO:" + itr.title);
+
+								// at this point we've matched on title, date and document type already, but because of how we match on title, 
+								// punctuation can be different, and hopefully the incoming title is more accurate
+								oldRecord.setTitle(itr.title);
+								
+								docRepository.save(oldRecord); // save to db, ID shouldn't change
+								
+							}
+						} else {
+							results.add("Item " + count + ": Not found (can't update if no match)");
+						}
+					}
+			    } else {
+					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/Title");
+			    }
+			    count++;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+
+
 	public static String encodeURIComponent(String s) {
 	    String result;
 
@@ -2637,135 +2776,137 @@ public class FileController {
 		}
 	}
 	public static void fillAgencies() {
-		agencies.put("ACHP","Advisory Council on Historic Preservation");
-		agencies.put("USAID","Agency for International Development");
-		agencies.put("ARS","Agriculture Research Service");
-		agencies.put("APHIS","Animal and Plant Health Inspection Service");
-		agencies.put("AFRH","Armed Forces Retirement Home");
-		agencies.put("BPA","Bonneville Power Administration");
-		agencies.put("BIA","Bureau of Indian Affairs");
-		agencies.put("BLM","Bureau of Land Management");
-		agencies.put("USBM","Bureau of Mines");
-		agencies.put("BOEM","Bureau of Ocean Energy Management");
-		agencies.put("BOP","Bureau of Prisons");
-		agencies.put("BR","Bureau of Reclamation");
-		agencies.put("Caltrans","California Department of Transportation");
-		agencies.put("CHSRA","California High-Speed Rail Authority");
-		agencies.put("CIA","Central Intelligence Agency");
-		agencies.put("NYCOMB","City of New York, Office of Management and Budget");
-		agencies.put("CDBG","Community Development Block Grant");
-		agencies.put("CTDOH","Connecticut Department of Housing");
-		agencies.put("BRAC","Defense Base Closure and Realignment Commission");
-		agencies.put("DLA","Defense Logistics Agency");
-		agencies.put("DNA","Defense Nuclear Agency");
-		agencies.put("DNFSB","Defense Nuclear Fac. Safety Board");
-		agencies.put("DSA","Defense Supply Agency");
-		agencies.put("DRB","Delaware River Basin Commission");
-		agencies.put("DC","Denali Commission");
-		agencies.put("USDA","Department of Agriculture");
-		agencies.put("DOC","Department of Commerce");
-		agencies.put("DOD","Department of Defense");
-		agencies.put("DOE","Department of Energy");
-		agencies.put("HHS","Department of Health and Human Services");
-		agencies.put("DHS","Department of Homeland Security");
-		agencies.put("HUD","Department of Housing and Urban Development");
-		agencies.put("DOJ","Department of Justice");
-		agencies.put("DOL","Department of Labor");
-		agencies.put("DOS","Department of State");
-		agencies.put("DOT","Department of Transportation");
-		agencies.put("TREAS","Department of Treasury");
-		agencies.put("VA","Department of Veteran Affairs");
-		agencies.put("DOI","Department of the Interior");
-		agencies.put("DEA","Drug Enforcement Administration");
-		agencies.put("EDA","Economic Development Administration");
-		agencies.put("ERA","Energy Regulatory Administration");
-		agencies.put("ERDA","Energy Research and Development Administration");
-		agencies.put("EPA","Environmental Protection Agency");
-		agencies.put("FSA","Farm Service Agency");
-		agencies.put("FHA","Farmers Home Administration");
-		agencies.put("FAA","Federal Aviation Administration");
-		agencies.put("FCC","Federal Communications Commission");
-		agencies.put("FEMA","Federal Emergency Management Agency");
-		agencies.put("FEA","Federal Energy Administration");
-		agencies.put("FERC","Federal Energy Regulatory Commission");
-		agencies.put("FHWA","Federal Highway Administration");
-		agencies.put("FMC","Federal Maritime Commission");
-		agencies.put("FMSHRC","Federal Mine Safety and Health Review Commission");
-		agencies.put("FMCSA","Federal Motor Carrier Safety Administration");
-		agencies.put("FPC","Federal Power Commission");
-		agencies.put("FRA","Federal Railroad Administration");
-		agencies.put("FRBSF","Federal Reserve Bank of San Francisco");
-		agencies.put("FTA","Federal Transit Administration");
-		agencies.put("FirstNet","First Responder Network Authority");
-		agencies.put("USFWS","Fish and Wildlife Service");
-		agencies.put("FDOT","Florida Department of Transportation");
-		agencies.put("FDA","Food and Drug Administration");
-		agencies.put("USFS","Forest Service");
-		agencies.put("GSA","General Services Administration");
-		agencies.put("USGS","Geological Survey");
-		agencies.put("GLB","Great Lakes Basin Commission");
-		agencies.put("IHS","Indian Health Service");
-		agencies.put("IRS","Internal Revenue Service");
-		agencies.put("IBWC","International Boundary and Water Commission");
-		agencies.put("ICC","Interstate Commerce Commission");
-		agencies.put("JCS","Joint Chiefs of Staff");
-		agencies.put("MARAD","Maritime Administration");
-		agencies.put("MTB","Materials Transportation Bureau");
-		agencies.put("MSHA","Mine Safety and Health Administration");
-		agencies.put("MMS","Minerals Management Service");
-		agencies.put("MESA","Mining Enforcement and Safety");
-		agencies.put("MRB","Missouri River Basin Commission");
-		agencies.put("NASA","National Aeronautics and Space Administration");
-		agencies.put("NCPC","National Capital Planning Commission");
-		agencies.put("NGA","National Geospatial-Intelligence Agency");
-		agencies.put("NGB","National Guard Bureau");
-		agencies.put("NHTSA","National Highway Traffic Safety Administration");
-		agencies.put("NIGC","National Indian Gaming Commission");
-		agencies.put("NIH","National Institute of Health");
-		agencies.put("NMFS","National Marine Fisheries Service");
-		agencies.put("NNSA","National Nuclear Security Administration");
-		agencies.put("NOAA","National Oceanic and Atmospheric Administration");
-		agencies.put("NPS","National Park Service");
-		agencies.put("NSF","National Science Foundation");
-		agencies.put("NSA","National Security Agency");
-		agencies.put("NTSB","National Transportation Safety Board");
-		agencies.put("NRCS","Natural Resource Conservation Service");
-		agencies.put("NER","New England River Basin Commission");
-		agencies.put("NJDEP","New Jersey Department of Environmental Protection");
-		agencies.put("NRC","Nuclear Regulatory Commission");
-		agencies.put("OCR","Office of Coal Research");
-//		agencies.put("OSM","Office of Surface Mining"); // EPA mistake?
-		agencies.put("OSM","Office of Surface Mining Reclamation and Enforcement"); 
-		agencies.put("OSMRE","Office of Surface Mining Reclamation and Enforcement");
-		agencies.put("OBR","Ohio River Basin Commission");
-		agencies.put("RSPA","Research and Special Programs");
-		agencies.put("REA","Rural Electrification Administration");
-		agencies.put("RUS","Rural Utilities Service");
-		agencies.put("SEC","Security and Exchange Commission");
-		agencies.put("SBA","Small Business Administration");
-		agencies.put("SCS","Soil Conservation Service");
-		agencies.put("SRB","Souris-Red-Rainy River Basin Commission");
-		agencies.put("STB","Surface Transportation Board");
-		agencies.put("SRC","Susquehanna River Basin Commission");
-		agencies.put("TVA","Tennessee Valley Authority");
-		agencies.put("TxDOT","Texas Department of Transportation");
-		agencies.put("TPT","The Presidio Trust");
-		agencies.put("TDA","Trade and Development Agency");
-		agencies.put("USACE","U.S. Army Corps of Engineers");
-		agencies.put("USCG","U.S. Coast Guard");
-		agencies.put("CBP","U.S. Customs and Border Protection");
-		agencies.put("RRB","U.S. Railroad Retirement Board");
-		agencies.put("USAF","United States Air Force");
-		agencies.put("USA","United States Army");
-		agencies.put("USMC","United States Marine Corps");
-		agencies.put("USN","United States Navy");
-		agencies.put("USPS","United States Postal Service");
-		agencies.put("USTR","United States Trade Representative");
-		agencies.put("UMR","Upper Mississippi Basin Commission");
-		agencies.put("UMTA","Urban Mass Transportation Administration");
-		agencies.put("UDOT","Utah Department of Transportation");
-		agencies.put("URC","Utah Reclamation Mitigation and Conservation Commission");
-		agencies.put("WAPA","Western Area Power Administration");
+		if(agencies.size() == 0) {
+			agencies.put("ACHP","Advisory Council on Historic Preservation");
+			agencies.put("USAID","Agency for International Development");
+			agencies.put("ARS","Agriculture Research Service");
+			agencies.put("APHIS","Animal and Plant Health Inspection Service");
+			agencies.put("AFRH","Armed Forces Retirement Home");
+			agencies.put("BPA","Bonneville Power Administration");
+			agencies.put("BIA","Bureau of Indian Affairs");
+			agencies.put("BLM","Bureau of Land Management");
+			agencies.put("USBM","Bureau of Mines");
+			agencies.put("BOEM","Bureau of Ocean Energy Management");
+			agencies.put("BOP","Bureau of Prisons");
+			agencies.put("BR","Bureau of Reclamation");
+			agencies.put("Caltrans","California Department of Transportation");
+			agencies.put("CHSRA","California High-Speed Rail Authority");
+			agencies.put("CIA","Central Intelligence Agency");
+			agencies.put("NYCOMB","City of New York, Office of Management and Budget");
+			agencies.put("CDBG","Community Development Block Grant");
+			agencies.put("CTDOH","Connecticut Department of Housing");
+			agencies.put("BRAC","Defense Base Closure and Realignment Commission");
+			agencies.put("DLA","Defense Logistics Agency");
+			agencies.put("DNA","Defense Nuclear Agency");
+			agencies.put("DNFSB","Defense Nuclear Fac. Safety Board");
+			agencies.put("DSA","Defense Supply Agency");
+			agencies.put("DRB","Delaware River Basin Commission");
+			agencies.put("DC","Denali Commission");
+			agencies.put("USDA","Department of Agriculture");
+			agencies.put("DOC","Department of Commerce");
+			agencies.put("DOD","Department of Defense");
+			agencies.put("DOE","Department of Energy");
+			agencies.put("HHS","Department of Health and Human Services");
+			agencies.put("DHS","Department of Homeland Security");
+			agencies.put("HUD","Department of Housing and Urban Development");
+			agencies.put("DOJ","Department of Justice");
+			agencies.put("DOL","Department of Labor");
+			agencies.put("DOS","Department of State");
+			agencies.put("DOT","Department of Transportation");
+			agencies.put("TREAS","Department of Treasury");
+			agencies.put("VA","Department of Veteran Affairs");
+			agencies.put("DOI","Department of the Interior");
+			agencies.put("DEA","Drug Enforcement Administration");
+			agencies.put("EDA","Economic Development Administration");
+			agencies.put("ERA","Energy Regulatory Administration");
+			agencies.put("ERDA","Energy Research and Development Administration");
+			agencies.put("EPA","Environmental Protection Agency");
+			agencies.put("FSA","Farm Service Agency");
+			agencies.put("FHA","Farmers Home Administration");
+			agencies.put("FAA","Federal Aviation Administration");
+			agencies.put("FCC","Federal Communications Commission");
+			agencies.put("FEMA","Federal Emergency Management Agency");
+			agencies.put("FEA","Federal Energy Administration");
+			agencies.put("FERC","Federal Energy Regulatory Commission");
+			agencies.put("FHWA","Federal Highway Administration");
+			agencies.put("FMC","Federal Maritime Commission");
+			agencies.put("FMSHRC","Federal Mine Safety and Health Review Commission");
+			agencies.put("FMCSA","Federal Motor Carrier Safety Administration");
+			agencies.put("FPC","Federal Power Commission");
+			agencies.put("FRA","Federal Railroad Administration");
+			agencies.put("FRBSF","Federal Reserve Bank of San Francisco");
+			agencies.put("FTA","Federal Transit Administration");
+			agencies.put("FirstNet","First Responder Network Authority");
+			agencies.put("USFWS","Fish and Wildlife Service");
+			agencies.put("FDOT","Florida Department of Transportation");
+			agencies.put("FDA","Food and Drug Administration");
+			agencies.put("USFS","Forest Service");
+			agencies.put("GSA","General Services Administration");
+			agencies.put("USGS","Geological Survey");
+			agencies.put("GLB","Great Lakes Basin Commission");
+			agencies.put("IHS","Indian Health Service");
+			agencies.put("IRS","Internal Revenue Service");
+			agencies.put("IBWC","International Boundary and Water Commission");
+			agencies.put("ICC","Interstate Commerce Commission");
+			agencies.put("JCS","Joint Chiefs of Staff");
+			agencies.put("MARAD","Maritime Administration");
+			agencies.put("MTB","Materials Transportation Bureau");
+			agencies.put("MSHA","Mine Safety and Health Administration");
+			agencies.put("MMS","Minerals Management Service");
+			agencies.put("MESA","Mining Enforcement and Safety");
+			agencies.put("MRB","Missouri River Basin Commission");
+			agencies.put("NASA","National Aeronautics and Space Administration");
+			agencies.put("NCPC","National Capital Planning Commission");
+			agencies.put("NGA","National Geospatial-Intelligence Agency");
+			agencies.put("NGB","National Guard Bureau");
+			agencies.put("NHTSA","National Highway Traffic Safety Administration");
+			agencies.put("NIGC","National Indian Gaming Commission");
+			agencies.put("NIH","National Institute of Health");
+			agencies.put("NMFS","National Marine Fisheries Service");
+			agencies.put("NNSA","National Nuclear Security Administration");
+			agencies.put("NOAA","National Oceanic and Atmospheric Administration");
+			agencies.put("NPS","National Park Service");
+			agencies.put("NSF","National Science Foundation");
+			agencies.put("NSA","National Security Agency");
+			agencies.put("NTSB","National Transportation Safety Board");
+			agencies.put("NRCS","Natural Resource Conservation Service");
+			agencies.put("NER","New England River Basin Commission");
+			agencies.put("NJDEP","New Jersey Department of Environmental Protection");
+			agencies.put("NRC","Nuclear Regulatory Commission");
+			agencies.put("OCR","Office of Coal Research");
+//			agencies.put("OSM","Office of Surface Mining"); // EPA mistake?
+			agencies.put("OSM","Office of Surface Mining Reclamation and Enforcement"); 
+			agencies.put("OSMRE","Office of Surface Mining Reclamation and Enforcement");
+			agencies.put("OBR","Ohio River Basin Commission");
+			agencies.put("RSPA","Research and Special Programs");
+			agencies.put("REA","Rural Electrification Administration");
+			agencies.put("RUS","Rural Utilities Service");
+			agencies.put("SEC","Security and Exchange Commission");
+			agencies.put("SBA","Small Business Administration");
+			agencies.put("SCS","Soil Conservation Service");
+			agencies.put("SRB","Souris-Red-Rainy River Basin Commission");
+			agencies.put("STB","Surface Transportation Board");
+			agencies.put("SRC","Susquehanna River Basin Commission");
+			agencies.put("TVA","Tennessee Valley Authority");
+			agencies.put("TxDOT","Texas Department of Transportation");
+			agencies.put("TPT","The Presidio Trust");
+			agencies.put("TDA","Trade and Development Agency");
+			agencies.put("USACE","U.S. Army Corps of Engineers");
+			agencies.put("USCG","U.S. Coast Guard");
+			agencies.put("CBP","U.S. Customs and Border Protection");
+			agencies.put("RRB","U.S. Railroad Retirement Board");
+			agencies.put("USAF","United States Air Force");
+			agencies.put("USA","United States Army");
+			agencies.put("USMC","United States Marine Corps");
+			agencies.put("USN","United States Navy");
+			agencies.put("USPS","United States Postal Service");
+			agencies.put("USTR","United States Trade Representative");
+			agencies.put("UMR","Upper Mississippi Basin Commission");
+			agencies.put("UMTA","Urban Mass Transportation Administration");
+			agencies.put("UDOT","Utah Department of Transportation");
+			agencies.put("URC","Utah Reclamation Mitigation and Conservation Commission");
+			agencies.put("WAPA","Western Area Power Administration");
+		}
 	}
 	
 	
