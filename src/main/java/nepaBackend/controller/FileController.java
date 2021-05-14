@@ -1992,10 +1992,9 @@ public class FileController {
 //		}
 //	}
 	
-	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination */
+	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination, accounts for
+	 * missing apostrophes and commas also. */
 	private Optional<EISDoc> getEISDocByTitleTypeDate(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
-
-
 
 		// Try without apostrophes (legacy data has no apostrophes?)
 		String noApostropheTitle = title.replaceAll("'", "");
@@ -2072,7 +2071,8 @@ public class FileController {
 				url = new URL(testURL + filename);
 			}
 		} catch (MalformedURLException e1) {
-			throw new RuntimeException(e1);
+			return new ResponseEntity<Long>((long) 0, HttpStatus.BAD_REQUEST);
+//			throw new RuntimeException(e1);
 		}
 		
 		try {
@@ -2081,7 +2081,8 @@ public class FileController {
 			
 			return new ResponseEntity<Long>(conn.getContentLengthLong(), HttpStatus.OK);
 		} catch (IOException e) {
-			throw new RuntimeException(e);
+			return new ResponseEntity<Long>((long) 0, HttpStatus.INTERNAL_SERVER_ERROR);
+//			throw new RuntimeException(e);
 		} finally {
 			if (conn != null) {
 				conn.disconnect();
@@ -2651,12 +2652,9 @@ public class FileController {
 	}
 
 	/** 
-	 * Takes .tsv file with required headers and imports each valid, non-duplicate record.  Updates existing records
+	 * Admin-only.  Built to re-add missing commas and apostrophes.  Takes .tsv file with required headers and updates titles with incoming ones.
 	 * 
-	 * Valid records: Must have title/register_date/filename or folder/document_type, register_date must conform to one of
-	 * the formats in parseFormatters[]
-	 * 
-	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
+	 * @return List of strings with message per record (zero-based) indicating success/error 
 	 * and potentially more details */
 	@CrossOrigin
 	@RequestMapping(path = "/title_fix", method = RequestMethod.POST, consumes = "multipart/form-data")
