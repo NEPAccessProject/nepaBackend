@@ -99,7 +99,7 @@ public class Globals {
 	}
 	
 	public static String normalizeSpace(String str) {
-		return org.apache.commons.lang3.StringUtils.normalizeSpace(str);
+		return org.apache.commons.lang3.StringUtils.normalizeSpace(str).strip();
 	}
 
 
