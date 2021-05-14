@@ -174,10 +174,10 @@ public class FileController {
 					if(response != null) {
 						doc.setSize(response);
 					} 
-//					else {
-						// If file isn't found, set size to 0? Or leave it as null?
-//						doc.setSize((long) 0);
-//					}
+					else {
+						// If file isn't found, set size to 0
+						doc.setSize((long) 0);
+					}
 					docRepository.save(doc);
 				}
 			}
