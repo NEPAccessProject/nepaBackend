@@ -3223,14 +3223,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
 
-		int fragmentSizeCustom = unhighlighted.getFragmentSizeValue();
-		if(fragmentSizeCustom == 0) {
-			fragmentSizeCustom = 250;
-		} else if(fragmentSizeCustom == 1) {
-			fragmentSizeCustom = 500;
-		} else {
-			fragmentSizeCustom = 1000;
-		}
+		int fragmentSizeCustom = setFragmentSize(unhighlighted.getFragmentSizeValue());
 		
 		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
 			ArrayList<String> result = new ArrayList<String>();
