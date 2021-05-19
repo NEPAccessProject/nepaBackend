@@ -99,6 +99,9 @@ public class Globals {
 	}
 	/** return ( str.replace('�', ' ').replaceAll("\\s", " ") ).strip(); */
 	public static String normalizeSpace(String str) {
+		if(str == null) {
+			return "";
+		}
 		// At some point, NBSP from importing through webapp is interpreted as �, so replace with a regular space, then normalize other whitespace.
 		return ( str.replace('�', ' ').replaceAll("\\s", " ") ).strip();
 	}
