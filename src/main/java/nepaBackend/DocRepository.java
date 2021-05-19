@@ -228,7 +228,8 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	@Query(value = "SELECT * "
 			+ "FROM test.eisdoc "
-			+ "WHERE size<=200;",
+			+ "WHERE size<=200 "
+			+ "OR size is null;",
 			nativeQuery = true)
 	List<EISDoc> findMissingSize();
 
