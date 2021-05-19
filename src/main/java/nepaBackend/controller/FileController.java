@@ -3009,7 +3009,7 @@ public class FileController {
 			
 			String token = headers.get("authorization");
 			
-			if(!isCurator(token) && !isAdmin(token)) 
+			if(!isAdmin(token)) 
 			{
 				return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 			} 
