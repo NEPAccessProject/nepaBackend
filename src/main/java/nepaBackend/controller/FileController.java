@@ -1888,8 +1888,8 @@ public class FileController {
 		// Original data has no apostrophes, so a better dupe check ORs the results of comparing both with the original title, and 
 		// a title without apostrophes, specifically
 		String noApostropheTitle = title.replaceAll("'", "");
-		return (docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), LocalDate.parse(date)).isPresent()
-				|| docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(noApostropheTitle.trim(), type.trim(), LocalDate.parse(date)).isPresent()
+		return (docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), parseDate(date)).isPresent()
+				|| docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(noApostropheTitle.trim(), type.trim(), parseDate(date)).isPresent()
 			);
 		}
 	
@@ -2001,7 +2001,7 @@ public class FileController {
 		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
 				noApostropheTitle, 
 				type.strip(), 
-				LocalDate.parse(date));
+				parseDate(date));
 		
 		if(!docToReturn.isPresent()) {
 			
@@ -2010,7 +2010,7 @@ public class FileController {
 			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
 					noCommaTitle, 
 					type.strip(), 
-					LocalDate.parse(date));
+					parseDate(date));
 			
 			// Try without apostrophes or commas? (legacy data has no apostrophes)
 			if(!docToReturn.isPresent()) {
@@ -2018,14 +2018,14 @@ public class FileController {
 				docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
 						noApostrophesCommasTitle, 
 						type.strip(), 
-						LocalDate.parse(date));
+						parseDate(date));
 				
 				// Try with unmodified title
 				if(!docToReturn.isPresent()) {
 					docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
 							title, 
 							type.strip(), 
-							LocalDate.parse(date));
+							parseDate(date));
 				} // else no match
 			}
 		}
@@ -2056,7 +2056,10 @@ public class FileController {
 	
 
 	/** 
-	 * Returns file size starting from base path if available
+	 * Returns file size starting from base path if available.
+	 * Ubuntu seems to return 178 bytes when a file is missing entirely, whereas windows returns a -1.
+	 * So if we ever care about and have 178 byte-sized files on disk, maybe this is a problem.  Until then,
+	 * the frontend should ignore that size as if it's 0 or -1.
 	 **/
 	@CrossOrigin
 	@RequestMapping(path = "/file_size", method = RequestMethod.GET)
@@ -2128,12 +2131,15 @@ public class FileController {
 		newRecord.setDocumentType(Globals.normalizeSpace(itr.document));
 		newRecord.setFilename(itr.filename);
 		newRecord.setCommentsFilename(itr.comments_filename);
-		// can't be null or blank
-		newRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+		if(itr.federal_register_date == null || itr.federal_register_date.isBlank()) {
+			// skip
+		} else {
+			newRecord.setRegisterDate(parseDate(itr.federal_register_date));
+		}
 		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
 			// skip
 		} else {
-			newRecord.setCommentDate(LocalDate.parse(itr.epa_comment_letter_date));
+			newRecord.setCommentDate(parseDate(itr.epa_comment_letter_date));
 		}
 		newRecord.setState(Globals.normalizeSpace(itr.state));
 		newRecord.setTitle(Globals.normalizeSpace(itr.title));
@@ -2742,6 +2748,228 @@ public class FileController {
 		}
 
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+
+
+	/** 
+	 * Takes .csv file with required headers and imports:
+	 * New records with types like ROD/NOI/...
+	 * Does not import new with these types:
+	 * 		"Final"
+			"Final Revised"
+			"Second Final"
+			"Revised Final"
+			"Final Supplement"
+			"Final Supplemental"
+			"Second Final Supplemental"
+			"Third Final Supplemental"
+			"Draft"
+			"Draft Revised"
+			"Second Draft"
+			"Revised Draft"
+			"Draft Supplement"
+			"Draft Supplemental"
+			"Second Draft Supplemental"
+			"Third Draft Supplemental"
+	 * UPDATES existing records with incoming EIS identifier to records missing files, 
+	 * but does NOT update state because the incoming data has mistakes
+	 * 
+	 * @return List of records that are one of the draft/final types that did not match anything (implying there's a matching issue because they should
+	 * already exist and we want to connect files to them)
+	 * and newly created or updated records */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_constraints", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSVCustomConstraints(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		
+		fillAgencies();
+		
+		String token = headers.get("authorization");
+		
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		List<String> results = new ArrayList<String>();
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+		    // Ensure metadata is valid
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				
+				// Handle any leading/trailing invisible characters, double spacing
+				itr.title = Globals.normalizeSpace(itr.title);
+				// Handle any agency abbreviations
+				itr.agency = agencyAbbreviationToFull(itr.agency);
+				
+			    // Need at least title, date, type for matching (can't verify unique item otherwise)
+			    if(canMatchCustom(itr)) {
+
+			    	boolean error = false;
+					
+					if(!error) {
+						// Deduplication
+						
+						List<EISDoc> recordsThatMayExist = getEISDocsByTitleTypeDate(itr.title, itr.document);
+						
+						// If too many records exist, return special message (multi-match)
+						if(recordsThatMayExist.size() > 1) {
+							results.add("Item " + count + ": Too many matches ("+recordsThatMayExist.size()+"): " + itr.title);
+						}
+						// If record exists but has no folder, then update the folder
+						else if(!recordsThatMayExist.isEmpty() && 
+								(recordsThatMayExist.get(0).getFolder() == null || recordsThatMayExist.get(0).getFolder().isBlank())
+						) {
+							ResponseEntity<Long> status = updateDtoJustFolder(itr, recordsThatMayExist.get(0));
+							
+							if(status.getStatusCodeValue() == 500) { // Error
+								results.add("Item " + count + ": Error saving: " + itr.title);
+					    	} else {
+								results.add("Item " + count + ": Updated EIS identifier (folder name): " + itr.title);
+					    	}
+						}
+						// If file doesn't exist, then create new record - unless it matches the draft or final types
+						else if(recordsThatMayExist.isEmpty()) { 
+							if(isDraftOrFinalEIS(itr.document)) {
+					    		results.add("Item " + count + ": Unmatched draft or final:"
+					    				+ " #TITLE: " + itr.title 
+					    				+ " #TYPE: " + itr.document 
+					    				+ " #DATE: " + itr.federal_register_date
+					    				+ " #FOLDER: " + itr.eis_identifier);
+							} else {
+							    ResponseEntity<Long> status = saveDto(itr); // save record to database
+						    	if(status.getStatusCodeValue() == 500) { // Error
+									results.add("Item " + count + ": Error saving: " + itr.title);
+						    	} else {
+						    		results.add("Item " + count + ": Created: " + itr.title);
+						    	}
+							}
+				    	} else {
+							results.add("Item " + count + ": Already has folder (no action): #EXISTING FOLDER: " 
+									+ recordsThatMayExist.get(0).getFolder() + " #INCOMING FOLDER: " + itr.eis_identifier + " #TITLE: " + itr.title);
+				    	}
+					}
+			    } else {
+					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/Title");
+			    }
+			    count++;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+
+
+	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination, accounts for
+	 * missing apostrophes and commas also. */
+	private List<EISDoc> getEISDocsByTitleTypeDate(@RequestParam String title, @RequestParam String type) {
+
+		// Try without apostrophes (legacy data has no apostrophes?)
+		String noApostropheTitle = title.replaceAll("'", "");
+		List<EISDoc> docsToReturn = docRepository.findAllByTitleAndDocumentTypeIn(
+				noApostropheTitle, 
+				type.strip());
+		
+		if(docsToReturn.isEmpty()) {
+			
+			// Try without commas (legacy data has no commas?)
+			String noCommaTitle = title.replaceAll(",", "");
+			docsToReturn = docRepository.findAllByTitleAndDocumentTypeIn(
+					noCommaTitle, 
+					type.strip());
+			
+			// Try without apostrophes or commas? (legacy data has no apostrophes)
+			if(docsToReturn.isEmpty()) {
+				String noApostrophesCommasTitle = noCommaTitle.replaceAll("'", "");
+				docsToReturn = docRepository.findAllByTitleAndDocumentTypeIn(
+						noApostrophesCommasTitle, 
+						type.strip());
+				
+				// Try with unmodified title
+				if(docsToReturn.isEmpty()) {
+					docsToReturn = docRepository.findAllByTitleAndDocumentTypeIn(
+							title, 
+							type.strip());
+				} // else no match
+			}
+		}
+
+		return docsToReturn;
+	}
+
+
+	private boolean isDraftOrFinalEIS(String document) {
+		boolean result = false;
+		
+		if(		   document.equalsIgnoreCase("Final")
+				|| document.equalsIgnoreCase("Final Revised")
+				|| document.equalsIgnoreCase("Second Final")
+				|| document.equalsIgnoreCase("Revised Final")
+				|| document.equalsIgnoreCase("Final Supplement")
+				|| document.equalsIgnoreCase("Final Supplemental")
+				|| document.equalsIgnoreCase("Second Final Supplemental")
+				|| document.equalsIgnoreCase("Third Final Supplemental")
+				|| document.equalsIgnoreCase("Draft")
+				|| document.equalsIgnoreCase("Draft Revised")
+				|| document.equalsIgnoreCase("Second Draft")
+				|| document.equalsIgnoreCase("Revised Draft")
+				|| document.equalsIgnoreCase("Draft Supplement")
+				|| document.equalsIgnoreCase("Draft Supplemental")
+				|| document.equalsIgnoreCase("Second Draft Supplemental")
+				|| document.equalsIgnoreCase("Third Draft Supplemental")
+			) 
+		{
+			result = true;
+		}
+		return result;
+	}
+
+
+	/** Expects matching record and new folder; updates; preserves most metadata */
+	private ResponseEntity<Long> updateDtoJustFolder(UploadInputs itr, EISDoc existingRecord) {
+
+		if(existingRecord == null) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+
+		existingRecord.setFolder(itr.eis_identifier);
+		if(itr.link != null && itr.link.length() > 0) {
+			existingRecord.setLink(itr.link.strip());
+		}
+		if(itr.notes != null && itr.notes.length() > 0) {
+			existingRecord.setNotes(itr.notes);
+		}
+		
+		docRepository.save(existingRecord); // save to db, ID shouldn't change
+		
+		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
+	}
+
+
+	private boolean canMatchCustom(UploadInputs dto) {
+		boolean valid = true;
+	
+		if(dto.title == null || dto.document == null) {
+			valid = false;
+			return valid; // Just stop here and don't have to worry about validating null values
+		}
+		// Check for empty
+		if(dto.title.isBlank()) {
+			valid = false; // Need title
+		}
+	
+		if(dto.document.isBlank()) {
+			valid = false; // Need type
+		}
+	
+		return valid;
 	}
 
 

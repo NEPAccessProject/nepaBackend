@@ -237,4 +237,6 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "WHERE size<=200;",
 			nativeQuery = true)
 	List<Object[]> findMissingNames();
+
+	List<EISDoc> findAllByTitleAndDocumentTypeIn(String title, String documentType);
 }
