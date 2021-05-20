@@ -999,7 +999,7 @@ public class FileController {
 			
 					    // If file uploaded, proceed to import and logging
 					    if(uploaded) {
-					    	results[i] = "OK" + " __ " + files[i].getOriginalFilename();
+					    	results[i] = "OK: " + files[i].getOriginalFilename();
 					    	// Save NEPAFile
 
 					    	// Because NEPAFiles don't exist for legacy archives,
@@ -1032,7 +1032,7 @@ public class FileController {
 					    	// Save FileLog
 					    	
 					    	if(savedNEPAFile == null) {
-						    	results[i] = "Duplicate (File exists, nothing done)" + " __ " + origFilename;
+						    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
 					    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 					    	} else {
 					    		uploadLog.setFilename(savePath + origFilename); // full path
@@ -1052,11 +1052,11 @@ public class FileController {
 					    	}
 					    } else {
 					    	// File already exists in legacy style
-					    	results[i] = "Couldn't upload" + " __ " + origFilename;
+					    	results[i] = "Couldn't upload: " + origFilename;
 					    }
 			    	} else {
 				    	// Do nothing (reject file: no upload, no log)
-				    	results[i] = "No folder and no filename match" + " __ " + files[i].getOriginalFilename();
+				    	results[i] = "No folder and no filename match: " + files[i].getOriginalFilename();
 			    	}
 			    } else if(metadataExists(folderName)){
 			    	// If metadata exists we can link this to something, therefore proceed with upload
@@ -1089,7 +1089,7 @@ public class FileController {
 				    // If file uploaded, see if we can link it, then proceed to saving to table and logging
 				    List<EISDoc> existingDocs = docRepository.findAllByFolder(folderName);
 				    if(uploaded) {
-				    	results[i] = "OK" + " __ " + files[i].getOriginalFilename();
+				    	results[i] = "OK: " + files[i].getOriginalFilename();
 				    	// Save NEPAFile
 
 				    	// 1. Requires ability to link from previous CSV import
@@ -1100,12 +1100,14 @@ public class FileController {
 				    	// (hopefully never actually happens or else someone messed up)
 				    	// If it does happen, log and save to the first in the list found by JPA
 
+				    	// This can throw a java.util.NoSuchElementException: No value present 
+				    	// if we can't actually find a match for this foldername and document type
 				    	NEPAFile savedNEPAFile = handleNEPAFileSave(origFilename, existingDocs);
 				    	
 				    	// Save FileLog
 				    	
 				    	if(savedNEPAFile == null) {
-					    	results[i] = "Duplicate (File exists, nothing done)" + " __ " + origFilename;
+					    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
 				    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 				    	} else {
 				    		uploadLog.setFilename(getPathOnly(origFilename) + getFilenameOnly(origFilename)); // full path incl. filename with agency base folder subbed in if needed
@@ -1130,16 +1132,18 @@ public class FileController {
 						    }
 				    	}
 				    } else {
-				    	results[i] = "Couldn't upload" + " __ " + origFilename;
+				    	results[i] = "Couldn't upload: " + origFilename;
 				    }
 			    } else {
 			    	// Inform client this file can't be linked to anything, and has been rejected
-			    	results[i] = "Can't link file" + " __ " + origFilename;
+			    	results[i] = "Can't link file (no folder or filename match in metadata): " + origFilename;
 			    }
 	
+		    } catch (java.util.NoSuchElementException e) {
+				results[i] = "Can't link (no match for folder with document type): " + files[i].getOriginalFilename();
 			} catch (Exception e) {
-//				e.printStackTrace();
-				results[i] = "Exception:: " + e.getMessage() + " __ " + files[i].getOriginalFilename();
+				e.printStackTrace();
+				results[i] = "Exception:: " + e.getMessage() + ": " + files[i].getOriginalFilename();
 			} finally {
 			    files[i].getInputStream().close();
 			    if(uploadLog.getUser() != null) { 
