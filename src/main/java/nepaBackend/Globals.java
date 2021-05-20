@@ -103,7 +103,8 @@ public class Globals {
 			return "";
 		}
 		// At some point, NBSP from importing through webapp is interpreted as �, so replace with a regular space, then normalize other whitespace.
-		return ( str.replace('�', ' ').replaceAll("\\s", " ") ).strip();
+		// Need the + to remove double spaces (or more), or else each individual space is replaced with a space, which doesn't help
+		return ( str.replace('�', ' ').replaceAll("\\s+", " ") ).strip();
 	}
 
 
