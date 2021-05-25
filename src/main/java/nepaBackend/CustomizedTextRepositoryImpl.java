@@ -3152,9 +3152,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 								1)
 								.toString();
 						
-						if(highlight.length() > 500) { //c'mon
+						if(highlight.length() > fragmentSizeCustom) { //c'mon
 							int firstHitAt = highlight.indexOf("<b>");
-							highlight = highlight.substring(Math.max(firstHitAt - 250, 0), Math.min(firstHitAt + 250, highlight.length()));
+							highlight = highlight.substring(Math.max(firstHitAt - (fragmentSizeCustom / 2), 0), Math.min(firstHitAt + (fragmentSizeCustom / 2), highlight.length()));
 						}
 						result.add(
 //								"<span class=\"fragment\">... " + 
