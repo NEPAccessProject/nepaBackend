@@ -358,7 +358,8 @@ public class FileController {
 	
 
 	/** Run convertRecord for all IDs in db.  (Conversion handles null filenames 
-	 * (of which there are none because they're empty strings by default) and deduplication) */
+	 * (of which there are none because they're empty strings by default) and deduplication). 
+	 * Does not handle folders. */
 	@CrossOrigin
 	@RequestMapping(path = "/bulk", method = RequestMethod.GET)
 	public ResponseEntity<ArrayList<String>> bulk(@RequestHeader Map<String, String> headers) {
@@ -921,7 +922,7 @@ public class FileController {
 	 * For each file, assumes a base folder that ends in a number (identifying folder)
 	 * If that doesn't exist, rejects that file because it can't ever be automatically connected to a record 
 	 * (would be forever unlinked/orphaned)
-	 * TODO: Accept big pile of archives, no folders
+	 * TODO: Accept big pile of archives, no folders?
 	 * */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFilesBulk", method = RequestMethod.POST, consumes = "multipart/form-data")
@@ -1733,6 +1734,7 @@ public class FileController {
 	}
 
 
+	/** Records with folders are deliberately skipped here; they should be handled by other functions. */
 	private ResponseEntity<Void> convertRecord(EISDoc eis) {
 
 		// Check to make sure this record exists.
@@ -2763,7 +2765,7 @@ public class FileController {
 	/** 
 	 * Takes .csv file with required headers and imports:
 	 * New records with types like ROD/NOI/...
-	 * Does not import new with these types:
+	 * Amended: Also imports new with these types (hopefully curated):
 	 * 		"Final"
 			"Final Revised"
 			"Second Final"
@@ -2780,8 +2782,8 @@ public class FileController {
 			"Draft Supplemental"
 			"Second Draft Supplemental"
 			"Third Draft Supplemental"
-	 * UPDATES existing records with incoming EIS identifier to records missing files, 
-	 * but does NOT update state because the incoming data has mistakes
+	 * Updates existing records with incoming EIS identifier to records missing files, 
+	 * but does NOT update state, because the incoming data has mistakes
 	 * 
 	 * @return List of records that are one of the draft/final types that did not match anything (implying there's a matching issue because they should
 	 * already exist and we want to connect files to them)
@@ -2835,26 +2837,38 @@ public class FileController {
 						else if(!recordsThatMayExist.isEmpty() && 
 								(recordsThatMayExist.get(0).getFolder() == null || recordsThatMayExist.get(0).getFolder().isBlank())
 						) {
-							ResponseEntity<Long> status = updateDtoJustFolder(itr, recordsThatMayExist.get(0));
-							
-							if(status.getStatusCodeValue() == 500) { // Error
-								results.add("Item " + count + ": Error saving: " + itr.title);
-					    	} else {
-								results.add("Item " + count + ": Updated EIS identifier (folder name): " + itr.title);
-					    	}
+							if(recordsThatMayExist.get(0).getFilename() == null || recordsThatMayExist.get(0).getFilename().isBlank())
+							{
+								ResponseEntity<Long> status = updateDtoJustFolder(itr, recordsThatMayExist.get(0));
+								
+								if(status.getStatusCodeValue() == 500) { // Error
+									results.add("Item " + count + ": Error saving: " + itr.title);
+						    	} else {
+									results.add("Item " + count + ": Updated EIS identifier (folder name): " + itr.title);
+						    	}
+							} else {
+								// TODO: When we have a strategy for replacement, we can add folder information.
+								// Until then, skip:
+								results.add("Item " + count + ": Skipped due to existing filename: " + itr.title);
+							}
 						}
-						// If file doesn't exist, then create new record - unless it matches the draft or final types
+						// If file doesn't exist, then create new record - even if it matches the draft or final types
 						else if(recordsThatMayExist.isEmpty()) { 
 							if(isDraftOrFinalEIS(itr.document)) {
-					    		results.add("Item " + count + ": Unmatched draft or final:"
-					    				+ " #TITLE: " + itr.title 
-					    				+ " #TYPE: " + itr.document 
-					    				+ " #DATE: " + itr.federal_register_date
-					    				+ " #FOLDER: " + itr.eis_identifier);
+							    ResponseEntity<Long> status = saveDto(itr); // save record to database
+						    	if(status.getStatusCodeValue() == 500) { // Error
+									results.add("Item " + count + ": Error creating draft or final: " + itr.title);
+						    	} else {
+						    		results.add("Item " + count + ": Created draft or final:"
+						    				+ " #TITLE: " + itr.title 
+						    				+ " #TYPE: " + itr.document 
+						    				+ " #DATE: " + itr.federal_register_date
+						    				+ " #FOLDER: " + itr.eis_identifier);
+						    	}
 							} else {
 							    ResponseEntity<Long> status = saveDto(itr); // save record to database
 						    	if(status.getStatusCodeValue() == 500) { // Error
-									results.add("Item " + count + ": Error saving: " + itr.title);
+									results.add("Item " + count + ": Error creating: " + itr.title);
 						    	} else {
 						    		results.add("Item " + count + ": Created: " + itr.title);
 						    	}
