@@ -577,10 +577,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	public boolean sync() {
 		SearchSession searchSession = org.hibernate.search.mapper.orm.Search.session(em);
 		
-		MassIndexer indexer = searchSession.massIndexer( DocumentText.class, EISDoc.class ); 
+		
+//		MassIndexer indexer = searchSession.massIndexer( DocumentText.class, EISDoc.class ); 
 
 		try {
-			indexer.startAndWait();
+//			indexer.startAndWait();
+			searchSession.massIndexer().startAndWait();
 		} catch (InterruptedException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -2870,7 +2872,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return results;
 	}
 
-	/** Search both fields at once with MultiSearcher and return in combined scored order with lucene IDs */
+	/** Search both fields at once and return in combined scored order with lucene IDs */
 	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception {
 		long startTime = System.currentTimeMillis();
 		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
