@@ -56,6 +56,12 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	List<EISDoc> findByFilenameNotEmpty();
 
+	@Query(value = "SELECT * FROM eisdoc"
+			+ " WHERE filename IS NOT NULL"
+			+ " AND LENGTH(filename) > 0",
+			nativeQuery = true)
+	List<EISDoc> findAllWithFilenames();
+
 	List<EISDoc> findAllByTitle(String title);
 
 	Optional<EISDoc> findTopByFilename(String filename);
@@ -240,4 +246,5 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<Object[]> findMissingNames();
 
 	List<EISDoc> findAllByTitleAndDocumentTypeIn(String title, String documentType);
+
 }
