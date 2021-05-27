@@ -274,6 +274,7 @@ public class FileController {
 
 				// Format URI properly (%20 for spaces in folder, file name...)
 				String fullPath = encodeURIComponent(nepaFile.getRelativePath() + nepaFile.getFilename());
+				
 				URL fileURL = new URL(dbURL + fullPath);
 				if(testing) {
 					fileURL = new URL(testURL + fullPath);
@@ -3168,6 +3169,12 @@ public class FileController {
 		List<EISDoc> docsWithFilenames = docRepository.findAllWithFilenames();
 		List<String> createdFolders = new ArrayList<String>(docsWithFilenames.size());
 		
+
+		if(testing) { 
+			docsWithFilenames = new ArrayList<EISDoc>();
+			docsWithFilenames.add(docRepository.findById(22).get());
+		}
+		
 		// 3. If EISDoc has no folder, then:
 		//		a. extract to self-named folder sans .zip extension AND
 		//		b. add that folder name to eisdoc as folder field
@@ -3188,11 +3195,24 @@ public class FileController {
 				// drop extension and use that as folder name
 				folder = filename.substring(0, filename.length()-4);
 				
-				boolean result = unzipper.unzip(filename);
+				// result should be a list of filenames, or null if it failed
+				List<String> result = unzipper.unzip(filename);
 				
-				if(result) { // save folder and add to results
+				if(result != null) { // save folder and add to results
 					doc.setFolder(folder);
 					docRepository.save(doc);
+					
+					// we need to make a nepafile entry for every extracted file to support downloads
+					for(int j = 0; j < result.size(); j++) {
+						NEPAFile x = new NEPAFile();
+						x.setDocumentType(doc.getDocumentType());
+						x.setEisdoc(doc);
+						x.setFolder(folder);
+						x.setFilename(result.get(j));
+						x.setRelativePath('/'+folder+'/');
+						nepaFileRepository.save(x);
+					}
+					
 					createdFolders.add(folder);
 				}
 			}

@@ -11,6 +11,10 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.util.EntityUtils;
+
+import com.github.openjson.JSONArray;
+import com.github.openjson.JSONObject;
 
 /**
  * Extracts files of a .zip URL to
@@ -70,12 +74,8 @@ public class ZipExtractor {
 //    }
     
 	// Give the relevant .js service enough info to extract this archive to the proper folder
-    public boolean unzip(String filename) throws IOException {
-    	boolean result = false;
-    	
-    	result = extractRemotely(filename);
-    	
-        return result;
+    public List<String> unzip(String filename) throws IOException {
+    	return extractRemotely(filename);
     }
     
 //    private void extractFile(ZipInputStream zipIn, String filePath) throws IOException {
@@ -128,7 +128,7 @@ public class ZipExtractor {
 //	    return extracted;
 //    }
 
-    private boolean extractRemotely(String filename) throws IOException {
+    private List<String> extractRemotely(String filename) throws IOException {
     	CloseableHttpClient httpClient = HttpClients.createDefault();
         List<NameValuePair> arguments = new ArrayList<>();
         arguments.add(new BasicNameValuePair("filename", filename));
@@ -138,15 +138,26 @@ public class ZipExtractor {
 	    request.setEntity(new UrlEncodedFormEntity(arguments));
 	    
 	    HttpResponse response = httpClient.execute(request);
+	    boolean extracted = (response.getStatusLine().getStatusCode() == 200);
+	    List<String> results = null;
 	    
-	    if(Globals.TESTING) {
-		    System.out.println(response.toString());
+	    if(extracted) {
+		    String jsonString = EntityUtils.toString(response.getEntity());
+		    JSONObject json = new JSONObject(jsonString);
+		    JSONArray x = json.getJSONArray("filenames");
+		    results = new ArrayList<String>(x.length());
+		    for(int i = 0; i < x.length(); i++) {
+		    	if(Globals.TESTING) {
+		    		System.out.println("Result " + i+":"+x.getString(i));
+		    	}
+		    	results.add(x.getString(i));
+		    }
 	    }
 	    
-	    boolean extracted = (response.getStatusLine().getStatusCode() == 200);
-	    
 	    httpClient.close();
-	    return extracted;
+
+	    return results;
+	    
     }
     
     
