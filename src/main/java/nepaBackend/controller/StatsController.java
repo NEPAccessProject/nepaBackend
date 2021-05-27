@@ -2,6 +2,8 @@ package nepaBackend.controller;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -11,15 +13,19 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import nepaBackend.DocRepository;
+import nepaBackend.TextRepository;
 
 @RestController
 @RequestMapping("/stats")
 public class StatsController {
 
+	@Autowired
 	private DocRepository docRepository;
+	private TextRepository textRepository;
 	
-	public StatsController(DocRepository docRepository) {
+	public StatsController(DocRepository docRepository, TextRepository textRepository) {
 		this.docRepository = docRepository;
+		this.textRepository = textRepository;
 	}
 
 	@CrossOrigin
@@ -35,6 +41,23 @@ public class StatsController {
 			//	}
 //			e.printStackTrace();
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+
+	@CrossOrigin
+	@GetMapping(path = "/text_count", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Long> getTextCount() {
+		try {
+			return new ResponseEntity<Long>(textRepository.count(), HttpStatus.OK);
+		} catch (Exception e) {
+			//	if (log.isDebugEnabled()) {
+			//		log.debug(e);
+			//	}
+//			e.printStackTrace();
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	
