@@ -212,6 +212,33 @@ public class StatsController {
 			return new ResponseEntity<List<Integer>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+
+	@CrossOrigin
+	@GetMapping(path = "/earliest_year", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Integer> getEarliestYear() {
+		try {
+			Object result = docRepository.getEarliestYear();
+			int formattedResult = Integer.parseInt(String.valueOf(result));
+			return new ResponseEntity<Integer>(formattedResult, HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<Integer>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	@CrossOrigin
+	@GetMapping(path = "/latest_year", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Integer> getLatestYear() {
+		try {
+			Object result = docRepository.getLatestYear();
+			int formattedResult = Integer.parseInt(String.valueOf(result));
+			return new ResponseEntity<Integer>(formattedResult, HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<Integer>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 	
 	/** dynamically pull and include a number for “draft records” (i.e., say “x”) and for the 
 	 * corresponding searchable / downloadable draft PDF (say x1) files. Add those numbers

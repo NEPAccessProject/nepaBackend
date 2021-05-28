@@ -247,4 +247,17 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	List<EISDoc> findAllByTitleAndDocumentTypeIn(String title, String documentType);
 
+	@Query(value = "SELECT distinct year(e.register_date) from " + 
+			"(select distinct size,register_date from eisdoc " + 
+			"WHERE size > 200 AND register_date is not null " + 
+			"order by register_date asc limit 1 ) e",
+			nativeQuery = true)
+	Object getEarliestYear();
+	@Query(value = "SELECT distinct year(e.register_date) from " + 
+			"(select distinct size,register_date from eisdoc " + 
+			"WHERE size > 200 AND register_date is not null " + 
+			"order by register_date desc limit 1 ) e",
+			nativeQuery = true)
+	Object getLatestYear();
+
 }
