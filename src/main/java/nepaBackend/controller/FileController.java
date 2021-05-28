@@ -222,9 +222,10 @@ public class FileController {
 		try {
 			// TODO: if not .zip try adding .pdf first?  Client will need file type and we need to capture all the files to deliver
 			// potentially in a zip
-			URL fileURL = new URL(dbURL + filename);
+			URL fileURL = new URL(dbURL + encodeURIComponent(filename));
 			if(testing) {
-				fileURL = new URL(testURL + filename);
+				System.out.println("Got ask for "+ filename + ": " + encodeURIComponent(filename));
+				fileURL = new URL(testURL + encodeURIComponent(filename));
 			}
 			InputStream in = new BufferedInputStream(fileURL.openStream());
 			long length = getFileSize(fileURL); // for Content-Length for progress bar
@@ -236,6 +237,8 @@ public class FileController {
 			IOUtils.copy(in, out);
 			
 			response.flushBuffer();
+			
+			in.close();
 			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
 		} catch (Exception e) {
 		// TODO: Log missing file errors in db file log?  Verify file doesn't exist and then remove filename from record?
@@ -316,6 +319,49 @@ public class FileController {
 		}
 	}
 	
+	
+	/** Handles individual downloads using nepafile path */
+	@CrossOrigin
+	@RequestMapping(path = "/download_nepa_file", method = RequestMethod.GET)
+	public ResponseEntity<Void> downloadNepaFile(HttpServletRequest request, HttpServletResponse response,
+			@RequestParam String id, String filename) {
+		try {
+
+			// Get full folder path from nepafile for eis (or path would work) and then zip that folder's contents
+			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
+//			System.out.println("Size " + nepaFiles.size());
+			if(nepaFiles.size() == 0) {
+				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+			}
+			
+			// Format URI properly (%20 for spaces in folder, file name...)
+			String fullPath = encodeURIComponent(nepaFiles.get(0).getRelativePath() + filename);
+			
+			URL fileURL = new URL(dbURL + fullPath);
+			if(testing) {
+				fileURL = new URL(testURL + fullPath);
+			}
+			
+			InputStream in = new BufferedInputStream(fileURL.openStream());
+			long length = getFileSize(fileURL); // for Content-Length for progress bar
+			
+			response.addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\""); 
+			response.addHeader("Content-Length", length + ""); 
+			
+			ServletOutputStream out = response.getOutputStream();
+			IOUtils.copy(in, out);
+			
+			response.flushBuffer();
+
+	        in.close();
+			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
+		} catch(Exception e) {
+			
+			if(testing) {e.printStackTrace();}
+			
+			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+		} 
+	}
 	
 
 	/** Return all file logs */
