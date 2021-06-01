@@ -3218,7 +3218,7 @@ public class FileController {
 
 		if(testing || true) { 
 			docsWithFilenames = new ArrayList<EISDoc>();
-			docsWithFilenames.add(docRepository.findById(22).get());
+			docsWithFilenames.add(docRepository.findById(15521).get()); // 22 is a good test
 			// 9118 has the problem archive which starts with absolute path //
 		}
 		
