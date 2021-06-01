@@ -152,6 +152,8 @@ public class ZipExtractor {
 		    	}
 		    	results.add(x.getString(i));
 		    }
+	    } else {
+	    	System.out.println("Extractor exception: " + response.getStatusLine());
 	    }
 	    
 	    httpClient.close();

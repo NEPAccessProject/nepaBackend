@@ -3216,9 +3216,10 @@ public class FileController {
 		List<String> createdFolders = new ArrayList<String>(docsWithFilenames.size());
 		
 
-		if(testing) { 
+		if(testing || true) { 
 			docsWithFilenames = new ArrayList<EISDoc>();
 			docsWithFilenames.add(docRepository.findById(22).get());
+			// 9118 has the problem archive which starts with absolute path //
 		}
 		
 		// 3. If EISDoc has no folder, then:
@@ -3264,8 +3265,7 @@ public class FileController {
 			}
 		}
 		
-		// 4. (optional) Confirm all files were extracted successfully and:
-		//		NOTE: This may have consequences for any relevant document_texts or nepafiles, 
+		// 4. NOTE: This may have consequences for any relevant document_texts or nepafiles, 
 		//			if so account for it
 		//		a. (optional) remove archive filename from eisdoc AND
 		//		b. (optional) delete original file from disk
