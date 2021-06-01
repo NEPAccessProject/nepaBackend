@@ -201,14 +201,16 @@ public class StatsController {
 			List<Object> results = docRepository.getYears();
 			List<Integer> formattedResults = new ArrayList<Integer>();
 			for(Object result : results) {
-				formattedResults.add(Integer.parseInt(String.valueOf(result)));
+				if(result != null) {
+					formattedResults.add(Integer.parseInt(String.valueOf(result)));
+				}
 			}
 			return new ResponseEntity<List<Integer>>(formattedResults, HttpStatus.OK);
 		} catch (Exception e) {
 			//	if (log.isDebugEnabled()) {
 			//		log.debug(e);
 			//	}
-			//	e.printStackTrace();
+			e.printStackTrace();
 			return new ResponseEntity<List<Integer>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
