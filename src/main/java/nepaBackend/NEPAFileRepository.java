@@ -23,6 +23,9 @@ public interface NEPAFileRepository extends JpaRepository<NEPAFile, Long> {
 
 	Optional<NEPAFile> findByEisdocAndFilenameIn(EISDoc eisDoc, String filename);
 
+	Optional<NEPAFile> findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(String documentType, EISDoc doc, String folder,
+			String filename, String relativePath);
+
 //	boolean existsByEisdoc(EISDoc eis);
 	
 }

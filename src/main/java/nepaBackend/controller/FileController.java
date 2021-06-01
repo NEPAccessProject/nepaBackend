@@ -3251,13 +3251,21 @@ public class FileController {
 					
 					// we need to make a nepafile entry for every extracted file to support downloads
 					for(int j = 0; j < result.size(); j++) {
-						NEPAFile x = new NEPAFile();
-						x.setDocumentType(doc.getDocumentType());
-						x.setEisdoc(doc);
-						x.setFolder(folder);
-						x.setFilename(result.get(j));
-						x.setRelativePath('/'+folder+'/');
-						nepaFileRepository.save(x);
+						// eliminate any possibility of duplicates
+						Optional<NEPAFile> possibleFile = 
+							nepaFileRepository.findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(
+									doc.getDocumentType(),doc,folder,result.get(j),'/'+folder+'/'
+							);
+						
+						if(possibleFile.isEmpty()) {
+							NEPAFile x = new NEPAFile();
+							x.setDocumentType(doc.getDocumentType());
+							x.setEisdoc(doc);
+							x.setFolder(folder);
+							x.setFilename(result.get(j));
+							x.setRelativePath('/'+folder+'/');
+							nepaFileRepository.save(x);
+						}
 					}
 					
 					createdFolders.add(folder);
