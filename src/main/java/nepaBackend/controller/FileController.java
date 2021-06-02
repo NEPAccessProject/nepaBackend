@@ -3216,10 +3216,10 @@ public class FileController {
 		List<String> createdFolders = new ArrayList<String>(docsWithFilenames.size());
 		
 
-		if(testing || true) { 
+		if(testing) { 
 			docsWithFilenames = new ArrayList<EISDoc>();
-			docsWithFilenames.add(docRepository.findById(15521).get()); // 22 is a good test
-			// 9118 has the problem archive which starts with absolute path //
+			docsWithFilenames.add(docRepository.findById(22).get());
+			// 9118 has problem archive which starts with absolute path //
 		}
 		
 		// 3. If EISDoc has no folder, then:
@@ -3231,46 +3231,57 @@ public class FileController {
 			String folder = doc.getFolder();
 			String filename = doc.getFilename();
 			
-			if(folder != null && folder.length() > 0) {
-				// skip if folder
-			} 
-			else if(!filename.substring(filename.length()-4).equalsIgnoreCase(".zip")) {
-				// skip if non-zip, like a pdf
-			} 
-			else {
-				ZipExtractor unzipper = new ZipExtractor();
-				// drop extension and use that as folder name
-				folder = filename.substring(0, filename.length()-4);
-				
-				// result should be a list of filenames, or null if it failed
-				List<String> result = unzipper.unzip(filename);
-				
-				if(result != null) { // save folder and add to results
-					doc.setFolder(folder);
-					docRepository.save(doc);
+			try {
+				if(folder != null && folder.length() > 0) {
+					// skip if folder
+				} 
+				else if(!filename.substring(filename.length()-4).equalsIgnoreCase(".zip")) {
+					// skip if non-zip, like a pdf
+				} 
+				else {
+					ZipExtractor unzipper = new ZipExtractor();
+					// drop extension and use that as folder name
+					folder = filename.substring(0, filename.length()-4);
 					
-					// we need to make a nepafile entry for every extracted file to support downloads
-					for(int j = 0; j < result.size(); j++) {
-						// eliminate any possibility of duplicates
-						Optional<NEPAFile> possibleFile = 
-							nepaFileRepository.findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(
-									doc.getDocumentType(),doc,folder,result.get(j),'/'+folder+'/'
-							);
+					// result should be a list of filenames, or null if it failed
+					List<String> result = unzipper.unzip(filename);
+					
+					if(result != null) { // save folder and add to results
+						doc.setFolder(folder);
+						docRepository.save(doc);
 						
-						if(possibleFile.isEmpty()) {
-							NEPAFile x = new NEPAFile();
-							x.setDocumentType(doc.getDocumentType());
-							x.setEisdoc(doc);
-							x.setFolder(folder);
-							x.setFilename(result.get(j));
-							x.setRelativePath('/'+folder+'/');
-							nepaFileRepository.save(x);
+						// we need to make a nepafile entry for every extracted file to support downloads
+						for(int j = 0; j < result.size(); j++) {
+							// eliminate any possibility of duplicates
+							Optional<NEPAFile> possibleFile = 
+								nepaFileRepository.findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(
+										doc.getDocumentType(),doc,folder,result.get(j),'/'+folder+'/'
+								);
+							
+							if(possibleFile.isEmpty()) {
+								NEPAFile x = new NEPAFile();
+								x.setDocumentType(doc.getDocumentType());
+								x.setEisdoc(doc);
+								x.setFolder(folder);
+								x.setFilename(result.get(j));
+								x.setRelativePath('/'+folder+'/');
+								nepaFileRepository.save(x);
+							}
 						}
+						
+						createdFolders.add(folder);
 					}
-					
-					createdFolders.add(folder);
 				}
+			} catch(Exception e) {
+				FileLog fLog = new FileLog();
+				fLog.setDocumentId(doc.getId());
+				fLog.setErrorType("extractAllZip failed: " + e.getMessage());
+				fLog.setFilename("FOLDER: "+ folder + "; FILENAME: " + filename);
+				fLog.setLogTime(LocalDateTime.now());
+				fileLogRepository.save(new FileLog());
 			}
+			
+			
 		}
 		
 		// 4. NOTE: This may have consequences for any relevant document_texts or nepafiles, 
