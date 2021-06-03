@@ -3270,9 +3270,13 @@ public class FileController {
 						}
 						
 						createdFolders.add(folder);
+					} else {
+						createdFolders.add("**PROBLEM WITH: " + filename + "**");
 					}
 				}
 			} catch(Exception e) {
+				createdFolders.add("***EXCEPTION WITH: " + filename + "***");
+				
 				FileLog fLog = new FileLog();
 				fLog.setDocumentId(doc.getId());
 				fLog.setErrorType("extractAllZip failed: " + e.getMessage());
