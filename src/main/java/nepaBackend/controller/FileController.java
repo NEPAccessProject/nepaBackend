@@ -3226,10 +3226,7 @@ public class FileController {
 		//		a. extract to self-named folder sans .zip extension AND
 		//		b. add that folder name to eisdoc as folder field
 		
-		// Next test with a run on 100 files.
-		int limiter = Math.min(docsWithFilenames.size(), 100);
-		
-		for(int i = 0; i < limiter; i++) {
+		for(int i = 0; i < docsWithFilenames.size(); i++) {
 			EISDoc doc = docsWithFilenames.get(i);
 			String folder = doc.getFolder();
 			String filename = doc.getFilename();
