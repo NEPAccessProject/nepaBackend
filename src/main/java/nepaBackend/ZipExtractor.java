@@ -31,13 +31,13 @@ import com.github.openjson.JSONObject;
  */
 public class ZipExtractor {
 	
-	Logger logger = LoggerFactory.getLogger(ZipExtractor.class);
+	private static final Logger logger = LoggerFactory.getLogger(ZipExtractor.class);
 
 //	private static String uploadURL = Globals.UPLOAD_URL.concat("uploadFilesTest");
 //	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 
-	private static String extractURL = Globals.UPLOAD_URL.concat("extract");
-	private static String extractURLTest = "http://localhost:5309/extract";
+	private static final String extractURL = Globals.UPLOAD_URL.concat("extract");
+	private static final String extractURLTest = "http://localhost:5309/extract";
 
     /**
      * Size of the buffer to read/write data

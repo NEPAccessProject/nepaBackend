@@ -91,7 +91,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Autowired
 	IndexSearcher indexSearcher;
 	
-	Logger logger = LoggerFactory.getLogger(CustomizedTextRepositoryImpl.class);
+	private static final Logger logger = LoggerFactory.getLogger(CustomizedTextRepositoryImpl.class);
 	
 //	private static MultiSearcher indexSearcher;
 

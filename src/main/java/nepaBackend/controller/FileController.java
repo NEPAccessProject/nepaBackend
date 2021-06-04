@@ -36,6 +36,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.tika.Tika;
 //import org.apache.tika.exception.TikaException;
@@ -45,6 +46,8 @@ import org.apache.tika.Tika;
 //import org.apache.tika.sax.ToXMLContentHandler;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -63,6 +66,7 @@ import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.CustomizedTextRepositoryImpl;
 import nepaBackend.DocRepository;
 import nepaBackend.DocService;
 import nepaBackend.FileLogRepository;
@@ -81,6 +85,8 @@ import nepaBackend.security.SecurityConstants;
 @RestController
 @RequestMapping("/file")
 public class FileController {
+
+	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
 	
 	private DocRepository docRepository;
 	private TextRepository textRepository;
@@ -1109,6 +1115,7 @@ public class FileController {
 				    	results[i] = "No folder and no filename match: " + files[i].getOriginalFilename();
 			    	}
 			    } else if(metadataExists(folderName)){
+			    	logger.info("Uploading " + files[i].getOriginalFilename());
 			    	// If metadata exists we can link this to something, therefore proceed with upload
 				    String savePath = getPathOnly(origFilename);
 				    
@@ -1126,7 +1133,7 @@ public class FileController {
 				    if(testing) { request = new HttpPost(uploadTestURL); }
 				    request.setEntity(entity);
 		
-				    HttpClient client = HttpClientBuilder.create().build();
+				    CloseableHttpClient client = HttpClientBuilder.create().build();
 				    HttpResponse response = client.execute(request);
 				    
 				    if(testing) {
@@ -1135,10 +1142,12 @@ public class FileController {
 				    
 				    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
 				    boolean converted = false;
+				    client.close();
 		
 				    // If file uploaded, see if we can link it, then proceed to saving to table and logging
 				    List<EISDoc> existingDocs = docRepository.findAllByFolder(folderName);
 				    if(uploaded) {
+				    	logger.info("Done uploading " + files[i].getOriginalFilename());
 				    	results[i] = "OK: " + files[i].getOriginalFilename();
 				    	// Save NEPAFile
 
@@ -1182,10 +1191,12 @@ public class FileController {
 						    }
 				    	}
 				    } else {
+				    	logger.info("Couldn't upload: " + origFilename);
 				    	results[i] = "Couldn't upload: " + origFilename;
 				    }
 			    } else {
 			    	// Inform client this file can't be linked to anything, and has been rejected
+			    	logger.info("Can't link file (no folder or filename match in metadata): " + origFilename);
 			    	results[i] = "Can't link file (no folder or filename match in metadata): " + origFilename;
 			    }
 	
@@ -1193,6 +1204,7 @@ public class FileController {
 				results[i] = "Can't link (no match for folder with document type): " + files[i].getOriginalFilename();
 			} catch (Exception e) {
 				e.printStackTrace();
+		    	logger.error("Exception:: " + e.getMessage() + ": " + files[i].getOriginalFilename());
 				results[i] = "Exception:: " + e.getMessage() + ": " + files[i].getOriginalFilename();
 			} finally {
 			    files[i].getInputStream().close();
