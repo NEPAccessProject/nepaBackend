@@ -12,3 +12,4 @@ src/main/resources/application-prod.properties
 /DocumentText/
 /EISDoc/
 src/main/java/nepaBackend/LuceneHighlighter.java
+logs/nepaccess.log

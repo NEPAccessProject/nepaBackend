@@ -12,6 +12,8 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.openjson.JSONArray;
 import com.github.openjson.JSONObject;
@@ -28,6 +30,8 @@ import com.github.openjson.JSONObject;
  * Should instead hit a new Express service route and this should all be done in javascript.
  */
 public class ZipExtractor {
+	
+	Logger logger = LoggerFactory.getLogger(ZipExtractor.class);
 
 //	private static String uploadURL = Globals.UPLOAD_URL.concat("uploadFilesTest");
 //	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
@@ -153,7 +157,8 @@ public class ZipExtractor {
 		    	results.add(x.getString(i));
 		    }
 	    } else {
-	    	System.out.println("Extractor exception: " + response.getStatusLine());
+	    	String jsonString = EntityUtils.toString(response.getEntity());
+	    	logger.error("Extract failed: " + jsonString);
 	    }
 	    
 	    httpClient.close();

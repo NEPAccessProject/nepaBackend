@@ -49,6 +49,8 @@ import org.hibernate.search.jpa.Search;
 import org.hibernate.search.mapper.orm.massindexing.MassIndexer;
 import org.hibernate.search.mapper.orm.search.loading.EntityLoadingCacheLookupStrategy;
 import org.hibernate.search.mapper.orm.session.SearchSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -88,6 +90,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	@Autowired
 	IndexSearcher indexSearcher;
+	
+	Logger logger = LoggerFactory.getLogger(CustomizedTextRepositoryImpl.class);
 	
 //	private static MultiSearcher indexSearcher;
 
