@@ -817,17 +817,42 @@ public class FileController {
 	/** 
 	 * Takes .csv file with required headers and imports each valid, non-duplicate record.  Updates existing records
 	 * 
-	 * Valid records: Must have title/register_date/filename or folder/document_type, register_date must conform to one of
-	 * the formats in parseFormatters[]
+	 * Valid records: Must have title/register_date/type; filename or folder; 
+	 * register_date must conform to one of the formats in parseFormatters[]
 	 * 
-	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
+	 * @return List of strings with message per record (zero-based list) indicating success/error/duplicate 
 	 * and potentially more details */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
+		String token = headers.get("authorization");
 		
-		fillAgencies();
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		
+		boolean shouldImport = true;
+		
+		List<String> results = doCSVImport(csv, shouldImport, token);
+		results.set(0, "Dummy results follow (database is unchanged):\n" + results.get(0) );
+		
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+
+
+
+	/** 
+	 * Dummy version of /uploadCSV doesn't add anything to the database.
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating would-be 
+	 * success/error/duplicate and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_dummy", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSVDummy(@RequestPart(name="csv") String csv, 
+				@RequestHeader Map<String, String> headers) 
+				throws IOException { 
 		
 		String token = headers.get("authorization");
 		
@@ -835,18 +860,39 @@ public class FileController {
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
+		
+		boolean shouldImport = false;
+		
+		List<String> results = doCSVImport(csv, shouldImport, token);
+		results.set(0, "Dummy results follow (database is unchanged):\n" + results.get(0) );
+		
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+
+
+	/** Logic for creating/updating/skipping metadata records.
+	 * 
+	 * No match: Create new if valid. 
+	 * Match: Update if no existing filename && folder, else skip
+	 * @return list of results (dummy results if shouldImport == false)
+	 * */
+	private List<String> doCSVImport(String csv, boolean shouldImport, String token) {
+
+		// this should be impossible, but just in case
+		if(!isCurator(token) && !isAdmin(token)) 
+		{
+			return new ArrayList<String>();
+		} 
+		
+		fillAgencies();
+		
 		List<String> results = new ArrayList<String>();
 		
-//		if(testing) {
-//			String[] testing = csv.split("\n");
-//			System.out.println(testing[0]);
-//		}
-
-
-	    // Expect these headers:
-	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, EIS Identifier, Filename, Link
-	    // TODO: Translate these into a standard before proceeding? Such as Type or Document Type instead of Document
-		// (this would require editing the first line of the csv String?)
+	    // Expect some or all of these headers:
+	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, 
+		// EIS Identifier, Filename, Link, Notes, Force Update
+	    // TODO: Translate these into a standard before proceeding? Such as both Type or Document Type 
+		// instead of necessarily Document (this would require editing the first line of the csv String?)
 		
 	    try {
 	    	
@@ -891,66 +937,64 @@ public class FileController {
 					}
 					
 					if(!error) {
-						// Deduplication
+						// Deduplication or get match for possible update
 						
 						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
 						
 						
-						// If record exists but has no filename, then update it instead of skipping
-						// This is because current data is based on having a filename for an archive or not,
+						// If record exists but has no filename and no folder, then update it instead of skipping
+						// This is because current data is based on having a .zip or a folder listed, 
 						// so new data can add files where there are none, without adding redundant data when there is data.
 						// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
 						if(recordThatMayExist.isPresent() && 
-								(recordThatMayExist.get().getFilename().isBlank() || 
+								((recordThatMayExist.get().getFilename().isBlank() && recordThatMayExist.get().getFolder().isBlank()) || 
 										(itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) )
 						) {
-//							if(testing) {
-//								// not saving for now, just pretending
-//								results.add("Item " + count + ": Updated: " + itr.title);
-//							} else {
-							ResponseEntity<Long> status = updateDto(itr, recordThatMayExist);
+							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
+							if(shouldImport) {
+								status = updateDto(itr, recordThatMayExist);
+							}
 							
 							if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
 								results.add("Item " + count + ": Updated: " + itr.title);
 
-					    		// Log successful record update for accountability (can know last person to update an EISDoc)
-								FileLog recordLog = new FileLog();
-								recordLog.setErrorType("Updated existing record because it had no filename");
-					    		recordLog.setDocumentId(status.getBody());
-					    		recordLog.setFilename(itr.filename);
-					    		recordLog.setImported(false);
-					    		recordLog.setLogTime(LocalDateTime.now());
-					    		recordLog.setUser(getUser(token));
-					    		fileLogRepository.save(recordLog);
+								if(shouldImport) {
+						    		// Log successful record update for accountability (can know last person to update an EISDoc)
+									FileLog recordLog = new FileLog();
+									recordLog.setErrorType("Updated existing record because it had no filename");
+						    		recordLog.setDocumentId(status.getBody());
+						    		recordLog.setFilename(itr.filename);
+						    		recordLog.setImported(false);
+						    		recordLog.setLogTime(LocalDateTime.now());
+						    		recordLog.setUser(getUser(token));
+						    		fileLogRepository.save(recordLog);
+								}
 					    	}
-//							}
 						}
 						// If file doesn't exist, then create new record
 						else if(!recordThatMayExist.isPresent()) { 
-//							System.out.println(itr.title);
-//							System.out.println(itr.document);
-//							System.out.println(itr.federal_register_date);
-//							if(testing) {
-//								// not saving for now, just pretending
-//								results.add("Item " + count + ": OK: " + itr.title);
-//							} else {
-						    ResponseEntity<Long> status = saveDto(itr); // save record to database
-						    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
+							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
+							if(shouldImport) {
+								status = updateDto(itr, recordThatMayExist);
+							}
+					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
 					    	if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
 					    		results.add("Item " + count + ": Created: " + itr.title);
 
-					    		// Log successful record import (need accountability for new metadata)
-								FileLog recordLog = new FileLog();
-					    		recordLog.setDocumentId(status.getBody());
-					    		recordLog.setFilename(itr.filename);
-					    		recordLog.setImported(false);
-					    		recordLog.setLogTime(LocalDateTime.now());
-					    		recordLog.setUser(getUser(token));
-					    		fileLogRepository.save(recordLog);
+					    		if(shouldImport) {
+						    		// Log successful record import (need accountability for new metadata)
+									FileLog recordLog = new FileLog();
+						    		recordLog.setDocumentId(status.getBody());
+						    		recordLog.setFilename(itr.filename);
+						    		recordLog.setImported(false);
+						    		recordLog.setLogTime(LocalDateTime.now());
+						    		recordLog.setUser(getUser(token));
+						    		fileLogRepository.save(recordLog);
+					    		}
 					    	}
 //							}
 				    	} else {
@@ -965,11 +1009,11 @@ public class FileController {
 			
 		} catch (Exception e) {
 			e.printStackTrace();
+			results.add(e.getLocalizedMessage());
 		}
 
-		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+		return results;
 	}
-
 
 
 	/** 
@@ -2535,103 +2579,6 @@ public class FileController {
 		}
 	
 		return new ResponseEntity<String>(result, HttpStatus.OK);
-	}
-
-	/** 
-	 * Dummy version of importCSV doesn't add anything to the database.
-	 * 
-	 * @return List of strings with message per record (zero-based) indicating success/error/duplicate 
-	 * and potentially more details */
-	@CrossOrigin
-	@RequestMapping(path = "/uploadCSV_dummy", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<List<String>> importCSVDummy(@RequestPart(name="csv") String csv, 
-				@RequestHeader Map<String, String> headers) 
-				throws IOException { 
-		
-		fillAgencies();
-		
-		String token = headers.get("authorization");
-		
-		if(!isCurator(token) && !isAdmin(token)) 
-		{
-			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
-		} 
-		List<String> results = new ArrayList<String>();
-		
-		results.add("Dummy results follow (database is unchanged):");
-		
-	    try {
-	    	
-	    	ObjectMapper mapper = new ObjectMapper();
-		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
-
-			results.add("Record count: " + dto.length);
-
-		    // Ensure metadata is valid
-			int count = 0;
-			for (UploadInputs itr : dto) {
-				itr.title = Globals.normalizeSpace(itr.title);
-				itr.agency = agencyAbbreviationToFull(itr.agency);
-			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
-			    if(isValid(itr)) {
-
-			    	// Save only valid dates
-			    	boolean error = false;
-					try {
-						LocalDate parsedDate = parseDate(itr.federal_register_date);
-						itr.federal_register_date = parsedDate.toString();
-					} catch (IllegalArgumentException e) {
-						System.out.println("Threw IllegalArgumentException");
-						results.add("Item " + count + ": " + e.getMessage());
-						error = true;
-					} catch (Exception e) {
-						results.add("Item " + count + ": Error " + e.getMessage());
-						error = true;
-					}
-
-					try {
-						if(itr.epa_comment_letter_date != null && itr.epa_comment_letter_date.length() > 0) {
-							itr.epa_comment_letter_date = parseDate(itr.epa_comment_letter_date).toString();
-						}
-					} catch (Exception e) {
-						// Since this field is optional, we can just proceed
-					}
-					
-					if(!error) {
-						// Deduplication
-						
-						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
-						
-						// If record exists but has no filename, then update it instead of skipping
-						// This is because current data is based on having a filename for an archive or not,
-						// so new data can add files where there are none, without adding redundant data when there is data.
-						// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
-						if(recordThatMayExist.isPresent() && 
-								(recordThatMayExist.get().getFilename().isBlank() || 
-										(itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) )
-						) {
-							results.add("Item " + count + ": Updated: " + itr.title);
-				    	}
-						// If file doesn't exist, then create new record
-						else if(!recordThatMayExist.isPresent()) 
-						{ 
-				    		results.add("Item " + count + ": Created: " + itr.title);
-				    	} else {
-							results.add("Item " + count + ": Duplicate (no action): " + itr.title);
-				    	}
-					}
-			    } else {
-					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/EIS Identifier/Title");
-			    }
-			    count++;
-			}
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			results.add(e.getMessage());
-		}
-
-		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
 
 	/** 
