@@ -61,7 +61,7 @@ public class AdminController {
     	// Normally probably want to go by NEPAFile ID but for the original files there are no NEPAFiles anyway
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdminOrCurator(token)) {
+    		if(!isAdmin(token)) {
     			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     		else {
@@ -123,6 +123,7 @@ public class AdminController {
     }
 
     
+    // Deletes NEPAFile and related texts, sets as not imported
     @CrossOrigin
     @RequestMapping(path = "/delete_nepa_file", method = RequestMethod.POST)
     ResponseEntity<String> deleteNepaFileById(@RequestBody String id, @RequestHeader Map<String, String> headers) {
@@ -131,7 +132,7 @@ public class AdminController {
     	// or delete manually
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdminOrCurator(token)) {
+    		if(!isAdmin(token)) {
     			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     		else {
@@ -195,7 +196,7 @@ public class AdminController {
     	
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdminOrCurator(token)) {
+    		if(!isAdmin(token)) {
     			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     		
@@ -290,7 +291,7 @@ public class AdminController {
     	
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdminOrCurator(token)) {
+    		if(!isAdmin(token)) {
     			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     		
@@ -356,12 +357,12 @@ public class AdminController {
 	}
 		
 	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdminOrCurator(String token) {
+	private boolean isAdmin(String token) {
 		boolean result = false;
 		ApplicationUser user = getUser(token);
 		// get user
 		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN") || user.getRole().contentEquals("CURATOR")) {
+			if(user.getRole().contentEquals("ADMIN")) {
 				result = true;
 			}
 		}
