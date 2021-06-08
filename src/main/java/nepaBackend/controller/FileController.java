@@ -860,6 +860,7 @@ public class FileController {
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
 		
+		// "don't actually import, just tell me what would happen"
 		boolean shouldImport = false;
 		
 		List<String> results = doCSVImport(csv, shouldImport, token);
@@ -1016,11 +1017,15 @@ public class FileController {
 
 
 	/** 
-	 * Upload more than one directory already associated with a CSV (or will be in the future and has a unique foldername)
+	 * Upload more than one directory already associated with a CSV 
+	 * (or will be in the future and has a unique foldername).
+	 * 
 	 * For each file, assumes a base folder that ends in a number (identifying folder)
 	 * If that doesn't exist, rejects that file because it can't ever be automatically connected to a record 
 	 * (would be forever unlinked/orphaned)
-	 * TODO: Accept big pile of archives, no folders?
+	 * 
+	 * Or, upload one or more archives. It's extracted to a self-named folder automatically and each
+	 * internal file is also converted and indexed after getting their own NEPAFile record.
 	 * */
 	@CrossOrigin
 	@RequestMapping(path = "/uploadFilesBulk", method = RequestMethod.POST, consumes = "multipart/form-data")
@@ -1056,13 +1061,11 @@ public class FileController {
 			    	boolean missingZip = false;
 			    	
 			    	// If filename, however:
-			    	// TODO: In this case it's probably time to extract all the files and create a
-			    	// NEPAFile for each of them inside the folder.
 			    	Optional<EISDoc> foundDoc = docRepository.findTopByFilename(origFilename);
 			    	if(!foundDoc.isPresent()) {
 			    		// Nothing?  Try removing .zip from filename, if it exists.
-			    		if(origFilename.length()>4 
-			    				&& origFilename.substring(origFilename.length() - 4).equalsIgnoreCase(".zip")){
+			    		if(origFilename.length() > 4 
+			    				&& origFilename.substring(origFilename.length() - 4).equalsIgnoreCase(".zip")) {
 				    		foundDoc = docRepository.findTopByFilename(origFilename.substring(0, origFilename.length()-4));
 				    		missingZip = true;
 			    		}
@@ -1070,8 +1073,8 @@ public class FileController {
 			    	if(foundDoc.isPresent()) {
 			    		// If found we can link this to something, therefore proceed with upload
 
-			    		// We're setting the directory to the name of the file.
-			    		String savePath = "/" + origFilename.strip() + "/";
+			    		// We're setting the directory to / for the archive upload.  Plan to extract later
+			    		String savePath = "/";
 			    		
 					    // Upload file
 				    	HttpEntity entity = MultipartEntityBuilder.create()
@@ -1099,16 +1102,7 @@ public class FileController {
 					    // If file uploaded, proceed to import and logging
 					    if(uploaded) {
 					    	results[i] = "OK: " + files[i].getOriginalFilename();
-					    	// Save NEPAFile
 
-					    	// Because NEPAFiles don't exist for legacy archives,
-					    	// this would create duplicate files on the file server.
-					    	// However this is already handled by express_uploader.js
-					    	// which simply refuses the upload in this case with
-					    	// errno: -4058, code: 'ENOENT'
-					    	// This will also handle folder size.
-					    	NEPAFile savedNEPAFile = handleNEPAFileSave(origFilename, foundDoc);
-					    	
 					    	// Need to update EISDoc for size and to look in the correct place.
 					    	EISDoc existingDoc = foundDoc.get();
 					    	existingDoc.setFolder(origFilename);
@@ -1117,38 +1111,41 @@ public class FileController {
 					    		existingDoc.setFilename(origFilename);
 					    	}
 					    	
-					    	// No longer needed
-//							Long sizeResponse = (getFileSizeFromFilename(origFilename).getBody());
-//							if(sizeResponse != null) {
-//								existingDoc.setSize(sizeResponse);
-//							}
+					    	// Find out file size
+							Long sizeResponse = (getFileSizeFromFilename(origFilename).getBody());
+							if(sizeResponse != null) {
+								existingDoc.setSize(sizeResponse);
+							}
 					    	
-					    	docRepository.save(existingDoc);
-					    	if(missingZip) {
-					    		addUpFolderSize(existingDoc);
-					    	}
+							// Update
+					    	EISDoc savedDoc = docRepository.save(existingDoc);
 					    	
-					    	// Save FileLog
+					    	// Extract to folder, creating NEPAFiles along the way as needed,
+					    	// also converting and indexing the texts when possible
+					    	boolean convert = true;
+					    	boolean skipIfHasFolder = false;
+					    	results[i] = "Extract/convert result: " + extractOneZip(savedDoc, skipIfHasFolder, convert);
 					    	
-					    	if(savedNEPAFile == null) {
-						    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
-					    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
-					    	} else {
-					    		uploadLog.setFilename(savePath + origFilename); // full path
-							    uploadLog.setUser(getUser(token));
-							    uploadLog.setLogTime(LocalDateTime.now());
-							    uploadLog.setErrorType("Uploaded");
-							    // Note: Should be impossible not to have a linked document if the logic got us here
-							    uploadLog.setDocumentId(foundDoc.get().getId());
-						    
-						    	// Run Tika on file, record if 200 or not
-							    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
-							    
-						    	if(converted) {
-								    uploadLog.setImported(true);
-								    if(testing) {System.out.println("Converted " + origFilename);}
-						    	}
-					    	}
+					    	// TODO: Logging
+					    	
+//					    	if(savedNEPAFile == null) {
+//						    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
+//					    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
+//					    	} else {
+//					    		uploadLog.setFilename(savePath + origFilename); // full path
+//							    uploadLog.setUser(getUser(token));
+//							    uploadLog.setLogTime(LocalDateTime.now());
+//							    uploadLog.setErrorType("Uploaded");
+//							    // Note: Should be impossible not to have a linked document if the logic got us here
+//							    uploadLog.setDocumentId(foundDoc.get().getId());
+//						    
+//						    	// Run Tika on file, record if 200 or not
+//							    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
+//							    
+//						    	if(converted) {
+//								    uploadLog.setImported(true);
+//						    	}
+//					    	}
 					    } else {
 					    	// File already exists in legacy style
 					    	results[i] = "Couldn't upload: " + origFilename;
@@ -1515,8 +1512,8 @@ public class FileController {
 		return idx >= 0 ? pathWithFilename.substring(idx + 1) : pathWithFilename;
 	}
 
-	/** Never used locally and probably useless 
-	(legacy code for converting a pdf based on an eis with a filename, before folder column)*/
+	// Never used locally and probably useless 
+	// (legacy code for converting a pdf based on an eis with a filename, before folder column)
 //	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
 //		if(eis == null) {
 //			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
@@ -1637,6 +1634,7 @@ public class FileController {
 //		}
 //	}
 
+	/** Null: Return 400; no filename: Return 204; no eis/folder: Return 404 */
 	private ResponseEntity<Void> convertNEPAFile(NEPAFile savedNEPAFile) {
 
 		// Check to make sure this record exists.
@@ -1677,14 +1675,14 @@ public class FileController {
 			// Therefore we need to get the EISDoc representing that, exactly.
 			Optional<EISDoc> eis = docRepository.findTopByFolderAndDocumentTypeIn(savedNEPAFile.getFolder(), savedNEPAFile.getDocumentType());
 
-			// If we anomalously can't get that exact match, just use the first one we find
-			if(!eis.isPresent()) {
-				eis = docRepository.findTopByFolder(savedNEPAFile.getFolder());
-			}
+			// If we anomalously can't get that exact match, give up now or risk corruption.
+//			if(!eis.isPresent()) {
+//				eis = docRepository.findTopByFolder(savedNEPAFile.getFolder());
+//			}
 			
 			// Somehow no link at all?
 			if(!eis.isPresent()) {
-				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+				return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 			}
 			
 			EISDoc foundDoc = eis.get();
@@ -3167,6 +3165,7 @@ public class FileController {
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
 		
+		
 		// 2. get list of active filenames (and/or crawl for ones that actually exist - 
 		// this show both missing files and extra files)
 		
@@ -3177,80 +3176,27 @@ public class FileController {
 		if(testing) { 
 			docsWithFilenames = new ArrayList<EISDoc>();
 			docsWithFilenames.add(docRepository.findById(22).get());
-			// 9118 has problem archive which starts with absolute path //
 		}
+		
 		
 		// 3. If EISDoc has no folder, then:
 		//		a. extract to self-named folder sans .zip extension AND
 		//		b. add that folder name to eisdoc as folder field
 		
 		for(int i = 0; i < docsWithFilenames.size(); i++) {
-			EISDoc doc = docsWithFilenames.get(i);
-			String folder = doc.getFolder();
-			String filename = doc.getFilename();
-			
-			try {
-				if(folder != null && folder.length() > 0) {
-					// skip if folder
-				} 
-				else if(!filename.substring(filename.length()-4).equalsIgnoreCase(".zip")) {
-					// skip if non-zip, like a pdf
-				} 
-				else {
-					ZipExtractor unzipper = new ZipExtractor();
-					// drop extension and use that as folder name
-					folder = filename.substring(0, filename.length()-4);
-					
-					// result should be a list of filenames, or null if it failed
-					List<String> result = unzipper.unzip(filename);
-					
-					if(result != null) { // save folder and add to results
-						doc.setFolder(folder);
-						docRepository.save(doc);
-						
-						// we need to make a nepafile entry for every extracted file to support downloads
-						for(int j = 0; j < result.size(); j++) {
-							// eliminate any possibility of duplicates
-							Optional<NEPAFile> possibleFile = 
-								nepaFileRepository.findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(
-										doc.getDocumentType(),doc,folder,result.get(j),'/'+folder+'/'
-								);
-							
-							if(possibleFile.isEmpty()) {
-								NEPAFile x = new NEPAFile();
-								x.setDocumentType(doc.getDocumentType());
-								x.setEisdoc(doc);
-								x.setFolder(folder);
-								x.setFilename(result.get(j));
-								x.setRelativePath('/'+folder+'/');
-								nepaFileRepository.save(x);
-							}
-						}
-						
-						createdFolders.add(folder);
-					} else {
-						createdFolders.add("**PROBLEM WITH: " + filename + "**");
-					}
-				}
-			} catch(Exception e) {
-				createdFolders.add("***EXCEPTION WITH: " + filename + "***");
-				
-				FileLog fLog = new FileLog();
-				fLog.setDocumentId(doc.getId());
-				fLog.setErrorType("extractAllZip failed: " + e.getMessage());
-				fLog.setFilename("FOLDER: "+ folder + "; FILENAME: " + filename);
-				fLog.setLogTime(LocalDateTime.now());
-				fileLogRepository.save(new FileLog());
-			}
-			
-			
+			createdFolders.add( extractOneZip(docsWithFilenames.get(i), true, false) );
 		}
 		
-		// 4. NOTE: This may have consequences for any relevant document_texts or nepafiles, 
-		//			if so account for it
-		//		a. (optional) remove archive filename from eisdoc AND
-		//		b. (optional) delete original file from disk
 		
+		/** 4. NOTE: This may have consequences for any relevant document_texts or nepafiles, 
+		 *			if so account for it
+		 *		a. (optional) remove archive filename from eisdoc (this could prevent easily updating an
+		 *	incomplete archive, and we've already seen one case where the government provided just such,
+		 *  so maybe don't do this)
+		 * 		
+		 *		b. (optional) delete original file from disk (this should be fine if the original was 
+		 *	successfully completely unpacked, and saves from using about double disk space)
+		 */
 		
 		
 		// Finally, return list of strings of folders created successfully
@@ -3260,6 +3206,90 @@ public class FileController {
 		// Note: Frontend must convert filename text to links on both results and details pages afterward
 		// Note: Importing also has to be amended to follow this new process
 		
+	}
+	
+	// Overloaded extractAllZip for when we have only a filename instead of a doc
+	private String extractOneZip(String _filename, boolean skipIfHasFolder, boolean convertAfterSave) {
+		Optional<EISDoc> maybeDoc = docRepository.findTopByFilename(_filename);
+		if(maybeDoc.isEmpty()) { // probably impossible for caller's logic
+			return "***No document linked to: "+_filename+"***";
+		} else {
+			return extractOneZip(maybeDoc.get(), skipIfHasFolder, convertAfterSave);
+		}
+	}
+	
+	/** Helper method for extractAllZip */
+	private String extractOneZip(EISDoc doc, boolean skipIfHasFolder, boolean convertAfterSave) {
+		String createdFolder = null;
+		
+		String folder = doc.getFolder();
+		String filename = doc.getFilename();
+		
+		try {
+			if(folder != null 
+					&& folder.length() > 0 
+					&& skipIfHasFolder) {
+				// skip if doc already has folder, and flagged to skip in that case
+			} 
+			else if(filename != null 
+					&& filename.length() > 4 
+					&& !filename.substring(filename.length()-4).equalsIgnoreCase(".zip")) {
+				// skip if non-zip, like a pdf
+			} 
+			else { // extract, upload
+				ZipExtractor unzipper = new ZipExtractor();
+				
+				// drop extension and use that as folder name
+				folder = filename.substring(0, filename.length()-4);
+				
+				// result should be a list of filenames, or null if it failed
+				List<String> result = unzipper.unzip(filename);
+				
+				if(result != null) { // save folder and add to results
+					doc.setFolder(folder);
+					docRepository.save(doc);
+					
+					// need to make a nepafile entry for every extracted file to support downloads
+					for(int j = 0; j < result.size(); j++) {
+						// eliminate any possibility of duplicates
+						Optional<NEPAFile> possibleFile = 
+							nepaFileRepository.findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(
+									doc.getDocumentType(),doc,folder,result.get(j),'/'+folder+'/'
+							);
+						
+						if(possibleFile.isEmpty()) {
+							NEPAFile x = new NEPAFile();
+							x.setDocumentType(doc.getDocumentType());
+							x.setEisdoc(doc);
+							x.setFolder(folder);
+							x.setFilename(result.get(j));
+							x.setRelativePath('/'+folder+'/');
+							x = nepaFileRepository.save(x);
+							
+							// Run through tika, add document texts to db and index them
+							if(convertAfterSave) {
+							    this.convertNEPAFile(x);
+							}
+						}
+					}
+					
+					createdFolder = (folder);
+				} else {
+					createdFolder = ("**PROBLEM WITH: " + filename + "**");
+				}
+			}
+		} catch(Exception e) {
+			createdFolder = ("***EXCEPTION WITH: " + filename + "***");
+			
+			FileLog fLog = new FileLog();
+			fLog.setDocumentId(doc.getId());
+			fLog.setErrorType("extractOneZip failed: " + e.getMessage());
+			fLog.setFilename("FOLDER: "+ folder + "; FILENAME: " + filename);
+			fLog.setLogTime(LocalDateTime.now());
+			fileLogRepository.save(new FileLog());
+		}
+		
+		return createdFolder;
 	}
 
 	public static String encodeURIComponent(String s) {
