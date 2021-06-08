@@ -836,7 +836,6 @@ public class FileController {
 		boolean shouldImport = true;
 		
 		List<String> results = doCSVImport(csv, shouldImport, token);
-		results.set(0, "Dummy results follow (database is unchanged):\n" + results.get(0) );
 		
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
