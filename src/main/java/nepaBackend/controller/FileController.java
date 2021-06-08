@@ -1097,7 +1097,6 @@ public class FileController {
 					    }
 					    
 					    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
-					    boolean converted = false;
 			
 					    // If file uploaded, proceed to import and logging
 					    if(uploaded) {
@@ -1124,9 +1123,9 @@ public class FileController {
 					    	// also converting and indexing the texts when possible
 					    	boolean convert = true;
 					    	boolean skipIfHasFolder = false;
-					    	results[i] = "Extract/convert result: " + extractOneZip(savedDoc, skipIfHasFolder, convert);
+					    	results[i] += " *** Extract/convert result: " + extractOneZip(savedDoc, skipIfHasFolder, convert);
 					    	
-					    	// TODO: Logging
+					    	// TODO: Logging uploads
 					    	
 //					    	if(savedNEPAFile == null) {
 //						    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
@@ -1140,7 +1139,7 @@ public class FileController {
 //							    uploadLog.setDocumentId(foundDoc.get().getId());
 //						    
 //						    	// Run Tika on file, record if 200 or not
-//							    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
+//							    boolean converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
 //							    
 //						    	if(converted) {
 //								    uploadLog.setImported(true);
@@ -1266,34 +1265,34 @@ public class FileController {
 	
 
 
-	/** Used for filename-only match. Returns null if duplicate */
-	private NEPAFile handleNEPAFileSave(String origFilename, Optional<EISDoc> foundDoc) {
-		EISDoc existingDoc = foundDoc.get();
-		if(existingDoc == null) {
-			// probably impossible
-			return null;
-		}
-		
-		boolean duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(origFilename, existingDoc);
-		
-		if(duplicate) {
-			return null;
-		} else {
-			NEPAFile fileToSave = new NEPAFile();
-	    	NEPAFile savedFile = null;
-	    	
-	    	fileToSave.setFilename(origFilename);
-	    	fileToSave.setFolder(origFilename);
-	        fileToSave.setRelativePath("/" + origFilename + "/"); 
-
-    		fileToSave.setEisdoc(foundDoc.get());
-	    	
-	    	fileToSave.setDocumentType(existingDoc.getDocumentType());
-	    	
-	    	savedFile = nepaFileRepository.save(fileToSave);
-			return savedFile;
-		}
-	}
+//	/** Used for filename-only match. Returns null if duplicate */
+//	private NEPAFile handleNEPAFileSave(String origFilename, Optional<EISDoc> foundDoc) {
+//		EISDoc existingDoc = foundDoc.get();
+//		if(existingDoc == null) {
+//			// probably impossible
+//			return null;
+//		}
+//		
+//		boolean duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(origFilename, existingDoc);
+//		
+//		if(duplicate) {
+//			return null;
+//		} else {
+//			NEPAFile fileToSave = new NEPAFile();
+//	    	NEPAFile savedFile = null;
+//	    	
+//	    	fileToSave.setFilename(origFilename);
+//	    	fileToSave.setFolder(origFilename);
+//	        fileToSave.setRelativePath("/" + origFilename + "/"); 
+//
+//    		fileToSave.setEisdoc(foundDoc.get());
+//	    	
+//	    	fileToSave.setDocumentType(existingDoc.getDocumentType());
+//	    	
+//	    	savedFile = nepaFileRepository.save(fileToSave);
+//			return savedFile;
+//		}
+//	}
 
 	// Must have a link available, presumably added by a CSV import. 
 	// Therefore EISDoc needs a Folder, and the connection has to be enforced after we have both.
@@ -3144,6 +3143,9 @@ public class FileController {
 	}
 
 
+	// TODO: Ideally this whole route becomes useless as we integrate extractOneZip into the importing
+	// processes.  So far it's now built into the bulk file importer but not the existing-archive processor
+	// for .zips that were MANUALLY uploaded.
 	/** Extracts every relevant .zip file being served into a self-named folder sans .zip extension;
 	 * @returns list of all files extracted successfully
 	 * */
@@ -3183,6 +3185,9 @@ public class FileController {
 		//		a. extract to self-named folder sans .zip extension AND
 		//		b. add that folder name to eisdoc as folder field
 		
+		// don't convert to text and such - this is for existing archives that have been processed alredy,
+		// but aren't in folders.  Do skip entries with folders, since that should mean we've already
+		// extracted them.  
 		for(int i = 0; i < docsWithFilenames.size(); i++) {
 			createdFolders.add( extractOneZip(docsWithFilenames.get(i), true, false) );
 		}
@@ -3209,14 +3214,14 @@ public class FileController {
 	}
 	
 	// Overloaded extractAllZip for when we have only a filename instead of a doc
-	private String extractOneZip(String _filename, boolean skipIfHasFolder, boolean convertAfterSave) {
-		Optional<EISDoc> maybeDoc = docRepository.findTopByFilename(_filename);
-		if(maybeDoc.isEmpty()) { // probably impossible for caller's logic
-			return "***No document linked to: "+_filename+"***";
-		} else {
-			return extractOneZip(maybeDoc.get(), skipIfHasFolder, convertAfterSave);
-		}
-	}
+//	private String extractOneZip(String _filename, boolean skipIfHasFolder, boolean convertAfterSave) {
+//		Optional<EISDoc> maybeDoc = docRepository.findTopByFilename(_filename);
+//		if(maybeDoc.isEmpty()) { // probably impossible for caller's logic
+//			return "***No document linked to: "+_filename+"***";
+//		} else {
+//			return extractOneZip(maybeDoc.get(), skipIfHasFolder, convertAfterSave);
+//		}
+//	}
 	
 	/** Helper method for extractAllZip */
 	private String extractOneZip(EISDoc doc, boolean skipIfHasFolder, boolean convertAfterSave) {
