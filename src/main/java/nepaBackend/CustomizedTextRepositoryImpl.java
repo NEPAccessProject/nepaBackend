@@ -3030,43 +3030,49 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 				// If we already have one, do nothing - (title result: no filenames to add.)
 			} else {
-				EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
-				if(!added.containsKey(eisFromDoc.getId())) {
-					// Add DocumentText into logical position plus lucene ID, filename
-					MetadataWithContext3 combinedResult = new MetadataWithContext3(
-							new ArrayList<Integer>(),
-							eisFromDoc,
-							new ArrayList<String>(),
-							hashTexts.get(ordered.id).filename,
-							ordered.score);
-					combinedResult.addId(ordered.luceneId);
-					
-					combinedResults.add(combinedResult);
-					added.put(eisFromDoc.getId(), position);
-					position++;
-				} else {
-					// Add this combinedResult's filename to filename list
-					// Add the lucene ID to this combinedResult's ID list
-					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
-							.getFilenames();
-					// > is not a valid directory/filename char, so should work as delimiter
-					// If currentFilename is blank (title match came first), no need to concat.  Just set.
-					if(currentFilename.isBlank()) {
-						combinedResults.get(added.get(eisFromDoc.getId()))
-						.setFilenames(
-							hashTexts.get(ordered.id).filename
-						);
-						combinedResults.get(added.get(eisFromDoc.getId()))
-						.addId(ordered.luceneId);
+				try {
+					EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
+					if(!added.containsKey(eisFromDoc.getId())) {
+						// Add DocumentText into logical position plus lucene ID, filename
+						MetadataWithContext3 combinedResult = new MetadataWithContext3(
+								new ArrayList<Integer>(),
+								eisFromDoc,
+								new ArrayList<String>(),
+								hashTexts.get(ordered.id).filename,
+								ordered.score);
+						combinedResult.addId(ordered.luceneId);
+						
+						combinedResults.add(combinedResult);
+						added.put(eisFromDoc.getId(), position);
+						position++;
 					} else {
-						combinedResults.get(added.get(eisFromDoc.getId()))
-						.setFilenames(
-							currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
-						);
-						combinedResults.get(added.get(eisFromDoc.getId()))
-						.addId(ordered.luceneId);
+						// Add this combinedResult's filename to filename list
+						// Add the lucene ID to this combinedResult's ID list
+						String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
+								.getFilenames();
+						// > is not a valid directory/filename char, so should work as delimiter
+						// If currentFilename is blank (title match came first), no need to concat.  Just set.
+						if(currentFilename.isBlank()) {
+							combinedResults.get(added.get(eisFromDoc.getId()))
+							.setFilenames(
+								hashTexts.get(ordered.id).filename
+							);
+							combinedResults.get(added.get(eisFromDoc.getId()))
+							.addId(ordered.luceneId);
+						} else {
+							combinedResults.get(added.get(eisFromDoc.getId()))
+							.setFilenames(
+								currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
+							);
+							combinedResults.get(added.get(eisFromDoc.getId()))
+							.addId(ordered.luceneId);
+						}
 					}
+				} catch(Exception e) {
+					// deleted but not quite "finalized" yet???
+					e.printStackTrace();
 				}
+				
 			}
 		}
 		
