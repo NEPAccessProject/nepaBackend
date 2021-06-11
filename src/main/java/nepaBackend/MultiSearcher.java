@@ -17,18 +17,28 @@ import java.util.Set;
 public class MultiSearcher { 
  
 	private IndexSearcher indexSearcher;
+	private IndexReader textReader;
+	private MultiReader multiIndexReader;
   
 	public MultiSearcher() throws Exception {
 		File indexFile = new File(Globals.getIndexString());
 		Directory directory = FSDirectory.open(indexFile.toPath());
-		IndexReader textReader = DirectoryReader.open(directory);
+		textReader = DirectoryReader.open(directory);
 
 		File indexFile2 = new File(Globals.getMetaIndexString());
 		Directory directory2 = FSDirectory.open(indexFile2.toPath());
 		IndexReader metaReader = DirectoryReader.open(directory2);
-		MultiReader multiIndexReader = new MultiReader(textReader, metaReader);
+		multiIndexReader = new MultiReader(textReader, metaReader);
 		indexSearcher = new IndexSearcher(multiIndexReader);
  	}
+	
+	public MultiReader getIndexReader() {
+		return multiIndexReader;
+	}
+
+	public IndexReader getTextReader() {
+		return textReader;
+	}
  
 	public TopDocs search(Query query, int n) throws Exception {
 		return indexSearcher.search(query, n); 

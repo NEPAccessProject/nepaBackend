@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.persistence.EntityManager;
@@ -42,6 +43,7 @@ import org.apache.lucene.search.uhighlight.UnifiedHighlighter;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.hibernate.query.NativeQuery;
 import org.hibernate.search.engine.ProjectionConstants;
 import org.hibernate.search.engine.search.query.SearchResult;
 import org.hibernate.search.jpa.FullTextEntityManager;
@@ -52,7 +54,10 @@ import org.hibernate.search.mapper.orm.session.SearchSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementCreator;
 
 import nepaBackend.controller.MetadataWithContext;
 import nepaBackend.controller.MetadataWithContext2;
@@ -80,16 +85,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	@Autowired
 	StandardAnalyzer analyzer;
-	
-	@Autowired
-	IndexReader textReader;
-//	@Autowired
-//	IndexReader metaReader;
-//	@Autowired
-//	MultiReader multiReader;
-	
-	@Autowired
-	IndexSearcher indexSearcher;
 	
 	private static final Logger logger = LoggerFactory.getLogger(CustomizedTextRepositoryImpl.class);
 	
@@ -2260,18 +2255,18 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	
 	
-    public ScoreDoc[] searchIndex(String searchQuery) throws Exception {
-    	System.out.println("Search terms: " + searchQuery);
-
-        Analyzer analyzer = new StandardAnalyzer();
-        QueryParser queryParser = new QueryParser("plaintext", analyzer);
-        Query query = queryParser.parse(searchQuery);
- 
-        TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
-        ScoreDoc scoreDocs[] = topDocs.scoreDocs;
-        
-        return scoreDocs;
-    }
+//    public ScoreDoc[] searchIndex(String searchQuery) throws Exception {
+//    	System.out.println("Search terms: " + searchQuery);
+//
+//        Analyzer analyzer = new StandardAnalyzer();
+//        QueryParser queryParser = new QueryParser("plaintext", analyzer);
+//        Query query = queryParser.parse(searchQuery);
+// 
+//        TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
+//        ScoreDoc scoreDocs[] = topDocs.scoreDocs;
+//        
+//        return scoreDocs;
+//    }
     
     // This route could be the future of highlight searches at the very least.  Just needs
     // Lucene document IDs for the FVH.
@@ -2284,7 +2279,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
    	 
         // 1. Search; instantiate highlighter
     	
-//    	indexSearcher = new MultiSearcher();
+    	MultiSearcher indexSearcher = new MultiSearcher();
 
         Analyzer analyzer = new StandardAnalyzer();
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
@@ -2433,6 +2428,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     	if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
    	 
         // 1. Search; instantiate highlighter
+    	
+    	MultiSearcher indexSearcher = new MultiSearcher();
 
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 					new String[] {"title", "plaintext"},
@@ -2879,6 +2876,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	/** Search both fields at once and return in combined scored order with lucene IDs */
 	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception {
 		long startTime = System.currentTimeMillis();
+		
+		SearchSession session = org.hibernate.search.mapper.orm.Search.session(em);
+		
 		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
     			mutateTermModifiers(terms.strip()));
 	
@@ -2886,7 +2886,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		 
 	    // 1. Search; instantiate highlighter
 
-//		indexSearcher = new MultiSearcher();
+		MultiSearcher indexSearcher = new MultiSearcher();
 		
 //		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
 	
@@ -2903,7 +2903,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		long searchEnd = System.currentTimeMillis();
 //		
 //		System.out.println("Search time " + (searchEnd - searchStart));
-//		System.out.println("Search count " + scoreDocs.length);
+		System.out.println("Search count " + scoreDocs.length);
 
 		List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
 		Set<Long> metaIds = new HashSet<Long>();
@@ -2974,9 +2974,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		System.out.println("Text matches "+textIds.size());
 		
 		// 1: Get EISDocs by IDs.
+        
+        List<EISDoc> docs = session
+        		.toOrmSession()
+        		.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
+        		.setParameter("ids", metaIds)
+        		.getResultList();
+        
 		
-		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
-			.setParameter("ids", metaIds).getResultList();
+//		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
+//			.setParameter("ids", metaIds).getResultList();
 	
 		if(Globals.TESTING){System.out.println("Docs results size: " + docs.size());}
 		
@@ -2987,9 +2994,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
 	
-		List<Object[]> textIdMetaAndFilenames = em.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
-				.setParameter("ids", textIds).getResultList();
-	
+		List<Object[]> textIdMetaAndFilenames = session
+        		.toOrmSession()
+        		.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
+				.setParameter("ids", textIds)
+				.getResultList();
+		
 		if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
 		
 		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
@@ -3030,49 +3040,45 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 				// If we already have one, do nothing - (title result: no filenames to add.)
 			} else {
-				try {
-					EISDoc eisFromDoc = hashTexts.get(ordered.id).eisdoc;
-					if(!added.containsKey(eisFromDoc.getId())) {
-						// Add DocumentText into logical position plus lucene ID, filename
-						MetadataWithContext3 combinedResult = new MetadataWithContext3(
-								new ArrayList<Integer>(),
-								eisFromDoc,
-								new ArrayList<String>(),
-								hashTexts.get(ordered.id).filename,
-								ordered.score);
-						combinedResult.addId(ordered.luceneId);
-						
-						combinedResults.add(combinedResult);
-						added.put(eisFromDoc.getId(), position);
-						position++;
+				ReducedText rd = hashTexts.get(ordered.id);
+				EISDoc eisFromDoc = rd.eisdoc;
+				if(!added.containsKey(eisFromDoc.getId())) {
+					// Add DocumentText into logical position plus lucene ID, filename
+					MetadataWithContext3 combinedResult = new MetadataWithContext3(
+							new ArrayList<Integer>(),
+							eisFromDoc,
+							new ArrayList<String>(),
+							hashTexts.get(ordered.id).filename,
+							ordered.score);
+					combinedResult.addId(ordered.luceneId);
+					
+					combinedResults.add(combinedResult);
+					added.put(eisFromDoc.getId(), position);
+					position++;
+				} else {
+					// Add this combinedResult's filename to filename list
+					// Add the lucene ID to this combinedResult's ID list
+					String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
+							.getFilenames();
+					// > is not a valid directory/filename char, so should work as delimiter
+					// If currentFilename is blank (title match came first), no need to concat.  Just set.
+					if(currentFilename.isBlank()) {
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							hashTexts.get(ordered.id).filename
+						);
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.addId(ordered.luceneId);
 					} else {
-						// Add this combinedResult's filename to filename list
-						// Add the lucene ID to this combinedResult's ID list
-						String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
-								.getFilenames();
-						// > is not a valid directory/filename char, so should work as delimiter
-						// If currentFilename is blank (title match came first), no need to concat.  Just set.
-						if(currentFilename.isBlank()) {
-							combinedResults.get(added.get(eisFromDoc.getId()))
-							.setFilenames(
-								hashTexts.get(ordered.id).filename
-							);
-							combinedResults.get(added.get(eisFromDoc.getId()))
-							.addId(ordered.luceneId);
-						} else {
-							combinedResults.get(added.get(eisFromDoc.getId()))
-							.setFilenames(
-								currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
-							);
-							combinedResults.get(added.get(eisFromDoc.getId()))
-							.addId(ordered.luceneId);
-						}
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.setFilenames(
+							currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
+						);
+						combinedResults.get(added.get(eisFromDoc.getId()))
+						.addId(ordered.luceneId);
 					}
-				} catch(Exception e) {
-					// deleted but not quite "finalized" yet???
-					e.printStackTrace();
 				}
-				
+			
 			}
 		}
 		
@@ -3084,6 +3090,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			long elapsedTime = stopTime - startTime;
 			System.out.println("Total score time: " + elapsedTime + "ms");
 		}
+
+		session.toOrmSession().close();
 		
 		return combinedResults;
 	}
@@ -3093,6 +3101,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	public ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception {
 		long startTime = System.currentTimeMillis();
 		int fragmentSizeCustom = setFragmentSize(unhighlighted.getFragmentSizeValue());
+
+		MultiSearcher indexSearcher = new MultiSearcher();
 		
 		// Normalize whitespace and support added term modifiers
 	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
@@ -3104,9 +3114,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		qp.setDefaultOperator(Operator.AND);
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 
-//        File indexFile = new File(Globals.getIndexString());
-//        Directory directory = FSDirectory.open(indexFile.toPath());
-//        IndexReader indexReader = DirectoryReader.open(directory);
+        File indexFile = new File(Globals.getIndexString());
+        Directory directory = FSDirectory.open(indexFile.toPath());
+        IndexReader indexReader = DirectoryReader.open(directory);
 
         FastVectorHighlighter fvh = new FastVectorHighlighter();
 		
@@ -3131,7 +3141,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// We can just get the highlight here, immediately.
 	    			String fragment = fvh.getBestFragment(
 	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
-	    					textReader, 
+	    					indexReader, 
 	    					luceneId, 
 	    					"plaintext", 
 	    					fragmentSizeCustom);
@@ -3221,6 +3231,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		qp.setDefaultOperator(Operator.AND);
 		Query luceneTextOnlyQuery = qp.parse(formattedTerms);
 
+		MultiSearcher indexSearcher = new MultiSearcher();
+		
 //        File indexFile = new File(Globals.getIndexString());
 //        Directory directory = FSDirectory.open(indexFile.toPath());
 //        IndexReader indexReader = DirectoryReader.open(directory);
@@ -3250,7 +3262,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// We can just get the highlight here, immediately.
 	    			String fragment = fvh.getBestFragment(
 	    					fvh.getFieldQuery(luceneTextOnlyQuery), 
-	    					textReader, 
+	    					indexSearcher.getTextReader(), 
 	    					luceneId, 
 	    					"plaintext", 
 	    					fragmentSizeCustom);

@@ -121,26 +121,26 @@ public class LuceneConfig {
 //    }
 
 
-    /**
-     * IndexReader initialized in config as bean with the goal that we only have to do this 
-     * expensive operation once
-     * 
-     * @return IndexReader if successful, null if it runs into IOException
-     * @throws 
-     */
-    @Bean
-    public static IndexReader textReader() {
-    	try {
-    		File indexFile = new File(Globals.getIndexString());
-    		Directory directory = FSDirectory.open(indexFile.toPath());
-    		IndexReader textReader = DirectoryReader.open(directory);
-    		
-    		return textReader;
-    	}
-    	catch(IOException e) {
-    		return null;
-    	}
-    }
+//    /**
+//     * IndexReader initialized in config as bean with the goal that we only have to do this 
+//     * expensive operation once
+//     * 
+//     * @return IndexReader if successful, null if it runs into IOException
+//     * @throws 
+//     */
+//    @Bean
+//    public static IndexReader textReader() {
+//    	try {
+//    		File indexFile = new File(Globals.getIndexString());
+//    		Directory directory = FSDirectory.open(indexFile.toPath());
+//    		IndexReader textReader = DirectoryReader.open(directory);
+//    		
+//    		return textReader;
+//    	}
+//    	catch(IOException e) {
+//    		return null;
+//    	}
+//    }
     
 
 //    @Bean
@@ -176,38 +176,38 @@ public class LuceneConfig {
 //    	}
 //    }
     
-    /**
-     * Searcher initialized in config as bean with the goal that we only have to do this 
-     * expensive operation once
-     * 
-     * @return IndexSearcher if successful, null if reader ran into IOException
-     * @throws 
-     */
-    @Bean
-    public IndexSearcher indexSearcher() {
-    	try {
-    		File indexFile2 = new File(Globals.getMetaIndexString());
-    		Directory directory2 = FSDirectory.open(indexFile2.toPath());
-    		IndexReader metaReader = DirectoryReader.open(directory2);
-    		
-			MultiReader multiIndexReader = new MultiReader(textReader(), metaReader);
-
-    		IndexSearcher indexSearcher = new IndexSearcher(multiIndexReader);
-    		
-    		return indexSearcher;
-	    	
-		}
-		catch(IOException e) {
-			e.printStackTrace();
-			return null;
-		}
-    	catch(Exception e) {
-			System.out.println("Non-IO Problem creating indexSearcher");
-    		e.printStackTrace();
-			return null;
-    	}
-    	
-	}
+//    /**
+//     * Searcher initialized in config as bean with the goal that we only have to do this 
+//     * expensive operation once
+//     * 
+//     * @return IndexSearcher if successful, null if reader ran into IOException
+//     * @throws 
+//     */
+//    @Bean
+//    public IndexSearcher indexSearcher() {
+//    	try {
+//    		File indexFile2 = new File(Globals.getMetaIndexString());
+//    		Directory directory2 = FSDirectory.open(indexFile2.toPath());
+//    		IndexReader metaReader = DirectoryReader.open(directory2);
+//    		
+//			MultiReader multiIndexReader = new MultiReader(textReader(), metaReader);
+//
+//    		IndexSearcher indexSearcher = new IndexSearcher(multiIndexReader);
+//    		
+//    		return indexSearcher;
+//	    	
+//		}
+//		catch(IOException e) {
+//			e.printStackTrace();
+//			return null;
+//		}
+//    	catch(Exception e) {
+//			System.out.println("Non-IO Problem creating indexSearcher");
+//    		e.printStackTrace();
+//			return null;
+//    	}
+//    	
+//	}
 //    	MultiReader indexReader = multiReader();
 //		
 //    	if(indexReader != null) {
