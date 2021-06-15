@@ -2877,8 +2877,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception {
 		long startTime = System.currentTimeMillis();
 		
-		SearchSession session = org.hibernate.search.mapper.orm.Search.session(em);
-		
 		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
     			mutateTermModifiers(terms.strip()));
 	
@@ -2975,8 +2973,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		// 1: Get EISDocs by IDs.
         
-        List<EISDoc> docs = session
-        		.toOrmSession()
+        List<EISDoc> docs = em
         		.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
         		.setParameter("ids", metaIds)
         		.getResultList();
@@ -2994,8 +2991,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
 	
-		List<Object[]> textIdMetaAndFilenames = session
-        		.toOrmSession()
+		List<Object[]> textIdMetaAndFilenames = em
         		.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
 				.setParameter("ids", textIds)
 				.getResultList();
@@ -3090,8 +3086,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			long elapsedTime = stopTime - startTime;
 			System.out.println("Total score time: " + elapsedTime + "ms");
 		}
-
-		session.toOrmSession().close();
 		
 		return combinedResults;
 	}
