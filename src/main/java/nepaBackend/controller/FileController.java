@@ -977,7 +977,7 @@ public class FileController {
 						else if(!recordThatMayExist.isPresent()) { 
 							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
 							if(shouldImport) {
-								status = updateDto(itr, recordThatMayExist);
+								status = saveDto(itr);
 							}
 					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
 					    	if(status.getStatusCodeValue() == 500) { // Error
