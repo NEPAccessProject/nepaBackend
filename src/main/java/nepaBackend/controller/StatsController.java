@@ -210,7 +210,7 @@ public class StatsController {
 			//	if (log.isDebugEnabled()) {
 			//		log.debug(e);
 			//	}
-			e.printStackTrace();
+//			e.printStackTrace();
 			return new ResponseEntity<List<Integer>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
