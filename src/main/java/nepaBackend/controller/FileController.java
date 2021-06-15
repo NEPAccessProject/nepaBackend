@@ -947,8 +947,13 @@ public class FileController {
 						// so new data can add files where there are none, without adding redundant data when there is data.
 						// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
 						if(recordThatMayExist.isPresent() && 
-								((recordThatMayExist.get().getFilename().isBlank() && recordThatMayExist.get().getFolder().isBlank()) || 
-										(itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) )
+								( 
+									(
+										(recordThatMayExist.get().getFilename() == null || recordThatMayExist.get().getFilename().isBlank()) 
+										&& (recordThatMayExist.get().getFolder() == null || recordThatMayExist.get().getFolder().isBlank())
+									) 
+										|| (itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) 
+								)
 						) {
 							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
 							if(shouldImport) {
