@@ -202,7 +202,7 @@ public class FileController {
 	@RequestMapping(path = "/missing_files", method = RequestMethod.GET)
 	public ResponseEntity<List<Object[]>> missingFiles() {
 		try {
-			return new ResponseEntity<List<Object[]>>(docRepository.findMissingNames(),HttpStatus.OK);
+			return new ResponseEntity<List<Object[]>>(docRepository.findMissingFiles(),HttpStatus.OK);
 		} catch (Exception e) {
 			if(testing) {
 				e.printStackTrace();
