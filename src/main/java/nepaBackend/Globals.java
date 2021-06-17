@@ -97,7 +97,7 @@ public class Globals {
 		}
 		return false;
 	}
-	/** return ( str.replace('�', ' ').replaceAll("\\s", " ") ).strip(); */
+	/** if null return ""; else return ( str.replace('�', ' ').replaceAll("\\s", " ") ).strip(); */
 	public static String normalizeSpace(String str) {
 		if(str == null) {
 			return "";
@@ -105,6 +105,14 @@ public class Globals {
 		// At some point, NBSP from importing through webapp is interpreted as �, so replace with a regular space, then normalize other whitespace.
 		// Need the + to remove double spaces (or more), or else each individual space is replaced with a space, which doesn't help
 		return ( str.replace('�', ' ').replaceAll("\\s+", " ") ).strip();
+	}
+	
+	public static Boolean validPassword(String pass) {
+		if(pass != null && pass.length() >= 4 && pass.length() <= 50) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 

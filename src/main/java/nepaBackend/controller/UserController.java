@@ -117,7 +117,9 @@ public class UserController {
 
     		// Only admin can deactivate elevated roles
     		if(!approved && (isApprover(token) || isCurator(token))) {
-    			if(user.getRole()=="ADMIN" || user.getRole()=="CURATOR" || user.getRole()=="APPROVER") {
+    			if(user.getRole().contentEquals("ADMIN") 
+    					|| user.getRole().contentEquals("CURATOR") 
+    					|| user.getRole().contentEquals("APPROVER")) {
     	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     			}
     		}
@@ -143,7 +145,9 @@ public class UserController {
 
     		// Only admin can deactivate elevated roles
     		if(!approved && (isApprover(token) || isCurator(token))) {
-    			if(user.getRole()=="ADMIN" || user.getRole()=="CURATOR" || user.getRole()=="APPROVER") {
+    			if(user.getRole().contentEquals("ADMIN") 
+    					|| user.getRole().contentEquals("CURATOR") 
+    					|| user.getRole().contentEquals("APPROVER")) {
     	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     			}
     		}
@@ -187,7 +191,7 @@ public class UserController {
     	
     	if(usernameExists(user.getUsername().strip())) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
-    	} else if(passwordValid(user.getPassword())) {
+    	} else if(Globals.validPassword(user.getPassword())) {
     		try {
     			user.setUsername(user.getUsername().strip());
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
@@ -219,14 +223,6 @@ public class UserController {
     	}
     }
 
-    // TODO: Get specs for this and enforce on frontend also.
-	private boolean passwordValid(String password) {
-		if(password.length() > 0) {
-			return true;
-		}
-		return false;
-	}
-
 	/** email address, username are included and saved
 	* first last affiliation org and job title also included and saved
 	* role has to be set and password has to be encrypted
@@ -249,7 +245,7 @@ public class UserController {
         	
         	if(usernameExists(user.getUsername())) { // check for duplicates
         		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
-        	} else if(passwordValid(user.getPassword())) {
+        	} else if( Globals.validPassword(user.getPassword()) ) {
         		try {
                     user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                     user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
