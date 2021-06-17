@@ -7,11 +7,15 @@ import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
@@ -19,6 +23,7 @@ import com.auth0.jwt.JWT;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
+import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.model.ApplicationUser;
@@ -37,17 +42,20 @@ public class AdminController {
     private DocRepository docRepository;
     private FileLogRepository fileLogRepository;
     private TextRepository textRepository;
+    private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public AdminController(DocRepository docRepository,
-			TextRepository textRepository,
-			FileLogRepository fileLogRepository,
-			ApplicationUserRepository applicationUserRepository,
-			NEPAFileRepository nepaFileRepository) {
+				TextRepository textRepository,
+				FileLogRepository fileLogRepository,
+				ApplicationUserRepository applicationUserRepository,
+				NEPAFileRepository nepaFileRepository,
+				BCryptPasswordEncoder bCryptPasswordEncoder) {
 		this.docRepository = docRepository;
 		this.textRepository = textRepository;
 		this.fileLogRepository = fileLogRepository;
 		this.applicationUserRepository = applicationUserRepository;
 		this.nepaFileRepository = nepaFileRepository;
+		this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
     
     
@@ -275,7 +283,6 @@ public class AdminController {
     }
 
     // Deletes the eisdoc itself after calling deleteAllFiles
-    // TODO: Test
     @CrossOrigin
     @RequestMapping(path = "/deleteDoc", method = RequestMethod.POST)
     ResponseEntity<String> deleteDoc(@RequestBody String id, @RequestHeader Map<String, String> headers) {
@@ -324,6 +331,32 @@ public class AdminController {
 			return new ResponseEntity<String>("Error: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
     	}
     }
+
+    // for admin, set password of non-admin user
+    @PostMapping("/set_password")
+    private @ResponseBody ResponseEntity<Boolean> setPassword(@RequestParam Long userId, 
+    			@RequestParam String password, 
+    			@RequestHeader Map<String, String> headers) {
+
+		String token = headers.get("authorization");
+    	if(!isAdmin(token)) {
+    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    	} else if (!Globals.validPassword(password)) {
+    		return new ResponseEntity<Boolean>(false, HttpStatus.BAD_REQUEST);
+    	} else {
+    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
+    		if(user.getRole().contentEquals("ADMIN")) {
+        		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    		} else {
+                user.setPassword(bCryptPasswordEncoder.encode(password));
+        		applicationUserRepository.save(user);
+
+        		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
+    		}
+
+    	}
+    }
+    
     
 
 	private void logDelete(EISDoc foundDoc, String message, ApplicationUser user, String filename) {
