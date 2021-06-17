@@ -260,4 +260,11 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	Object getLatestYear();
 
+//	@Query(value = "SELECT EXISTS(SELECT * FROM eisdoc WHERE ")
+	boolean existsByFolder(String folderName);
+
+	boolean existsByFolderAndDocumentTypeIn(String folder, String documentType);
+
+	boolean existsByFilename(String filename);
+
 }

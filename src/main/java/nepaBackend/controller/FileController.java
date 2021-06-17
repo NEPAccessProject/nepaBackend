@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -1018,6 +1019,30 @@ public class FileController {
 		}
 
 		return results;
+	}
+	
+	/** 
+	 * Returns if the given path can be linked to any records, either through folder+type, or filename 
+	 * */
+	@CrossOrigin
+	@GetMapping(path = "/can_link_folder_type")
+	public ResponseEntity<Boolean> canLinkFolderAndType(@RequestParam String path) {
+		String folder = getUniqueFolderNameOrEmpty(path);
+		String documentType = getDocumentTypeOrEmpty(path);
+		
+		if(!folder.isBlank() 
+				&& !documentType.isBlank() 
+				&& docRepository.existsByFolderAndDocumentTypeIn(folder, documentType)) {
+			return new ResponseEntity<Boolean>(true,HttpStatus.OK);
+		} else {
+			String filename = getFilenameOnly(path);
+			
+			if(filename != null && filename.length() > 0 && docRepository.existsByFilename(filename)) {
+				return new ResponseEntity<Boolean>(true,HttpStatus.OK);
+			} else {
+				return new ResponseEntity<Boolean>(false,HttpStatus.OK);
+			}
+		}
 	}
 
 
