@@ -1,14 +1,13 @@
 package nepaBackend.controller;
 
 import java.math.BigInteger;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.json.simple.parser.ParseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -61,6 +60,7 @@ public class FulltextController {
 	}
 	
 	private boolean testing = Globals.TESTING;
+	private static final Logger logger = LoggerFactory.getLogger(FulltextController.class);
 	
 
 //	@CrossOrigin
@@ -201,8 +201,6 @@ public class FulltextController {
 	@PostMapping(path = "/search_title_priority")
 	public ResponseEntity<List<MetadataWithContext>> searchPriorityTitle(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs, "all",(long) 30);
-
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchTitlePriority(searchInputs, SearchType.ALL)));
@@ -219,8 +217,6 @@ public class FulltextController {
 	@PostMapping(path = "/search_lucene_priority")
 	public ResponseEntity<List<MetadataWithContext>> searchPriorityLucene(@RequestBody SearchInputs searchInputs)
 	{
-		saveSearchLog(searchInputs, "all",(long) 30);
-
 		try { 
 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
 					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
@@ -590,11 +586,11 @@ public class FulltextController {
 	private Long idFromToken(String token) {
 		if(token != null) {
 			/** By necessity token is verified as valid via filter by this point as long as it's going through the 
-			 * public API.  Alternatively you can store admin credentials in the token and hand that to the filter,
-			 * but then if admin access is revoked, that token still has admin access until it expires.
-			 * Therefore this is a slightly more secure flow. */
+			 * public API. */
 			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 					.getId();
+			
+			logger.info(id);
 			return Long.parseLong(id);
 		} else {
 			return null;
@@ -618,9 +614,7 @@ public class FulltextController {
 				searchLogRepository.save(searchLog);
 				
 			} catch (Exception e) {
-	//			if (log.isDebugEnabled()) {
-	//				log.debug(e);
-	//			}
+				logger.error(e.getLocalizedMessage());
 			}
 		}
 		
