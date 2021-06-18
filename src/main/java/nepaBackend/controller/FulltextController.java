@@ -590,7 +590,6 @@ public class FulltextController {
 			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 					.getId();
 			
-			logger.info(id);
 			return Long.parseLong(id);
 		} else {
 			return null;
@@ -600,7 +599,8 @@ public class FulltextController {
 	private void saveSearchLog(SearchInputs searchInputs, String searchMode, Long userId) {
 
 		// current admin user ID is 30; this could change depending on if/how db is migrated
-		if(userId != null && userId == 30) { 
+		// also exclude paul/alex's searches
+		if( userId != null && (userId == 30 || userId == 101 || userId == 104) ) { 
 			// don't save
 		} else {
 			try {
