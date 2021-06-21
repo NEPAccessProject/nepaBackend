@@ -58,6 +58,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 //import org.xml.sax.ContentHandler;
@@ -131,6 +132,16 @@ public class FileController {
 	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 	
 //	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
+	
+    @GetMapping("/findAllNepaFiles")
+    private @ResponseBody ResponseEntity<List<NEPAFile>> findAllNepaFiles(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(isAdmin(token)) {
+    		return new ResponseEntity<List<NEPAFile>>(nepaFileRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<NEPAFile>>(new ArrayList<NEPAFile>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
 
 	/** Check all possible file sizes for entities with filenames or folders */
 	@CrossOrigin

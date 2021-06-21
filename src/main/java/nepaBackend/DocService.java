@@ -43,4 +43,8 @@ public class DocService {
 		return docRepository.findAllByAgency(agency);
 	}
 
+	public List<EISDoc> findAll() {
+		return docRepository.findAll();
+	}
+
 }

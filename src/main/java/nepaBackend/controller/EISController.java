@@ -452,6 +452,24 @@ public class EISController {
 //		}
 //	
 //	}
+	
+    @GetMapping("/findAllDocs")
+    private @ResponseBody ResponseEntity<List<EISDoc>> findAllDocs(@RequestHeader Map<String, String> headers) {
+    	if(checkAdmin(headers).getBody()) {
+    		return new ResponseEntity<List<EISDoc>>(docService.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(new ArrayList<EISDoc>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+	
+    @GetMapping("/findAllSearchLogs")
+    private @ResponseBody ResponseEntity<List<SearchLog>> findAllSearchLogs(@RequestHeader Map<String, String> headers) {
+    	if(checkAdmin(headers).getBody()) {
+    		return new ResponseEntity<List<SearchLog>>(searchLogRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<SearchLog>>(new ArrayList<SearchLog>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
 
 	@CrossOrigin
 	@PostMapping(path = "/match", 
@@ -935,4 +953,34 @@ public class EISController {
 //		}
 //		return false;
 //	}
+	
+	
+	// Return true if admin role
+	@PostMapping(path = "/checkAdmin")
+	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		boolean result = isAdmin(token);
+		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
+		if(result) {
+			returnStatus = HttpStatus.OK;
+		}
+		return new ResponseEntity<Boolean>(result, returnStatus);
+	}
+	
+	// Helper function for checkAdmin
+	private boolean isAdmin(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().contentEquals("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+
+	}
 }

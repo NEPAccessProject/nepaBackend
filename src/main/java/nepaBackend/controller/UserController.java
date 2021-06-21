@@ -100,6 +100,31 @@ public class UserController {
 		}
     }
     
+    @GetMapping("/findAllUsers")
+    private @ResponseBody ResponseEntity<List<ApplicationUser>> findAllUsers(@RequestHeader Map<String, String> headers) {
+    	if(checkAdmin(headers).getBody()) {
+    		return new ResponseEntity<List<ApplicationUser>>(applicationUserRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<ApplicationUser>>(new ArrayList<ApplicationUser>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+    @GetMapping("/findAllOptedOut")
+    private @ResponseBody ResponseEntity<List<OptedOut>> findAllOptedOut(@RequestHeader Map<String, String> headers) {
+    	if(checkAdmin(headers).getBody()) {
+    		return new ResponseEntity<List<OptedOut>>(optedOutRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<OptedOut>>(new ArrayList<OptedOut>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+    @GetMapping("/findAllContacts")
+    private @ResponseBody ResponseEntity<List<Contact>> findAllContacts(@RequestHeader Map<String, String> headers) {
+    	if(checkAdmin(headers).getBody()) {
+    		return new ResponseEntity<List<Contact>>(contactRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<Contact>>(new ArrayList<Contact>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+    
     @PostMapping("/setUserApproved")
     private @ResponseBody ResponseEntity<Boolean> approveUser(@RequestParam Long userId, 
     			@RequestParam boolean approved, 
@@ -1187,12 +1212,8 @@ public class UserController {
         		
         		if(user.getUsername().length() < 1 && !emailInvalid(user.getEmail())) { // No username provided?
         			String[] split = (user.getEmail().split("@"));
-        			if(
-        					(split[1].equalsIgnoreCase("email.arizona.edu") 
-        					|| split[1].equalsIgnoreCase("arizona.edu") )
-        					&& !usernameInvalid(split[0])
-        			) {
-        				// Try using NetID if Arizona email, if valid (should just be first part)
+        			if( !usernameInvalid(split[0]) ) {
+        				// Try using NetID if Arizona email, if valid and unique
         				user.setUsername(split[0]);
         			} else { 
         				// Or use the email as the username

@@ -5,10 +5,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -22,15 +24,20 @@ import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
+import nepaBackend.EmailLogRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
 import nepaBackend.TextRepository;
+import nepaBackend.UpdateLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.model.EmailLog;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
+import nepaBackend.model.SearchLog;
+import nepaBackend.model.UpdateLog;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -42,6 +49,8 @@ public class AdminController {
     private DocRepository docRepository;
     private FileLogRepository fileLogRepository;
     private TextRepository textRepository;
+    private EmailLogRepository emailLogRepository;
+    private UpdateLogRepository updateLogRepository;
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public AdminController(DocRepository docRepository,
@@ -49,13 +58,51 @@ public class AdminController {
 				FileLogRepository fileLogRepository,
 				ApplicationUserRepository applicationUserRepository,
 				NEPAFileRepository nepaFileRepository,
+				EmailLogRepository emailLogRepository,
+				UpdateLogRepository updateLogRepository,
 				BCryptPasswordEncoder bCryptPasswordEncoder) {
 		this.docRepository = docRepository;
 		this.textRepository = textRepository;
 		this.fileLogRepository = fileLogRepository;
 		this.applicationUserRepository = applicationUserRepository;
 		this.nepaFileRepository = nepaFileRepository;
+		this.emailLogRepository = emailLogRepository;
+		this.updateLogRepository = updateLogRepository;
 		this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+    }
+
+	
+    @GetMapping("/findAllEmailLogs")
+    private @ResponseBody ResponseEntity<List<EmailLog>> findAllEmailLogs(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		
+    	if(isAdmin(token)) {
+    		return new ResponseEntity<List<EmailLog>>(emailLogRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EmailLog>>(new ArrayList<EmailLog>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+	
+    @GetMapping("/findAllFileLogs")
+    private @ResponseBody ResponseEntity<List<FileLog>> findAllFileLogs(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		
+    	if(isAdmin(token)) {
+    		return new ResponseEntity<List<FileLog>>(fileLogRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<FileLog>>(new ArrayList<FileLog>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+	
+    @GetMapping("/findAllUpdateLogs")
+    private @ResponseBody ResponseEntity<List<UpdateLog>> findAllUpdateLogs(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		
+    	if(isAdmin(token)) {
+    		return new ResponseEntity<List<UpdateLog>>(updateLogRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<UpdateLog>>(new ArrayList<UpdateLog>(), HttpStatus.UNAUTHORIZED);
+		}
     }
     
     
