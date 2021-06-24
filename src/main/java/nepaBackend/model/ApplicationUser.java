@@ -31,7 +31,10 @@ public class ApplicationUser { // application_user
 	@Column(name = "last_reset", columnDefinition="TIMESTAMP")
 	private LocalDateTime lastReset;
 
-    @Column(name = "first_name", length=191)
+	@Column(name = "last_login", columnDefinition="TIMESTAMP DEFAULT NULL")
+	private LocalDateTime lastLogin;
+
+	@Column(name = "first_name", length=191)
     private String firstName;
     
     @Column(name = "last_name", length=191)
@@ -88,6 +91,7 @@ public class ApplicationUser { // application_user
 		this.role = role;
 	}
 	
+	
     public LocalDateTime getLastReset() {
 		return lastReset;
 	}
@@ -95,7 +99,14 @@ public class ApplicationUser { // application_user
 	public void setLastReset(LocalDateTime lastReset) {
 		this.lastReset = lastReset;
 	}
-	
+
+    public LocalDateTime getLastLogin() {
+		return lastLogin;
+	}
+
+	public void setLastLogin(LocalDateTime lastLogin) {
+		this.lastLogin = lastLogin;
+	}
 
 
     public String getFirstName() {
