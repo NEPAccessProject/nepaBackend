@@ -558,6 +558,13 @@ public class FulltextController {
 		return textRepository.findIdsByPlaintextLength(getLengthOfDocumentText(id));
 	}
 
+	private int getTotalHits(String field) {
+		try {
+			return textRepository.getTotalHits(field);
+		} catch(Exception e) {
+			return -1;
+		}
+	}
 	
 	
 	

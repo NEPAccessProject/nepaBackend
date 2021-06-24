@@ -6,6 +6,7 @@ import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
  
@@ -42,6 +43,10 @@ public class MultiSearcher {
  
 	public TopDocs search(Query query, int n) throws Exception {
 		return indexSearcher.search(query, n); 
+	}
+	public int searchHits(Query query, TotalHitCountCollector thcc) throws Exception {
+		indexSearcher.search(query, thcc);
+		return thcc.getTotalHits();
 	}
  
 	public Document getDocument(int docID) throws Exception {

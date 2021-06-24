@@ -43,4 +43,6 @@ public interface CustomizedTextRepository {
 	ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception;
 	ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(Unhighlighted2DTO unhighlighted) throws Exception;
 	
+	int getTotalHits(String field) throws Exception;
+	
 }

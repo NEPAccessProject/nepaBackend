@@ -22,6 +22,8 @@ import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.MultiReader;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -30,6 +32,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TotalHitCountCollector;
 import org.apache.lucene.search.highlight.Fragmenter;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
@@ -517,7 +520,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			result = highlighter.getBestFragments(tokenStream, text, numberOfFragments, " ...</span><br /><span class=\"fragment\">... ");
 //			System.out.println(result);
 			if(result.length()>0) {
-				result = "<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(result).strip().concat(" ...</span>");
+				result = "<span class=\"fragment\">... " + Globals.normalizeSpace(result).concat(" ...</span>");
 //				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {
@@ -544,7 +547,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			result = highlighter.getBestFragments(tokenStream, text, numberOfFragmentsMax, " ...</span><span class=\"fragment\">... ");
 			
 			if(result.length()>0) {
-				result = "<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(result).strip().concat(" ...</span>");
+				result = "<span class=\"fragment\">... " + Globals.normalizeSpace(result).concat(" ...</span>");
 //				System.out.println(result);
 			}
 		} catch (InvalidTokenOffsetsException e) {
@@ -633,21 +636,17 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	 * (when going beyond the limit, proximity matching stopped working at all).  
 	 * Support for | is added by converting to ||. */
     private String mutateTermModifiers(String terms){
-    	if(terms != null && terms.strip().length() > 0) {
-    		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
-    		return org.apache.commons.lang3.StringUtils.normalizeSpace(terms).replace(" | ",  " || ")
+		// + and - must immediately precede the next term (no space), therefore don't add a space after those when replacing
+		return Globals.normalizeSpace(terms).replace(" | ",  " || ")
 //    				.replace("and", "AND") // support for AND is implicit currently
 //    				.replace("or", "OR") // Lowercase term modifiers could easily trip people up accidentally if they're pasting something in and they don't actually want to OR them
 //    				.replace("not", "NOT")
 //    				.replace("&", "AND")
-    				.replace("!", "-")
+				.replace("!", "-");
 //    				.replace("%", "-")
 //    				.replace("/", "~") // westlaw? options, can also add confusion
-    				.strip(); // QueryParser doesn't support |, does support ?, OR, NOT
+				// QueryParser doesn't support |, does support ?, OR, NOT
 //    				.replaceAll("(~\\d{10}\\d*)", "~999999999"); // this was necessary with QueryBuilder (broke after limit)
-    	} else {
-    		return "";
-    	}
     }
 
 	
@@ -1284,7 +1283,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		long startTime = System.currentTimeMillis();
 		
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+	    String formattedTerms = mutateTermModifiers(terms);
 
 	    if(Globals.TESTING) {System.out.println("Search terms: " + formattedTerms);}
 	    
@@ -1330,7 +1329,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		long startTime = System.currentTimeMillis();
 
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+	    String formattedTerms = mutateTermModifiers(terms);
 
 	    if(Globals.TESTING) {System.out.println("Search terms: " + formattedTerms);}
 	    
@@ -1854,7 +1853,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 		
 		// 0: Normalize whitespace and support all term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+	    String formattedTerms = mutateTermModifiers(terms);
 	    
 		// 1: Search title; now have result list in scored order
 		List<EISDoc> titleResults = getFulltextMetaResults(formattedTerms, limit, offset);
@@ -1885,7 +1884,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	public List<MetadataWithContext> lucenePrioritySearch(String terms, int limit, int offset, HashSet<Long> justRecordIds) throws ParseException {
 		long startTime = System.currentTimeMillis();
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+	    String formattedTerms = mutateTermModifiers(terms);
 
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
@@ -2005,7 +2004,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		long startTime = System.currentTimeMillis();
 
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(terms).strip());
+	    String formattedTerms = mutateTermModifiers(terms);
 
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em);
 
@@ -2144,7 +2143,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	public ArrayList<ArrayList<String>> getHighlights(UnhighlightedDTO unhighlighted) throws ParseException, IOException {
 		long startTime = System.currentTimeMillis();
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+	    String formattedTerms = mutateTermModifiers(unhighlighted.getTerms());
 		
 		// build highlighter with StandardAnalyzer
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
@@ -2219,7 +2218,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 //					String highlight = highlighter.highlightWithoutSearcher("plaintext", qp.parse(formattedTerms), text, 1).toString();
 					if(highlight.length() > 0) {
-						result.add("<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(highlight).strip().concat(" ...</span>"));
+						result.add("<span class=\"fragment\">... " + Globals.normalizeSpace(highlight).concat(" ...</span>"));
 					}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -2272,8 +2271,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     // Lucene document IDs for the FVH.
     public List<HighlightedResult> searchAndHighlight(String searchQuery) throws Exception {
     	try {
-    		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
-	    			mutateTermModifiers(searchQuery.strip()));
+    		String formattedTerms = mutateTermModifiers(searchQuery);
 		
     	if(Globals.TESTING) {System.out.println("Formatted: " + formattedTerms);}
    	 
@@ -2422,8 +2420,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     // uses term vectors via token stream.  Relatively slow.
     @Deprecated
     public List<HighlightedResult> searchAndHighlightSlow(String searchQuery) throws Exception {
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
-	    			mutateTermModifiers(searchQuery.strip()));
+	    String formattedTerms = mutateTermModifiers(searchQuery);
 		
     	if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
    	 
@@ -2562,7 +2559,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Override
 	public List<List<?>> searchHibernate6(String terms) throws ParseException {
 		
-		String newTerms = mutateTermModifiers(terms.strip());
+		String newTerms = mutateTermModifiers(terms);
 		
 		SearchSession session = org.hibernate.search.mapper.orm.Search.session(em);
 
@@ -2725,7 +2722,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		long cumulativeTime2 = 0;
 		
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+	    String formattedTerms = mutateTermModifiers(unhighlighted.getTerms());
 		
 		// build highlighter with StandardAnalyzer
 		QueryParser qp = new QueryParser("plaintext", new StandardAnalyzer());
@@ -2841,7 +2838,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					cumulativeTime2 += elapsedTime2;
 
 					if(highlight.length() > 0) {
-						result.add("<span class=\"fragment\">... " + org.apache.commons.lang3.StringUtils.normalizeSpace(highlight).strip().concat(" ...</span>"));
+						result.add("<span class=\"fragment\">... " + Globals.normalizeSpace(highlight).concat(" ...</span>"));
 					}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
@@ -2877,8 +2874,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception {
 		long startTime = System.currentTimeMillis();
 		
-		String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(
-    			mutateTermModifiers(terms.strip()));
+		String formattedTerms = mutateTermModifiers(terms);
 	
 		if(Globals.TESTING) {System.out.println("Formatted terms: " + formattedTerms);}
 		 
@@ -3099,7 +3095,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		MultiSearcher indexSearcher = new MultiSearcher();
 		
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+	    String formattedTerms = mutateTermModifiers(unhighlighted.getTerms());
 		
 		// build highlighter with StandardAnalyzer
 //		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
@@ -3151,8 +3147,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					if(fragment != null) { 
 						result.add(
 //								"<span class=\"fragment\">... " + 
-								org.apache.commons.lang3.StringUtils.normalizeSpace(fragment)
-								.strip()
+								Globals.normalizeSpace(fragment)
 //								.concat(" ...</span>")
 						);
 //					} else if(false) {
@@ -3174,8 +3169,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 						}
 						result.add(
 //								"<span class=\"fragment\">... " + 
-								org.apache.commons.lang3.StringUtils.normalizeSpace(highlight)
-								.strip()
+								Globals.normalizeSpace(highlight)
 //								.concat(" ...</span>")
 						);
 					}
@@ -3210,13 +3204,31 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			return 2000;
 		}
 	}
+	
+	@Override
+	public int getTotalHits(String field) throws Exception {
+		MultiSearcher indexSearcher = new MultiSearcher();
+		
+	    String formattedTerms = mutateTermModifiers(field);
+	    
+		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					new StandardAnalyzer());
+		mfqp.setDefaultOperator(Operator.AND);
+
+		Query luceneQuery = mfqp.parse(formattedTerms);
+		
+		org.apache.lucene.search.TotalHitCountCollector thcc = new TotalHitCountCollector();
+		
+		return indexSearcher.searchHits(luceneQuery, thcc);
+	}
 
 	/** Fastest highlighting available, requires full term vectors indexed, no markup */
 	@Override
 	public ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(Unhighlighted2DTO unhighlighted) throws Exception {
 		long startTime = System.currentTimeMillis();
 		// Normalize whitespace and support added term modifiers
-	    String formattedTerms = org.apache.commons.lang3.StringUtils.normalizeSpace(mutateTermModifiers(unhighlighted.getTerms()).strip());
+	    String formattedTerms = mutateTermModifiers(unhighlighted.getTerms());
 		
 		// build highlighter with StandardAnalyzer
 //		StandardAnalyzer analyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);

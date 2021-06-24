@@ -44,4 +44,6 @@ public interface TextRepository extends JpaRepository<DocumentText, Long>, Custo
 			"LIMIT 1",
 			nativeQuery = true)
 	int findPlaintextLengthById(@Param("id") long id);
+
+	int getTotalHits(String field);
 }
