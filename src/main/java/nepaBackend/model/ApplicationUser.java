@@ -31,7 +31,7 @@ public class ApplicationUser { // application_user
 	@Column(name = "last_reset", columnDefinition="TIMESTAMP")
 	private LocalDateTime lastReset;
 
-	@Column(name = "last_login", columnDefinition="TIMESTAMP DEFAULT NULL")
+	@Column(name = "last_login", columnDefinition="TIMESTAMP")
 	private LocalDateTime lastLogin;
 
 	@Column(name = "first_name", length=191)
