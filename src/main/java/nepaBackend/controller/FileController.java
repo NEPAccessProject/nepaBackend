@@ -48,6 +48,7 @@ import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -74,6 +75,7 @@ import nepaBackend.DocService;
 import nepaBackend.FileLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
+import nepaBackend.ProcessRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.ZipExtractor;
 import nepaBackend.model.ApplicationUser;
@@ -81,6 +83,8 @@ import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
+import nepaBackend.model.NEPAProcess;
+import nepaBackend.pojo.ProcessInputs;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
 
@@ -95,6 +99,7 @@ public class FileController {
 	private FileLogRepository fileLogRepository;
 	private ApplicationUserRepository applicationUserRepository;
 	private NEPAFileRepository nepaFileRepository;
+	private ProcessRepository processRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of(
 			"yyyy-MM-dd", "MM-dd-yyyy", "yyyy/MM/dd", "MM/dd/yyyy", 
@@ -115,12 +120,14 @@ public class FileController {
 				TextRepository textRepository,
 				FileLogRepository fileLogRepository,
 				ApplicationUserRepository applicationUserRepository,
-				NEPAFileRepository nepaFileRepository) {
+				NEPAFileRepository nepaFileRepository,
+				ProcessRepository processRepository) {
 		this.docRepository = docRepository;
 		this.textRepository = textRepository;
 		this.fileLogRepository = fileLogRepository;
 		this.applicationUserRepository = applicationUserRepository;
 		this.nepaFileRepository = nepaFileRepository;
+		this.processRepository = processRepository;
 	}
 	
 	private static boolean testing = Globals.TESTING;
@@ -2267,6 +2274,275 @@ public class FileController {
 		
 		return savedDoc;
 	}
+	
+
+	/** Turns ProcessInputs into valid Process and saves to database, 
+	 * saves process ID to every affiliated record,
+	 * returns new ID and 200 (OK) or null and 500 (error) */
+	private ResponseEntity<List<Long>> saveProcessFromInputs(ProcessInputs itr) {
+
+		if(itr.process_id != null && !itr.process_id.isBlank()) {
+			itr.process_id = Globals.normalizeSpace(itr.process_id);
+		} else {
+			return new ResponseEntity<List<Long>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		
+		// need to set the processID first and foremost
+		NEPAProcess prout = new NEPAProcess(Long.valueOf(itr.process_id));
+		
+		// translate, etc.
+		return updateExistingProcessIgnoreBlank(prout, itr);
+	}
+	
+	// the only question here is if we should overwrite existing process IDs in EISDocs with this data
+	/** Update existing NEPAProcess with non-empty ProcessInputs, and update indicated existing EISDocs 
+	 * with process ID */
+	private ResponseEntity<List<Long>> updateExistingProcessIgnoreBlank(NEPAProcess prout, ProcessInputs itr) {
+		
+		// impossible?
+		if(prout.getProcessId() == null) {
+			return new ResponseEntity<List<Long>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		List<Long> results = new ArrayList<Long>();
+		
+		itr = this.normalizeProcessInputs(itr);
+		
+		List<Long> badResults = new ArrayList<Long>();
+		
+		if(itr.draft_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.draft_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocDraft(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				// skip, but this is a bad sign.  We'll want to track these.
+				// 		 Maybe a list of "not found" EIS IDs and a special response status.
+				//		 Starting with the process ID, still.
+				badResults.add(Long.valueOf(itr.draft_id));
+			}
+		}
+		if(itr.final_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.final_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocFinal(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.final_id));
+			}
+		}
+		
+		if(itr.draftsup_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.draftsup_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocDraftSupplement(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.draftsup_id));
+			}
+		}
+		if(itr.epacomments_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.epacomments_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocEpaComments(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.epacomments_id));
+			}
+		}
+		if(itr.finalsup_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.finalsup_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocFinalSupplement(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.finalsup_id));
+			}
+		}
+		if(itr.noi_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.noi_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocNoi(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.noi_id));
+			}
+		}
+		if(itr.revdraft_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.revdraft_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocRevisedDraft(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.revdraft_id));
+			}
+		}
+		if(itr.revfinal_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.revfinal_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocRevisedFinal(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.revfinal_id));
+			}
+		}
+		if(itr.rod_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.rod_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocRod(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.rod_id));
+			}
+		}
+		if(itr.scoping_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.scoping_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocScoping(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.scoping_id));
+			}
+		}
+		if(itr.secdraft_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.secdraft_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocSecondDraft(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.secdraft_id));
+			}
+		}
+		if(itr.secdraftsup_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.secdraftsup_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocSecondDraftSupplement(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.secdraftsup_id));
+			}
+		}
+		if(itr.secfinal_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.secfinal_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocSecondFinal(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.secfinal_id));
+			}
+		}
+		if(itr.secfinalsup_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.secfinalsup_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocSecondFinalSupplement(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.secfinalsup_id));
+			}
+		}
+		if(itr.thirddraftsup_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.thirddraftsup_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocThirdDraftSupplement(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.thirddraftsup_id));
+			}
+		}
+		if(itr.thirdfinalsup_id.isEmpty()) {
+			// skip
+		} else {
+			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.thirdfinalsup_id));
+			if(doc.isPresent()) {
+				EISDoc found = doc.get();
+				prout.setDocThirdFinalSupplement(found);
+				found.setProcessId(prout.getProcessId());
+			} else {
+				badResults.add(Long.valueOf(itr.thirdfinalsup_id));
+			}
+		}
+		
+		
+		NEPAProcess savedRecord = processRepository.save(prout); // update
+		
+		if(savedRecord != null) {
+			results.add(savedRecord.getId());
+			results.addAll(badResults);
+			if(results.size() > 1) {
+				// TODO
+			} // else
+			return new ResponseEntity<List<Long>>(results, HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<Long>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/** helper method normalizes process strings to "" and removes whitespace */
+	private ProcessInputs normalizeProcessInputs(ProcessInputs itr) {
+		// normalize (this will also change nulls to "")
+		itr.noi_id = Globals.normalizeSpace(itr.noi_id);
+		itr.draft_id = Globals.normalizeSpace(itr.draft_id);
+		itr.revdraft_id = Globals.normalizeSpace(itr.revdraft_id);
+		itr.draftsup_id = Globals.normalizeSpace(itr.draftsup_id);
+		itr.secdraft_id = Globals.normalizeSpace(itr.secdraft_id);
+		itr.secdraftsup_id = Globals.normalizeSpace(itr.secdraftsup_id);
+		itr.thirddraftsup_id = Globals.normalizeSpace(itr.thirddraftsup_id);
+		itr.final_id = Globals.normalizeSpace(itr.final_id);
+		itr.revfinal_id = Globals.normalizeSpace(itr.revfinal_id);
+		itr.finalsup_id = Globals.normalizeSpace(itr.finalsup_id);
+		itr.secfinal_id = Globals.normalizeSpace(itr.secfinal_id);
+		itr.secfinalsup_id = Globals.normalizeSpace(itr.secfinalsup_id);
+		itr.thirdfinalsup_id = Globals.normalizeSpace(itr.thirdfinalsup_id);
+		itr.rod_id = Globals.normalizeSpace(itr.rod_id);
+		itr.scoping_id = Globals.normalizeSpace(itr.scoping_id);
+		itr.epacomments_id = Globals.normalizeSpace(itr.epacomments_id);
+		
+		return itr;
+	}
 
 	/** Turns UploadInputs into valid EISDoc and saves to database, returns new ID and 200 (OK) or null and 500 (error) */
 	private ResponseEntity<Long> saveDto(UploadInputs itr) {
@@ -2622,87 +2898,70 @@ public class FileController {
 	 * Admin-only. 
 	 * Takes .csv file with required headers and imports each valid record.  Updates existing records
 	 * 
-	 * Valid records: Must have title
+	 * Valid records: Must have process ID
 	 * 
 	 * @return List of strings with message per record (zero-based) indicating success/error 
 	 * and potentially more details */
 	@CrossOrigin
-	@RequestMapping(path = "/uploadCSV_titles", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<List<String>> importCSVTitlesOnly(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
-										throws IOException { 
+	@RequestMapping(path = "/uploadCSV_processes", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importProcessIDs(
+			@RequestPart(name="csv") String csv, 
+			@RequestHeader Map<String, String> headers) throws IOException { 
 		
 		String token = headers.get("authorization");
-		
-		fillAgencies();
-		
 		if(!isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
+		
 		List<String> results = new ArrayList<String>();
 		
 	    try {
 	    	
 	    	ObjectMapper mapper = new ObjectMapper();
-		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
-
+	    	ProcessInputs dto[] = mapper.readValue(csv, ProcessInputs[].class);
+	    	
 			int count = 0;
-			for (UploadInputs itr : dto) {
-				
-				// Handle any leading/trailing invisible characters, double spacing
-				itr.title = Globals.normalizeSpace(itr.title);
-				// Handle any agency abbreviations
-				itr.agency = agencyAbbreviationToFull(itr.agency);
-				// Handle any department abbreviations
-				itr.department = agencyAbbreviationToFull(itr.agency);
-				// Handle any cooperating agency abbreviations
-				if(itr.cooperating_agency != null && itr.cooperating_agency.length() > 0) {
-					String[] cooperating = itr.cooperating_agency.split(";");
-					for(int i = 0; i < cooperating.length; i++) {
-						cooperating[i] = agencyAbbreviationToFull(cooperating[i]);
-					}
-					itr.cooperating_agency = String.join(";", cooperating);
-				}
-				
-				// Title-only option for Buomsoo's data, to update all title matches
-			    
-			    if(itr.title != null && itr.title.length() > 0) {
+			for (ProcessInputs itr : dto) {
 
-			    	// Parse the four new date values
-					try {
-						itr.noi_date = parseDate(itr.noi_date).toString();
-						itr.first_rod_date = parseDate(itr.first_rod_date).toString();
-						itr.draft_noa = parseDate(itr.draft_noa).toString();
-						itr.final_noa = parseDate(itr.final_noa).toString();
-					} catch (Exception e) {
-						// Since this is optional, we can just proceed
-					}
-					List<EISDoc> matchingRecords = docRepository.findAllByTitle(itr.title);
+				// default message: generic "error"
+				String result = ("Item " + count + ": Error: " + itr.process_id);
+				
+			    if(itr.process_id != null && itr.process_id.length() > 0) {
+			    	
+					Optional<NEPAProcess> match = processRepository.findByProcessId(Long.valueOf(itr.process_id));
+					ResponseEntity<List<Long>> status = new ResponseEntity<List<Long>>(HttpStatus.VARIANT_ALSO_NEGOTIATES);
 					
-					for(EISDoc record : matchingRecords) {
-
-						/** Special update function that only adds new data */
-						ResponseEntity<Long> status = updateDtoNoOverwrite(itr, record);
+					if(match.isEmpty()) { // match doesn't exist
 						
-						if(status.getStatusCodeValue() == 500) { // Error
-							results.add("Item " + count + ": Error saving: " + itr.title);
-				    	} else {
-							results.add("Item " + count + ": Updated: " + itr.title);
-
-				    		// Log successful record update for accountability (can know last person to update an EISDoc)
-							FileLog recordLog = new FileLog();
-							recordLog.setErrorType("Updated existing record by title match");
-				    		recordLog.setDocumentId(status.getBody());
-				    		recordLog.setFilename(itr.filename);
-				    		recordLog.setImported(false);
-				    		recordLog.setLogTime(LocalDateTime.now());
-				    		recordLog.setUser(getUser(token));
-				    		fileLogRepository.save(recordLog);
-				    	}
+						status = saveProcessFromInputs(itr);
+						if(status.getStatusCodeValue() == 200) {
+							result = ("Item " + count + ": Saved new process: " + itr.process_id);
+						} else {
+							// time to list IDs from the status starting with process ID
+						}
+						
+					} else { // match exists
+						
+						// either update all fields arbitrarily or skip missing values.
+						// Each choice is assuming a different user error, basically: either they could be
+						// missing past data so don't replace that with blanks, 
+						// or they could be aiming to correct past errors so allow blanking out past mistakes.
+						status = updateExistingProcessIgnoreBlank(match.get(), itr);
+						if(status.getStatusCodeValue() == 200) {
+							result = ("Item " + count + ": Updated existing process: " + itr.process_id);
+						} else {
+							// time to list IDs from the status starting with process ID
+						}
+						
 					}
+					
+					
 				} else {
-					results.add("Item " + count + ": Missing title");
+					result = ("Item " + count + ": Missing process ID");
 				}
+
+				results.add(result);
 			    count++;
 			}
 			
@@ -2926,6 +3185,103 @@ public class FileController {
 			    } else {
 					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/Title");
 			    }
+			    count++;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+	
+
+
+	/** 
+	 * Admin-only. 
+	 * Takes .csv file with required headers and imports each valid record.  Updates existing records
+	 * 
+	 * Valid records: Must have title
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating success/error 
+	 * and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_titles", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSVTitlesOnly(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		
+		String token = headers.get("authorization");
+		
+		fillAgencies();
+		
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		List<String> results = new ArrayList<String>();
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				
+				// Handle any leading/trailing invisible characters, double spacing
+				itr.title = Globals.normalizeSpace(itr.title);
+				// Handle any agency abbreviations
+				itr.agency = agencyAbbreviationToFull(itr.agency);
+				// Handle any department abbreviations
+				itr.department = agencyAbbreviationToFull(itr.agency);
+				// Handle any cooperating agency abbreviations
+				if(itr.cooperating_agency != null && itr.cooperating_agency.length() > 0) {
+					String[] cooperating = itr.cooperating_agency.split(";");
+					for(int i = 0; i < cooperating.length; i++) {
+						cooperating[i] = agencyAbbreviationToFull(cooperating[i]);
+					}
+					itr.cooperating_agency = String.join(";", cooperating);
+				}
+				
+				// Title-only option for Buomsoo's data, to update all title matches
+			    
+			    if(itr.title != null && itr.title.length() > 0) {
+
+			    	// Parse the four new date values
+					try {
+						itr.noi_date = parseDate(itr.noi_date).toString();
+						itr.first_rod_date = parseDate(itr.first_rod_date).toString();
+						itr.draft_noa = parseDate(itr.draft_noa).toString();
+						itr.final_noa = parseDate(itr.final_noa).toString();
+					} catch (Exception e) {
+						// Since this is optional, we can just proceed
+					}
+					List<EISDoc> matchingRecords = docRepository.findAllByTitle(itr.title);
+					
+					for(EISDoc record : matchingRecords) {
+
+						/** Special update function that only adds new data */
+						ResponseEntity<Long> status = updateDtoNoOverwrite(itr, record);
+						
+						if(status.getStatusCodeValue() == 500) { // Error
+							results.add("Item " + count + ": Error saving: " + itr.title);
+				    	} else {
+							results.add("Item " + count + ": Updated: " + itr.title);
+
+				    		// Log successful record update for accountability (can know last person to update an EISDoc)
+							FileLog recordLog = new FileLog();
+							recordLog.setErrorType("Updated existing record by title match");
+				    		recordLog.setDocumentId(status.getBody());
+				    		recordLog.setFilename(itr.filename);
+				    		recordLog.setImported(false);
+				    		recordLog.setLogTime(LocalDateTime.now());
+				    		recordLog.setUser(getUser(token));
+				    		fileLogRepository.save(recordLog);
+				    	}
+					}
+				} else {
+					results.add("Item " + count + ": Missing title");
+				}
 			    count++;
 			}
 			

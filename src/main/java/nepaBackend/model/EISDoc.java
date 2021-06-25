@@ -82,17 +82,24 @@ public class EISDoc {
     @Column(name="first_rod_date",columnDefinition="DATE")
     private LocalDate firstRodDate; 
     
+    // could build this as a link to an actual process model (table) with hibernate, 
+    // but that ends up being more work in some areas.  
+    // All we probably want most of the time is the unique ID
+    @Column(name="process_id")
+    private Long processId;
+    
     // String location; // Location for proposed project is desired, but don't have metadata
     // String action; // Type of action is desired, but don't have metadata
     
     // Long processId; // ID of process with related documents, if there are any, metadata doesn't exist for this yet
 
-    public EISDoc() { }
+	public EISDoc() { }
 
 	public EISDoc(Long id, String title, String documentType, LocalDate commentDate, LocalDate registerDate, 
 			String agency, String department, String cooperatingAgency, String summaryText, String state,
 			String filename, String commentsFilename, String folder, Long size, String link, String notes,
-			LocalDate noiDate, LocalDate draftNoa, LocalDate finalNoa, LocalDate firstRodDate) {
+			LocalDate noiDate, LocalDate draftNoa, LocalDate finalNoa, LocalDate firstRodDate,
+			Long processId) {
 		this.id = id;
 		this.title = title;
 		this.documentType = documentType;
@@ -113,6 +120,7 @@ public class EISDoc {
 		this.draftNoa = draftNoa;
 		this.finalNoa = finalNoa;
 		this.firstRodDate = firstRodDate;
+		this.processId = processId;
 	}
 
 	public Long getId() {
@@ -269,6 +277,14 @@ public class EISDoc {
 
 	public void setSummaryText(String summaryText) {
 		this.summaryText = summaryText;
+	}
+	
+    public Long getProcessId() {
+		return processId;
+	}
+
+	public void setProcessId(Long processId) {
+		this.processId = processId;
 	}
 
 }
