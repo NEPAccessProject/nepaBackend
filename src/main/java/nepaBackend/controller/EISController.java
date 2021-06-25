@@ -38,11 +38,13 @@ import nepaBackend.DateValidatorUsingLocalDate;
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.Globals;
+import nepaBackend.ProcessRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.UpdateLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
+import nepaBackend.model.NEPAProcess;
 import nepaBackend.model.SearchLog;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.pojo.MatchParams;
@@ -56,6 +58,7 @@ public class EISController {
 	private SearchLogRepository searchLogRepository;
 	private ApplicationUserRepository applicationUserRepository;
 	private UpdateLogRepository updateLogRepository;
+	private ProcessRepository processRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
 			"yyyy/MM/dd", "MM/dd/yyyy", 
@@ -67,10 +70,12 @@ public class EISController {
 			.toArray(DateTimeFormatter[]::new);
 	
 	public EISController(SearchLogRepository searchLogRepository, ApplicationUserRepository applicationUserRepository,
-			UpdateLogRepository updateLogRepository) {
+			UpdateLogRepository updateLogRepository,
+			ProcessRepository processRepository) {
 		this.searchLogRepository = searchLogRepository;
 		this.applicationUserRepository = applicationUserRepository;
 		this.updateLogRepository = updateLogRepository;
+		this.processRepository = processRepository;
 	}
 
 	@Autowired
@@ -734,7 +739,8 @@ public class EISController {
 	 * 500: Something broke before we even got to the ID */
 	@CrossOrigin
 	@RequestMapping(path = "/update_doc", method = RequestMethod.POST)
-	public ResponseEntity<Void> updateDoc(@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) {
+	public ResponseEntity<Void> updateDoc(@RequestPart(name="doc") String doc, 
+			@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		if(userIsAuthorized(token)) {
 			try {
@@ -756,6 +762,13 @@ public class EISController {
 		} else {
 			return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
 		}
+	}
+	
+	@RequestMapping(path = "/get_process", method = RequestMethod.GET)
+	public ResponseEntity<NEPAProcess> getProcess(@RequestParam(name="processId") Long processId,
+			@RequestHeader Map<String, String> headers) {
+		System.out.println("got the stuff: " + processId);
+		return new ResponseEntity<NEPAProcess>(processRepository.findByProcessId(processId).get(),HttpStatus.OK);
 	}
 	
 	/** Helper method for fixAbbrev performs the actual update (.save) task on all relevant agencies */

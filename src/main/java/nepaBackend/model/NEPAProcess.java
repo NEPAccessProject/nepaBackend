@@ -18,7 +18,6 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 
 @Entity
 @Table(name="nepa_process") 
-@Indexed
 public class NEPAProcess {
 	
 	// internal ID with no target purpose except to make some operations easier honestly.
@@ -123,7 +122,11 @@ public class NEPAProcess {
     @JoinColumn(name="epacomments_id")
 	private EISDoc docEpaComments;
 
-    
+
+	public NEPAProcess() {
+		super();
+	}
+	
 	public NEPAProcess(Long processId) {
 		this.setProcessId(processId);
 	}
