@@ -758,6 +758,7 @@ public class EISController {
 		}
 	}
 	
+	/** Helper method for fixAbbrev performs the actual update (.save) task on all relevant agencies */
 	private String fixAgency(String before, String after) {
 		List<EISDoc> docs = docService.findAllByAgency(before);
 		String returnValue = "";

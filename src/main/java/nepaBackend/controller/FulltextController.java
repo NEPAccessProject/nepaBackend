@@ -33,7 +33,7 @@ import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.SearchInputs;
-import nepaBackend.pojo.Unhighlighted2DTO;
+import nepaBackend.pojo.UnhighlightedDTO;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -107,7 +107,7 @@ public class FulltextController {
 	// Returns highlights for given list of IDs and filenames
 	@CrossOrigin
 	@PostMapping(path = "/get_highlightsFVH")
-	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody Unhighlighted2DTO unhighlighted)
+	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody UnhighlightedDTO unhighlighted)
 	{
 		try {
 			if(unhighlighted.isMarkup()) {

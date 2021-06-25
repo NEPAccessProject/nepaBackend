@@ -20,6 +20,9 @@ import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.queryparser.classic.QueryParser.Operator;
+import org.apache.lucene.queryparser.xml.builders.BooleanQueryBuilder;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TotalHitCountCollector;
@@ -42,8 +45,8 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.ReducedText;
 import nepaBackend.pojo.ScoredResult;
 import nepaBackend.pojo.SearchInputs;
-import nepaBackend.pojo.Unhighlighted2;
-import nepaBackend.pojo.Unhighlighted2DTO;
+import nepaBackend.pojo.Unhighlighted;
+import nepaBackend.pojo.UnhighlightedDTO;
 
 public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@PersistenceContext
@@ -304,7 +307,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					rs.getObject("noi_date", LocalDate.class), 
 					rs.getObject("draft_noa", LocalDate.class), 
 					rs.getObject("final_noa", LocalDate.class), 
-					rs.getObject("first_rod_date", LocalDate.class)
+					rs.getObject("first_rod_date", LocalDate.class),
+					rs.getLong("process_id")
 				)
 			);
 			
@@ -507,7 +511,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				rs.getObject("noi_date", LocalDate.class), 
 				rs.getObject("draft_noa", LocalDate.class), 
 				rs.getObject("final_noa", LocalDate.class), 
-				rs.getObject("first_rod_date", LocalDate.class)
+				rs.getObject("first_rod_date", LocalDate.class),
+				rs.getLong("process_id")
 			)
 		);
 
@@ -628,38 +633,48 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		MultiSearcher indexSearcher = new MultiSearcher();
 		
-		// Issue: This breaks cases where terms and phrases were separated by stopwords.
+		// Issue: This malfunctions where terms and phrases are separated by stopwords.
 		// Only solutions I've found:
-		// default OR
-		// only search on one field
-		// include stopwords by using a simpler/dumber Analyzer (this will lead to some massive results)
-		// rewrite everything to internally resolve the results from two separate queries on each field
-		// reinvent query parsing or at least manually remove any stopwords outside of "quotes"
+		// - default OR (it's erroneously ORing the term before the stopword, but default OR would mean
+		// that's not an error any more)
+		// - only search on one field
+		// - include stopwords by using a simpler/dumber Analyzer (this will lead to some massive results)
+		// - rewrite everything to internally resolve the results from two separate queries on each field
+		// - reinvent query parsing or at least manually remove any stopwords outside of "quotes"
+		// since they do nothing.  Inside a "phrase query" they're parsed to "?" which is just
+		// a placeholder for either any word, or any stopword in the sequence of words.  This obviously
+		// gets complicated if the query has a lot of nested quotes.
 		
 		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
 				new String[] {"title", "plaintext"},
 				analyzer);
 //		MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
-//				new String[] {"title", "plaintext"},
-//				new SimpleAnalyzer());
+//		new String[] {"title", "plaintext"},
+//		new SimpleAnalyzer());
 		mfqp.setDefaultOperator(Operator.AND);
 		Query query = mfqp.parse(formattedTerms);
-		
-		// This resulted in requiring the terms be found in both title and plaintext fields.
+		// This results in requiring the terms be found in both title and plaintext fields if using .MUST,
+		// otherwise it doesn't require all fields at all with .SHOULD.
 //	    Query query = MultiFieldQueryParser.parse(
 //	    		formattedTerms, 
 //	    		new String[] {"title", "plaintext"}, 
 //	    		new BooleanClause.Occur[] {BooleanClause.Occur.MUST,BooleanClause.Occur.MUST}, 
 //	    		analyzer);
 		
+		// This is the best compromise I can come up with
 //		QueryParser qpText = new QueryParser("plaintext",analyzer);
 //		qpText.setDefaultOperator(Operator.AND);
-//		
-//		Query query = qpText.parse(formattedTerms);
+//		QueryParser qpTitle = new QueryParser("title",analyzer);
+//		qpTitle.setDefaultOperator(Operator.AND);
+//		org.apache.lucene.search.BooleanQuery.Builder combined = 
+//				new org.apache.lucene.search.BooleanQuery.Builder();
+//		combined.add(qpText.parse(formattedTerms), BooleanClause.Occur.SHOULD);
+//		combined.add(qpTitle.parse(formattedTerms), BooleanClause.Occur.SHOULD);
+//		System.out.println(combined.build().toString());
+//		Query query = combined.build();
+		
 		
 	    System.out.println("Parsed query: " + query.toString());
-
-//	    System.out.println("2: " + finalQuery.toString());
 	    
 		ScoreDoc scoreDocs[] = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs;
 
@@ -851,7 +866,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	/** Fastest highlighting available, requires full term vectors indexed */
 	@Override
-	public ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception {
+	public ArrayList<ArrayList<String>> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws Exception {
 		long startTime = System.currentTimeMillis();
 		int fragmentSizeCustom = setFragmentSize(unhighlighted.getFragmentSizeValue());
 
@@ -881,7 +896,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		UnifiedHighlighter highlighter = new UnifiedHighlighter(null, analyzer);
 		
-		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
+		for(Unhighlighted input : unhighlighted.getUnhighlighted()) {
 			ArrayList<String> result = new ArrayList<String>();
 
 			// Run query to get each text via eisdoc ID and filename?
@@ -958,7 +973,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 	/** Fastest highlighting available, requires full term vectors indexed, no markup */
 	@Override
-	public ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(Unhighlighted2DTO unhighlighted) throws Exception {
+	public ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(UnhighlightedDTO unhighlighted) throws Exception {
 		long startTime = System.currentTimeMillis();
 		// Normalize whitespace and support added term modifiers
 	    String formattedTerms = mutateTermModifiers(unhighlighted.getTerms());
@@ -988,7 +1003,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		int fragmentSizeCustom = setFragmentSize(unhighlighted.getFragmentSizeValue());
 		
-		for(Unhighlighted2 input : unhighlighted.getUnhighlighted()) {
+		for(Unhighlighted input : unhighlighted.getUnhighlighted()) {
 			ArrayList<String> result = new ArrayList<String>();
 
 			// Run query to get each text via eisdoc ID and filename?

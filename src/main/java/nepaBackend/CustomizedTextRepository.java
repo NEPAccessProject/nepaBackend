@@ -9,7 +9,7 @@ import nepaBackend.controller.MetadataWithContext3;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.SearchInputs;
-import nepaBackend.pojo.Unhighlighted2DTO;
+import nepaBackend.pojo.UnhighlightedDTO;
 
 public interface CustomizedTextRepository {
 	List<EISDoc> searchTitles(String terms) throws ParseException;
@@ -19,8 +19,8 @@ public interface CustomizedTextRepository {
 	
 	List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType);
 	
-	ArrayList<ArrayList<String>> getHighlightsFVH(Unhighlighted2DTO unhighlighted) throws Exception;
-	ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(Unhighlighted2DTO unhighlighted) throws Exception;
+	ArrayList<ArrayList<String>> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws Exception;
+	ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(UnhighlightedDTO unhighlighted) throws Exception;
 	
 	int getTotalHits(String field) throws Exception;
 }
