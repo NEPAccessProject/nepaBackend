@@ -46,5 +46,10 @@ public class DocService {
 	public List<EISDoc> findAll() {
 		return docRepository.findAll();
 	}
+	
+	public List<EISDoc> findMissingProcesses() {
+		return docRepository.findMissingProcesses();
+	}
+
 
 }

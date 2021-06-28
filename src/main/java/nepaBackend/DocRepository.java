@@ -269,4 +269,25 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	boolean existsByFilename(String filename);
 
+	Optional<EISDoc> findByProcessId(long processId);
+	
+	@Query(value = "SELECT * "
+			+ "FROM test.eisdoc "
+			+ "WHERE process_id IS NULL",
+			nativeQuery = true)
+	List<EISDoc> findMissingProcesses();
+
+	@Query(value = "SELECT * "
+			+ "FROM test.eisdoc "
+			+ "WHERE process_id IS NULL "
+			+ "AND folder is not null and length(folder) > 0",
+			nativeQuery = true)
+	List<EISDoc> findAllWithFolderMissingProcess();
+
+	@Query(value = "SELECT MAX(process_id) "
+			+ "FROM test.eisdoc",
+			nativeQuery = true)
+	long findMaxProcessId();
+
+
 }

@@ -2303,27 +2303,27 @@ public class FileController {
 		if(prout.getProcessId() == null) {
 			return new ResponseEntity<List<Long>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
-		List<Long> results = new ArrayList<Long>();
-		
-		itr = this.normalizeProcessInputs(itr);
-		
-		List<Long> badResults = new ArrayList<Long>();
-		
-		if(itr.draft_id.isEmpty()) {
-			// skip
-		} else {
-			Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.draft_id));
-			if(doc.isPresent()) {
-				EISDoc found = doc.get();
-				prout.setDocDraft(found);
-				found.setProcessId(prout.getProcessId());
+			List<Long> results = new ArrayList<Long>();
+			
+			itr = this.normalizeProcessInputs(itr);
+			
+			List<Long> badResults = new ArrayList<Long>();
+			
+			if(itr.draft_id.isEmpty()) {
+				// skip
 			} else {
-				// skip, but this is a bad sign.  We'll want to track these.
-				// 		 Maybe a list of "not found" EIS IDs and a special response status.
-				//		 Starting with the process ID, still.
-				badResults.add(Long.valueOf(itr.draft_id));
+				Optional<EISDoc> doc = docRepository.findById(Long.valueOf(itr.draft_id));
+				if(doc.isPresent()) {
+					EISDoc found = doc.get();
+					prout.setDocDraft(found);
+					found.setProcessId(prout.getProcessId());
+				} else {
+					// skip, but this is a bad sign.  We'll want to track these.
+					// 		 Maybe a list of "not found" EIS IDs and a special response status.
+					//		 Starting with the process ID as usual, still.
+					badResults.add(Long.valueOf(itr.draft_id));
+				}
 			}
-		}
 		if(itr.final_id.isEmpty()) {
 			// skip
 		} else {
@@ -2511,7 +2511,7 @@ public class FileController {
 		
 		if(savedRecord != null) {
 			results.add(savedRecord.getId());
-			results.addAll(badResults);
+//			results.addAll(badResults);
 			if(results.size() > 1) {
 				// TODO
 			} // else

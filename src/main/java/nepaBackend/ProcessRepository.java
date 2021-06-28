@@ -8,6 +8,6 @@ import nepaBackend.model.NEPAProcess;
 
 public interface ProcessRepository extends JpaRepository<NEPAProcess, Long> {
 
-	Optional<NEPAProcess> findByProcessId(Long valueOf);
+	Optional<NEPAProcess> findByProcessId(Long processId);
 	
 }

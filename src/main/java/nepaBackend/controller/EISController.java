@@ -55,9 +55,14 @@ import nepaBackend.security.SecurityConstants;
 @RestController
 @RequestMapping("/test")
 public class EISController {
+	
+	@Autowired
 	private SearchLogRepository searchLogRepository;
+	@Autowired
 	private ApplicationUserRepository applicationUserRepository;
+	@Autowired
 	private UpdateLogRepository updateLogRepository;
+	@Autowired
 	private ProcessRepository processRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
@@ -69,13 +74,7 @@ public class EISController {
 			.map(DateTimeFormatter::ofPattern)
 			.toArray(DateTimeFormatter[]::new);
 	
-	public EISController(SearchLogRepository searchLogRepository, ApplicationUserRepository applicationUserRepository,
-			UpdateLogRepository updateLogRepository,
-			ProcessRepository processRepository) {
-		this.searchLogRepository = searchLogRepository;
-		this.applicationUserRepository = applicationUserRepository;
-		this.updateLogRepository = updateLogRepository;
-		this.processRepository = processRepository;
+	public EISController() {
 	}
 
 	@Autowired
@@ -460,7 +459,8 @@ public class EISController {
 	
     @GetMapping("/findAllDocs")
     private @ResponseBody ResponseEntity<List<EISDoc>> findAllDocs(@RequestHeader Map<String, String> headers) {
-    	if(checkAdmin(headers).getBody()) {
+		String token = headers.get("authorization");
+    	if(isCurator(token) || isAdmin(token)) {
     		return new ResponseEntity<List<EISDoc>>(docService.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(new ArrayList<EISDoc>(), HttpStatus.UNAUTHORIZED);
@@ -469,10 +469,21 @@ public class EISController {
 	
     @GetMapping("/findAllSearchLogs")
     private @ResponseBody ResponseEntity<List<SearchLog>> findAllSearchLogs(@RequestHeader Map<String, String> headers) {
-    	if(checkAdmin(headers).getBody()) {
+		String token = headers.get("authorization");
+    	if(isCurator(token) || isAdmin(token)) {
     		return new ResponseEntity<List<SearchLog>>(searchLogRepository.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<SearchLog>>(new ArrayList<SearchLog>(), HttpStatus.UNAUTHORIZED);
+		}
+    }
+    
+    @GetMapping("/findMissingProcesses")
+    private @ResponseBody ResponseEntity<List<EISDoc>> findMissingProcesses(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+    	if(isCurator(token) || isAdmin(token)) {
+    		return new ResponseEntity<List<EISDoc>>(docService.findMissingProcesses(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(new ArrayList<EISDoc>(), HttpStatus.UNAUTHORIZED);
 		}
     }
 
@@ -767,8 +778,7 @@ public class EISController {
 	@RequestMapping(path = "/get_process", method = RequestMethod.GET)
 	public ResponseEntity<NEPAProcess> getProcess(@RequestParam(name="processId") Long processId,
 			@RequestHeader Map<String, String> headers) {
-		System.out.println("got the stuff: " + processId);
-		return new ResponseEntity<NEPAProcess>(processRepository.findByProcessId(processId).get(),HttpStatus.OK);
+		return new ResponseEntity<NEPAProcess>( processRepository.findByProcessId(processId).get(),HttpStatus.OK );
 	}
 	
 	/** Helper method for fixAbbrev performs the actual update (.save) task on all relevant agencies */
@@ -968,33 +978,50 @@ public class EISController {
 //		return false;
 //	}
 	
-	
-	// Return true if admin role
-	@PostMapping(path = "/checkAdmin")
-	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
-		String token = headers.get("authorization");
-		boolean result = isAdmin(token);
-		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
-		if(result) {
-			returnStatus = HttpStatus.OK;
+
+	/** Return whether JWT is from Curator role */
+	private boolean isCurator(String token) {
+		boolean result = false;
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
+			if(user.getRole().contentEquals("CURATOR")) {
+				result = true;
+			}
 		}
-		return new ResponseEntity<Boolean>(result, returnStatus);
+		return result;
 	}
 	
-	// Helper function for checkAdmin
+	/** Return ApplicationUser given JWT String */
+	private ApplicationUser getUser(String token) {
+		if(token != null) {
+			// get ID
+			try {
+				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+					.getId();
+//				if(testing) {System.out.println("ID: " + id);}
+
+				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+//				if(testing) {System.out.println("User ID: " + user.getId());}
+				return user;
+			} catch (Exception e) {
+				return null;
+			}
+		} else {
+			return null;
+		}
+	}
+	
+	/** Return whether trusted JWT is from Admin role */
 	private boolean isAdmin(String token) {
 		boolean result = false;
-		// get ID
-		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
 			if(user.getRole().contentEquals("ADMIN")) {
 				result = true;
 			}
 		}
 		return result;
-
 	}
 }
