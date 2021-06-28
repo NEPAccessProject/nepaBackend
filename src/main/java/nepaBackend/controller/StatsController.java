@@ -21,11 +21,10 @@ public class StatsController {
 
 	@Autowired
 	private DocRepository docRepository;
+	@Autowired
 	private TextRepository textRepository;
 	
-	public StatsController(DocRepository docRepository, TextRepository textRepository) {
-		this.docRepository = docRepository;
-		this.textRepository = textRepository;
+	public StatsController() {
 	}
 
 	@CrossOrigin

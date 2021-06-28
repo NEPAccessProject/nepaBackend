@@ -43,32 +43,25 @@ import nepaBackend.security.SecurityConstants;
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
-	
+
+    @Autowired
     private ApplicationUserRepository applicationUserRepository;
+    @Autowired
     private NEPAFileRepository nepaFileRepository;
+    @Autowired
     private DocRepository docRepository;
+    @Autowired
     private FileLogRepository fileLogRepository;
+    @Autowired
     private TextRepository textRepository;
+    @Autowired
     private EmailLogRepository emailLogRepository;
+    @Autowired
     private UpdateLogRepository updateLogRepository;
+    @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
-    public AdminController(DocRepository docRepository,
-				TextRepository textRepository,
-				FileLogRepository fileLogRepository,
-				ApplicationUserRepository applicationUserRepository,
-				NEPAFileRepository nepaFileRepository,
-				EmailLogRepository emailLogRepository,
-				UpdateLogRepository updateLogRepository,
-				BCryptPasswordEncoder bCryptPasswordEncoder) {
-		this.docRepository = docRepository;
-		this.textRepository = textRepository;
-		this.fileLogRepository = fileLogRepository;
-		this.applicationUserRepository = applicationUserRepository;
-		this.nepaFileRepository = nepaFileRepository;
-		this.emailLogRepository = emailLogRepository;
-		this.updateLogRepository = updateLogRepository;
-		this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+    public AdminController() {
     }
 
 	

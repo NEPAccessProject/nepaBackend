@@ -94,11 +94,17 @@ public class FileController {
 
 	private static final Logger logger = LoggerFactory.getLogger(FileController.class);
 	
+	@Autowired
 	private DocRepository docRepository;
+	@Autowired
 	private TextRepository textRepository;
+	@Autowired
 	private FileLogRepository fileLogRepository;
+	@Autowired
 	private ApplicationUserRepository applicationUserRepository;
+	@Autowired
 	private NEPAFileRepository nepaFileRepository;
+	@Autowired
 	private ProcessRepository processRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of(
@@ -116,18 +122,7 @@ public class FileController {
 	
 	private static Map<String,String> agencies = new HashMap<String, String>();
 
-	public FileController(DocRepository docRepository,
-				TextRepository textRepository,
-				FileLogRepository fileLogRepository,
-				ApplicationUserRepository applicationUserRepository,
-				NEPAFileRepository nepaFileRepository,
-				ProcessRepository processRepository) {
-		this.docRepository = docRepository;
-		this.textRepository = textRepository;
-		this.fileLogRepository = fileLogRepository;
-		this.applicationUserRepository = applicationUserRepository;
-		this.nepaFileRepository = nepaFileRepository;
-		this.processRepository = processRepository;
+	public FileController() {
 	}
 	
 	private static boolean testing = Globals.TESTING;

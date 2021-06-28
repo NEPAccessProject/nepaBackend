@@ -42,18 +42,14 @@ public class FulltextController {
 	
 	@Autowired
 	private TextRepository textRepository;
+	@Autowired
 	private DocRepository docRepository;
+	@Autowired
 	private ApplicationUserRepository applicationUserRepository;
+	@Autowired
 	private SearchLogRepository searchLogRepository;
 	
-	public FulltextController(TextRepository textRepository, 
-								DocRepository docRepository,
-								SearchLogRepository searchLogRepository,
-								ApplicationUserRepository applicationUserRepository) {
-		this.textRepository = textRepository;
-		this.docRepository = docRepository;
-		this.applicationUserRepository = applicationUserRepository;
-		this.searchLogRepository = searchLogRepository;
+	public FulltextController() {
 	}
 	
 	private boolean testing = Globals.TESTING;

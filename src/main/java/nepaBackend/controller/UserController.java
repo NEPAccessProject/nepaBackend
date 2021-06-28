@@ -69,23 +69,19 @@ public class UserController {
 	
     @Autowired
     private JavaMailSender sender;
-	
+
+    @Autowired
     private ApplicationUserRepository applicationUserRepository;
+    @Autowired
     private ContactRepository contactRepository;
+    @Autowired
     private OptedOutRepository optedOutRepository;
+    @Autowired
     private EmailLogRepository emailLogRepository;
+    @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
-    public UserController(ApplicationUserRepository applicationUserRepository,
-    						ContactRepository contactRepository,
-    						OptedOutRepository optedOutRepository,
-    						EmailLogRepository emailLogRepository,
-    						BCryptPasswordEncoder bCryptPasswordEncoder) {
-        this.applicationUserRepository = applicationUserRepository;
-        this.contactRepository = contactRepository;
-        this.optedOutRepository = optedOutRepository;
-        this.emailLogRepository = emailLogRepository;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+    public UserController() {
     }
     
     @GetMapping("/getAll")

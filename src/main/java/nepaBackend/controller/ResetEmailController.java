@@ -47,17 +47,15 @@ public class ResetEmailController {
 	
     @Autowired
     private JavaMailSender sender;
-    
+
+    @Autowired
     private ApplicationUserRepository applicationUserRepository;
+    @Autowired
     private EmailLogRepository emailLogRepository;
+    @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
-    public ResetEmailController(ApplicationUserRepository applicationUserRepository,
-    		EmailLogRepository emailLogRepository,
-            BCryptPasswordEncoder bCryptPasswordEncoder) {
-        this.applicationUserRepository = applicationUserRepository;
-        this.emailLogRepository = emailLogRepository;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+    public ResetEmailController() {
     }
 
 	// TODO: Test on production server, see if email works
