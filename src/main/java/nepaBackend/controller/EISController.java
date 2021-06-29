@@ -531,29 +531,55 @@ public class EISController {
 		}
 	}
 	
+	@GetMapping(path = "/duplicates")
+	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicates(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<List<EISDoc>>(docService.findAllDuplicates(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	
 	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs")
 	public @ResponseBody ResponseEntity<Object> getAllPairs(@RequestHeader Map<String, String> headers) {
-		// TODO: Admin only
-		return new ResponseEntity<Object>(matchService.getAllPairs(), HttpStatus.OK);
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<Object>(matchService.getAllPairs(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
+		}
 	}
 	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs_one")
 	public @ResponseBody ResponseEntity<Object> getAllPairsOne(@RequestHeader Map<String, String> headers) {
-		// TODO: Admin only
-		return new ResponseEntity<Object>(matchService.getAllPairsAtLeastOneFile(), HttpStatus.OK);
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<Object>(matchService.getAllPairsAtLeastOneFile(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
+		}
 	}
 	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs_two")
 	public @ResponseBody ResponseEntity<Object> getAllPairsTwo(@RequestHeader Map<String, String> headers) {
-		// TODO: Admin only
-		return new ResponseEntity<Object>(matchService.getAllPairsTwoFiles(), HttpStatus.OK);
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<Object>(matchService.getAllPairsTwoFiles(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
+		}
 	}
 	@CrossOrigin
 	@GetMapping(path = "/search_logs")
 	public @ResponseBody ResponseEntity<List<Object>> getAllSearchLogs(@RequestHeader Map<String, String> headers) {
-		// TODO: Admin only
-		return new ResponseEntity<List<Object>>(searchLogRepository.countDistinctTerms(), HttpStatus.OK);
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<List<Object>>(searchLogRepository.countDistinctTerms(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<Object>>(HttpStatus.UNAUTHORIZED);
+		}
 	}
 	
 	/** 

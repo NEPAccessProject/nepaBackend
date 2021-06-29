@@ -289,5 +289,15 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	long findMaxProcessId();
 
+	@Query(value = "		select t.* \r\n" + 
+			"		from eisdoc t join \r\n" + 
+			"		(select document_type, title, register_date, count(*) as NumDuplicates \r\n" + 
+			"		  from eisdoc \r\n" + 
+			"		  group by document_type, title, register_date\r\n" + 
+			"		  having NumDuplicates > 1\r\n" + 
+			"		) tsum \r\n" + 
+			"		on t.document_type = tsum.document_type and t.title = tsum.title and t.register_date = tsum.register_date\r\n" + 
+			"		ORDER BY title", nativeQuery = true)
+	List<EISDoc> findAllDuplicates();
 
 }

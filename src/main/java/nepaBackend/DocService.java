@@ -51,5 +51,8 @@ public class DocService {
 		return docRepository.findMissingProcesses();
 	}
 
+	public List<EISDoc> findAllDuplicates() {
+		return docRepository.findAllDuplicates();
+	}
 
 }
