@@ -764,11 +764,11 @@ public class EISController {
 	@CrossOrigin
 	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
 	public Optional<EISDoc> getById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
-		Long lid = Long.parseLong(id);
 		try {
+			Long lid = Long.parseLong(id);
 			return docService.findById(lid);
 		} catch(Exception e) {
-			e.printStackTrace();
+//			e.printStackTrace();
 			return null;
 		}
 	}
