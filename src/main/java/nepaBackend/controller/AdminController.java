@@ -5,9 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -39,6 +44,8 @@ import nepaBackend.model.EmailLog;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.UpdateLog;
+import nepaBackend.pojo.Generate;
+import nepaBackend.security.PasswordGenerator;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -243,7 +250,6 @@ public class AdminController {
     ResponseEntity<String> deleteAllFiles(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	List<String> deletedList = new ArrayList<String>();
     	
-    	Long idToDelete = Long.valueOf(id);
     	
     	try {
     		String token = headers.get("authorization");
@@ -251,7 +257,10 @@ public class AdminController {
     			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     		
+    		
     		else {
+
+    	    	Long idToDelete = Long.valueOf(id);
 
     			ApplicationUser user = getUser(token);
     			
@@ -329,53 +338,99 @@ public class AdminController {
     @CrossOrigin
     @RequestMapping(path = "/deleteDoc", method = RequestMethod.POST)
     ResponseEntity<String> deleteDoc(@RequestBody String id, @RequestHeader Map<String, String> headers) {
-    	
-    	// First, ensure we delete the associated files, or they will be orphaned
-    	ResponseEntity<String> deleteAllResponse = this.deleteAllFiles(id, headers);
-    	if(deleteAllResponse.getStatusCodeValue() != 200) { // Couldn't delete?
-    		// Return response
-			return deleteAllResponse;
-    	}
 
-    	Long idToDelete = Long.valueOf(id);
+		String token = headers.get("authorization");
+		if(!isAdmin(token)) {
+			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
+		}
     	
     	try {
-    		String token = headers.get("authorization");
-    		if(!isAdmin(token)) {
-    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
-    		}
-    		
-    		else {
 
-    			ApplicationUser user = getUser(token);
-    			
-    			// Try to get by ID
-    			Optional<EISDoc> doc = docRepository.findById(idToDelete);
-    			if(doc.isEmpty()) {
-    				return new ResponseEntity<String>("No such document for ID " + idToDelete, HttpStatus.NOT_FOUND);
-    			}
-    			EISDoc foundDoc = doc.get();
-    			
-    			// delete useless match data
-    			deleteTitleAlignmentScores(foundDoc);
-    			
-    			// Delete metadata
-    			try {
-        			docRepository.delete(foundDoc);
-    			} catch (IllegalArgumentException e) {
-    				return new ResponseEntity<String>("Error deleting: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
-    			}
-    			
-    			// Log
-				logDelete(foundDoc, "Deleted: EISDoc", user, "EISDoc");
-    			
-    			return new ResponseEntity<String>("Deleted " + id, HttpStatus.OK);
-    		}
+        	// First, ensure we delete the associated files, or they will be orphaned
+        	ResponseEntity<String> deleteAllResponse = this.deleteAllFiles(id, headers);
+        	if(deleteAllResponse.getStatusCodeValue() != 200) { // Couldn't delete?
+        		// Return response
+    			return deleteAllResponse;
+        	}
+
+        	Long idToDelete = Long.valueOf(id);
+
+			ApplicationUser user = getUser(token);
+			
+			// Try to get by ID
+			Optional<EISDoc> doc = docRepository.findById(idToDelete);
+			if(doc.isEmpty()) {
+				return new ResponseEntity<String>("No such document for ID " + idToDelete, HttpStatus.NOT_FOUND);
+			}
+			EISDoc foundDoc = doc.get();
+			
+			// delete useless match data
+			deleteTitleAlignmentScores(foundDoc);
+			
+			// Delete metadata
+			try {
+    			docRepository.delete(foundDoc);
+			} catch (IllegalArgumentException e) {
+				return new ResponseEntity<String>("Error deleting: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+			
+			// Log
+			logDelete(foundDoc, "Deleted: EISDoc", user, "EISDoc");
+			
+			return new ResponseEntity<String>("Deleted " + id, HttpStatus.OK);
     	} catch(Exception e) {
     		e.printStackTrace();
     		
 			return new ResponseEntity<String>("Error: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
     	}
+    }
+    
+	/** Delete all files, scores, EISDocs matching list of EISDoc IDs */
+    @PostMapping(path = "/delete_all", consumes = "multipart/form-data")
+    public @ResponseBody ResponseEntity<String> deleteAllDocs(@RequestParam String[] deleteList,
+			@RequestHeader Map<String, String> headers) {
+
+    	String token = headers.get("authorization");
+    	if(!isAdmin(token)) {
+    		return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+    	}
+    	
+    	if(Globals.TESTING) {
+    		for(String id : deleteList) {
+    			System.out.println("ID: " + id);
+    		}
+    	}
+
+		ApplicationUser user = getUser(token);
+    	String serverResponse = "";
+    	
+    	for(String id : deleteList) {
+    		try {
+    			EISDoc doc = docRepository.findById(Long.parseLong(id)).get();
+    			
+    			serverResponse.concat(this.deleteAllFiles(id, headers).getBody());
+    			
+    			this.deleteTitleAlignmentScores(doc);
+    			
+    			// Delete metadata
+    			try {
+        			docRepository.delete(doc);
+    			} catch (IllegalArgumentException e) {
+    				return new ResponseEntity<String>("Error deleting: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+    			}
+    			
+    			// Log
+				logDelete(doc, "Deleted: EISDoc", user, "EISDoc");
+    			
+    			serverResponse += "\nDeleted: " + id;
+    			
+    		} catch(Exception e) {
+    			e.printStackTrace();
+    			serverResponse += "\nSkipped (exception): " + id;
+    		}
+    	}
+    	
+    	return new ResponseEntity<String>(serverResponse, HttpStatus.OK);
     }
     
     private void deleteTitleAlignmentScores(EISDoc doc) {
