@@ -24,6 +24,7 @@ import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
+import nepaBackend.EISMatchService;
 import nepaBackend.EmailLogRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.Globals;
@@ -36,7 +37,6 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.model.EmailLog;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
-import nepaBackend.model.SearchLog;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.security.SecurityConstants;
 
@@ -58,6 +58,8 @@ public class AdminController {
     private EmailLogRepository emailLogRepository;
     @Autowired
     private UpdateLogRepository updateLogRepository;
+    @Autowired
+    private EISMatchService matchService;
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
@@ -322,7 +324,7 @@ public class AdminController {
     	}
     }
 
-    // Deletes the eisdoc itself after calling deleteAllFiles
+    // Deletes the eisdoc itself after calling deleteAllFiles and deleteTitleAlignmentScores
     @CrossOrigin
     @RequestMapping(path = "/deleteDoc", method = RequestMethod.POST)
     ResponseEntity<String> deleteDoc(@RequestBody String id, @RequestHeader Map<String, String> headers) {
@@ -353,7 +355,10 @@ public class AdminController {
     			}
     			EISDoc foundDoc = doc.get();
     			
-    			// Delete 
+    			// delete useless match data
+    			deleteTitleAlignmentScores(foundDoc);
+    			
+    			// Delete metadata
     			try {
         			docRepository.delete(foundDoc);
     			} catch (IllegalArgumentException e) {
@@ -370,6 +375,15 @@ public class AdminController {
     		
 			return new ResponseEntity<String>("Error: " + e.getStackTrace().toString(), HttpStatus.INTERNAL_SERVER_ERROR);
     	}
+    }
+    
+    private void deleteTitleAlignmentScores(EISDoc doc) {
+    	matchService.deleteInBatch(
+    			matchService.findAllByDocument1( java.lang.Math.toIntExact(doc.getId()) )
+    	);
+    	matchService.deleteInBatch(
+    			matchService.findAllByDocument2( java.lang.Math.toIntExact(doc.getId()) )
+    	);
     }
 
     // for admin, set password of non-admin user

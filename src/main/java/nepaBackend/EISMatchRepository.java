@@ -127,4 +127,7 @@ public interface EISMatchRepository extends JpaRepository<EISMatch, Long>{
 			+ "ORDER BY document1 ASC, document2 ASC;",
 			nativeQuery = true)
 	List<Object> getMetaPairsTwoFiles();
+
+	List<EISMatch> findAllByDocument1(int id);
+	List<EISMatch> findAllByDocument2(int id);
 }

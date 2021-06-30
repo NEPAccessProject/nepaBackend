@@ -28,6 +28,7 @@ public class UploadInputs {
 	public String draft_noa; 
 	public String final_noa; 
 	public String first_rod_date; 
+	public String process_id;
 	
 	public UploadInputs() {
 	}

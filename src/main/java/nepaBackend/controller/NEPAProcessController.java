@@ -3,7 +3,11 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
@@ -16,6 +20,7 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.model.NEPAProcess;
 import nepaBackend.security.SecurityConstants;
 
+// this was a terrible mistake
 @RestController
 @RequestMapping("/process")
 public class NEPAProcessController {
@@ -30,6 +35,10 @@ public class NEPAProcessController {
     public NEPAProcessController() {
     }
 
+    @GetMapping(path="/find_by_id")
+    public ResponseEntity<NEPAProcess> findById(@RequestParam long id) {
+    	return new ResponseEntity<NEPAProcess>(processRepository.findById(id).get(),HttpStatus.OK);
+    }
     
 	// TODO: Complete and make this a route
     // - should note that this does a lot of unnecessary work and could be optimized.

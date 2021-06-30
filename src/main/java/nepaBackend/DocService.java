@@ -55,4 +55,13 @@ public class DocService {
 		return docRepository.findAllDuplicates();
 	}
 
+	public List<EISDoc> findAllByProcessId(Long processId) {
+		// TODO Auto-generated method stub
+		return docRepository.findAllByProcessId(processId);
+	}
+
+	public List<EISDoc> findAllDuplicatesProcess() {
+		return docRepository.findAllDuplicatesProcess();
+	}
+
 }

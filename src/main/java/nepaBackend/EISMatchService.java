@@ -36,4 +36,15 @@ public class EISMatchService {
 	public List<Object> getAllPairsTwoFiles() {
 		return matchRepository.getMetaPairsTwoFiles();
 	}
+
+	public List<EISMatch> findAllByDocument1(int id) {
+		return matchRepository.findAllByDocument1(id);
+	}
+	public List<EISMatch> findAllByDocument2(int id) {
+		return matchRepository.findAllByDocument2(id);
+	}
+
+	public void deleteInBatch(List<EISMatch> matches) {
+		matchRepository.deleteInBatch(matches);
+	}
 }

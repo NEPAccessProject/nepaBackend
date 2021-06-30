@@ -2,11 +2,9 @@ package nepaBackend.controller;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +31,6 @@ import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import nepaBackend.ApplicationUserRepository;
-import nepaBackend.DateValidator;
-import nepaBackend.DateValidatorUsingLocalDate;
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.Globals;
@@ -44,11 +40,9 @@ import nepaBackend.UpdateLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
-import nepaBackend.model.NEPAProcess;
 import nepaBackend.model.SearchLog;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.pojo.MatchParams;
-import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
 
@@ -531,6 +525,17 @@ public class EISController {
 		}
 	}
 	
+
+	@GetMapping(path = "/duplicates_process")
+	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicatesProcess(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<List<EISDoc>>(docService.findAllDuplicatesProcess(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	
 	@GetMapping(path = "/duplicates")
 	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicates(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -784,6 +789,7 @@ public class EISController {
 				// translate
 				ObjectMapper mapper = new ObjectMapper();
 				UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
+				System.out.println(dto.process_id);
 				LocalDate parsedDate = parseDate(dto.federal_register_date);
 				
 				dto.federal_register_date = parsedDate.toString();
@@ -802,9 +808,11 @@ public class EISController {
 	}
 	
 	@RequestMapping(path = "/get_process", method = RequestMethod.GET)
-	public ResponseEntity<NEPAProcess> getProcess(@RequestParam(name="processId") Long processId,
+	public ResponseEntity<List<EISDoc>> getProcess(@RequestParam(name="processId") Long processId,
 			@RequestHeader Map<String, String> headers) {
-		return new ResponseEntity<NEPAProcess>( processRepository.findByProcessId(processId).get(),HttpStatus.OK );
+		return new ResponseEntity<List<EISDoc>>( docService.findAllByProcessId(processId), HttpStatus.OK);
+		// no
+//		return new ResponseEntity<NEPAProcess>( processRepository.findByProcessId(processId).get(),HttpStatus.OK );
 	}
 	
 	/** Helper method for fixAbbrev performs the actual update (.save) task on all relevant agencies */
@@ -912,6 +920,10 @@ public class EISController {
 			recordToUpdate.setFolder(itr.eis_identifier.trim());
 			recordToUpdate.setLink(itr.link.trim());
 			recordToUpdate.setNotes(itr.notes.trim());
+			
+			if(itr.process_id != null) {
+				recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
+			}
 			
 			if(recordToUpdate.getTitle().isBlank() || recordToUpdate.getDocumentType().isBlank() 
 					|| recordToUpdate.getRegisterDate() == null) {
