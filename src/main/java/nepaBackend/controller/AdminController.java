@@ -425,7 +425,6 @@ public class AdminController {
     			serverResponse += "\nDeleted: " + id;
     			
     		} catch(Exception e) {
-    			e.printStackTrace();
     			serverResponse += "\nSkipped (exception): " + id;
     		}
     	}
