@@ -921,7 +921,7 @@ public class EISController {
 			recordToUpdate.setLink(itr.link.trim());
 			recordToUpdate.setNotes(itr.notes.trim());
 			
-			if(itr.process_id != null) {
+			if(itr.process_id != null && !itr.process_id.isBlank()) {
 				recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
 			}
 			
