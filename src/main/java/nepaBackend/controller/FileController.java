@@ -2921,41 +2921,46 @@ public class FileController {
 
 				// default message: generic "error"
 				String result = ("Item " + count + ": Error: " + itr.process_id);
-				
-			    if(itr.process_id != null && itr.process_id.length() > 0) {
-			    	
-					Optional<NEPAProcess> match = processRepository.findByProcessId(Long.valueOf(itr.process_id));
-					ResponseEntity<List<Long>> status = new ResponseEntity<List<Long>>(HttpStatus.VARIANT_ALSO_NEGOTIATES);
+				try {
 					
-					if(match.isEmpty()) { // match doesn't exist
+				    if(itr.process_id != null && itr.process_id.length() > 0) {
+				    	
+						Optional<NEPAProcess> match = processRepository.findByProcessId(Long.valueOf(itr.process_id));
+						ResponseEntity<List<Long>> status = new ResponseEntity<List<Long>>(HttpStatus.VARIANT_ALSO_NEGOTIATES);
 						
-						status = saveProcessFromInputs(itr);
-						if(status.getStatusCodeValue() == 200) {
-							result = ("Item " + count + ": Saved new process: " + itr.process_id);
-						} else {
-							// time to list IDs from the status starting with process ID
+						if(match.isEmpty()) { // match doesn't exist
+							
+							status = saveProcessFromInputs(itr);
+							if(status.getStatusCodeValue() == 200) {
+								result = ("Item " + count + ": Saved new process: " + itr.process_id);
+							} else {
+								// time to list IDs from the status starting with process ID
+							}
+							
+						} else { // match exists
+							
+							// either update all fields arbitrarily or skip missing values.
+							// Each choice is assuming a different user error, basically: either they could be
+							// missing past data so don't replace that with blanks, 
+							// or they could be aiming to correct past errors so allow blanking out past mistakes.
+							status = updateExistingProcessIgnoreBlank(match.get(), itr);
+							if(status.getStatusCodeValue() == 200) {
+								result = ("Item " + count + ": Updated existing process: " + itr.process_id);
+							} else {
+								// time to list IDs from the status starting with process ID
+							}
+							
 						}
 						
-					} else { // match exists
 						
-						// either update all fields arbitrarily or skip missing values.
-						// Each choice is assuming a different user error, basically: either they could be
-						// missing past data so don't replace that with blanks, 
-						// or they could be aiming to correct past errors so allow blanking out past mistakes.
-						status = updateExistingProcessIgnoreBlank(match.get(), itr);
-						if(status.getStatusCodeValue() == 200) {
-							result = ("Item " + count + ": Updated existing process: " + itr.process_id);
-						} else {
-							// time to list IDs from the status starting with process ID
-						}
-						
+					} else {
+						result = ("Item " + count + ": Missing process ID");
 					}
-					
-					
-				} else {
-					result = ("Item " + count + ": Missing process ID");
-				}
 
+				} catch(Exception e) {
+//					e.printStackTrace();
+					result = ("Item " + count + ": Error: " + e.getLocalizedMessage());
+				}
 				results.add(result);
 			    count++;
 			}
