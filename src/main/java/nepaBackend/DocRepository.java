@@ -319,7 +319,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	 * but have no size recorded, implying they're missing the actual files (nothing to download/index) */
 	@Query(value = "SELECT * "
 			+ "FROM test.eisdoc "
-			+ "where (size is null OR size <=200) and (length(folder)>0)",
+			+ "where (size is null OR size <=200) and (length(filename)>0 OR length(folder)>0)",
 			nativeQuery = true)
 	List<EISDoc> sizeUnder200();
 
