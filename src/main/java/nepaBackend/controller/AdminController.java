@@ -34,6 +34,7 @@ import nepaBackend.UpdateLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.model.EISMatch;
 import nepaBackend.model.EmailLog;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
@@ -378,11 +379,14 @@ public class AdminController {
     }
     
     private void deleteTitleAlignmentScores(EISDoc doc) {
+    	List<EISMatch> toDelete1 = matchService.findAllByDocument1( java.lang.Math.toIntExact(doc.getId()) );
     	matchService.deleteInBatch(
-    			matchService.findAllByDocument1( java.lang.Math.toIntExact(doc.getId()) )
+    			toDelete1
     	);
+    	
+    	List<EISMatch> toDelete2 = matchService.findAllByDocument2( java.lang.Math.toIntExact(doc.getId()) );
     	matchService.deleteInBatch(
-    			matchService.findAllByDocument2( java.lang.Math.toIntExact(doc.getId()) )
+    			toDelete2
     	);
     }
 
