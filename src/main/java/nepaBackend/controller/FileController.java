@@ -2957,6 +2957,8 @@ public class FileController {
 						result = ("Item " + count + ": Missing process ID");
 					}
 
+				} catch(javax.persistence.EntityNotFoundException e) {
+					result = ("Item " + count + ": No such document found: " + e.getLocalizedMessage());
 				} catch(Exception e) {
 //					e.printStackTrace();
 					result = ("Item " + count + ": Error: " + e.getLocalizedMessage());
