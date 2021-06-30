@@ -545,6 +545,16 @@ public class EISController {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
+
+	@GetMapping(path = "/size_under_200")
+	public @ResponseBody ResponseEntity<List<EISDoc>> sizeUnder200(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<List<EISDoc>>(docService.sizeUnder200(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
 	
 	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs")

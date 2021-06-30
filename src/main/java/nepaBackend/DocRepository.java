@@ -315,4 +315,12 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"		ORDER BY process_id", nativeQuery = true)
 	List<EISDoc> findAllDuplicatesProcess();
 
+	/** For finding documents that expect files on disk (filename or folder listed) 
+	 * but have no size recorded, implying they're missing the actual files (nothing to download/index) */
+	@Query(value = "SELECT * "
+			+ "FROM test.eisdoc "
+			+ "where (size is null OR size <=200) and (length(folder)>0)",
+			nativeQuery = true)
+	List<EISDoc> sizeUnder200();
+
 }

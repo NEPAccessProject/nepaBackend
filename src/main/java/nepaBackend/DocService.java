@@ -64,4 +64,8 @@ public class DocService {
 		return docRepository.findAllDuplicatesProcess();
 	}
 
+	public List<EISDoc> sizeUnder200() {
+		return docRepository.sizeUnder200();
+	}
+
 }
