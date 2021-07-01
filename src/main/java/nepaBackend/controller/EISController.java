@@ -917,7 +917,8 @@ public class EISController {
 				recordToUpdate.setCommentsFilename(itr.comments_filename);
 			}
 			if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
-				// skip
+				// okay, if you insist, remove it
+				recordToUpdate.setCommentDate(null);
 			} else {
 				LocalDate parsedDate = parseDate(itr.epa_comment_letter_date);
 				
