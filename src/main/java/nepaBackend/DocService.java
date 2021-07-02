@@ -56,7 +56,6 @@ public class DocService {
 	}
 
 	public List<EISDoc> findAllByProcessId(Long processId) {
-		// TODO Auto-generated method stub
 		return docRepository.findAllByProcessId(processId);
 	}
 
@@ -66,6 +65,10 @@ public class DocService {
 
 	public List<EISDoc> sizeUnder200() {
 		return docRepository.sizeUnder200();
+	}
+
+	public List<EISDoc> findAllDuplicatesCloseDates() {
+		return docRepository.findAllDuplicatesCloseDates();
 	}
 
 }

@@ -545,6 +545,15 @@ public class EISController {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
+	@GetMapping(path = "/duplicates_close")
+	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicatesCloseDates(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<List<EISDoc>>(docService.findAllDuplicatesCloseDates(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
 
 	@GetMapping(path = "/size_under_200")
 	public @ResponseBody ResponseEntity<List<EISDoc>> sizeUnder200(@RequestHeader Map<String, String> headers) {
