@@ -112,10 +112,10 @@ public class FileController {
 			"yyyy-M-dd", "M-dd-yyyy", "yyyy/M/dd", "M/dd/yyyy", 
 			"yyyy-MM-d", "MM-d-yyyy", "yyyy/MM/d", "MM/d/yyyy", 
 			"yyyy-M-d", "M-d-yyyy", "yyyy/M/d", "M/d/yyyy", 
-			"yy-MM-dd", "MM-dd-yy", "yy/MM/dd", "MM/dd/yy", 
-			"yy-M-dd", "M-dd-yy", "yy/M/dd", "M/dd/yy", 
-			"yy-MM-d", "MM-d-yy", "yy/MM/d", "MM/d/yy", 
-			"yy-M-d", "M-d-yy", "yy/M/d", "M/d/yy", 
+//			"yy-MM-dd", "MM-dd-yy", "yy/MM/dd", "MM/dd/yy", // two-digit years predictably broke things
+//			"yy-M-dd", "M-dd-yy", "yy/M/dd", "M/dd/yy", 
+//			"yy-MM-d", "MM-d-yy", "yy/MM/d", "MM/d/yy", 
+//			"yy-M-d", "M-d-yy", "yy/M/d", "M/d/yy", 
 			"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
 			.map(DateTimeFormatter::ofPattern)
 			.toArray(DateTimeFormatter[]::new);
@@ -128,7 +128,7 @@ public class FileController {
 	private static boolean testing = Globals.TESTING;
 	
 	private static String dbURL = Globals.DOWNLOAD_URL;
-	private static String testURL = "http://localhost:5000/";
+	private static String testURL = "http://localhost:5000/test/";
 	
 	private static String uploadURL = Globals.UPLOAD_URL.concat("uploadFilesTest");
 	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
@@ -2751,8 +2751,8 @@ public class FileController {
 		if( ( dto.eis_identifier == null || dto.eis_identifier.isBlank() ) 
 				&& (dto.filename == null || dto.filename.isBlank() || dto.filename.equalsIgnoreCase("n/a") || dto.filename.equalsIgnoreCase("null"))) {
 			valid = false;
-			System.out.println("Filename fail");
-			System.out.println(dto.filename);
+//			System.out.println("Filename fail");
+//			System.out.println(dto.filename);
 			return valid;
 		}
 
@@ -3017,7 +3017,7 @@ public class FileController {
 						LocalDate parsedDate = parseDate(itr.federal_register_date);
 						itr.federal_register_date = parsedDate.toString();
 					} catch (IllegalArgumentException e) {
-						System.out.println("Threw IllegalArgumentException");
+//						System.out.println("Threw IllegalArgumentException");
 						results.add("Item " + count + ": " + e.getMessage());
 						error = true;
 					} catch (Exception e) {
