@@ -1,5 +1,6 @@
 package nepaBackend.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import javax.persistence.Column;
@@ -41,6 +42,12 @@ public class UpdateLog {
 	
     @Column(name="agency")
     private String agency;
+    
+    @Column(name="department")
+    private String department;
+    
+    @Column(name="cooperating_agency")
+    private String cooperatingAgency;
   
     @Column(name="state")
     private String state;
@@ -56,6 +63,15 @@ public class UpdateLog {
 
     @Column(name="notes", columnDefinition ="TEXT")
     private String notes;
+    
+    @Column(name="summary", columnDefinition ="TEXT")
+    private String summary;
+
+	@Column(name="date",columnDefinition="DATE")
+    private LocalDate date; 
+	
+	@Column(name="process_id")
+	private Long processId;
 
 	@Column(name = "saved_time", columnDefinition="TIMESTAMP")
 	private LocalDateTime savedTime;
@@ -163,5 +179,45 @@ public class UpdateLog {
 
 	public void setNotes(String notes) {
 		this.notes = notes;
+	}
+
+    public String getSummary() {
+		return summary;
+	}
+
+	public void setSummary(String summary) {
+		this.summary = summary;
+	}
+
+	public String getDepartment() {
+		return department;
+	}
+
+	public void setDepartment(String department) {
+		this.department = department;
+	}
+
+	public String getCooperatingAgency() {
+		return cooperatingAgency;
+	}
+
+	public void setCooperatingAgency(String cooperatingAgency) {
+		this.cooperatingAgency = cooperatingAgency;
+	}
+
+	public LocalDate getDate() {
+		return date;
+	}
+
+	public void setDate(LocalDate date) {
+		this.date = date;
+	}
+
+	public Long getProcessId() {
+		return processId;
+	}
+
+	public void setProcessId(Long processId) {
+		this.processId = processId;
 	}
 }

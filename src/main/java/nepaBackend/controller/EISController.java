@@ -11,6 +11,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +39,7 @@ import nepaBackend.Globals;
 import nepaBackend.ProcessRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.UpdateLogRepository;
+import nepaBackend.UpdateLogService;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
@@ -50,12 +53,16 @@ import nepaBackend.security.SecurityConstants;
 @RequestMapping("/test")
 public class EISController {
 	
+	private static final Logger logger = LoggerFactory.getLogger(EISController.class);
+	
 	@Autowired
 	private SearchLogRepository searchLogRepository;
 	@Autowired
 	private ApplicationUserRepository applicationUserRepository;
 	@Autowired
 	private UpdateLogRepository updateLogRepository;
+	@Autowired
+	private UpdateLogService updateLogService;
 	@Autowired
 	private ProcessRepository processRepository;
 	
@@ -808,7 +815,6 @@ public class EISController {
 				// translate
 				ObjectMapper mapper = new ObjectMapper();
 				UploadInputs dto = mapper.readValue(doc, UploadInputs.class);
-				System.out.println(dto.process_id);
 				LocalDate parsedDate = parseDate(dto.federal_register_date);
 				
 				dto.federal_register_date = parsedDate.toString();
@@ -825,7 +831,7 @@ public class EISController {
 			return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
 		}
 	}
-	
+
 	@RequestMapping(path = "/get_process", method = RequestMethod.GET)
 	public ResponseEntity<List<EISDoc>> getProcess(@RequestParam(name="processId") Long processId,
 			@RequestHeader Map<String, String> headers) {
@@ -886,7 +892,7 @@ public class EISController {
 		return new ResponseEntity<String>(returnValue, HttpStatus.OK);
 	}
 	
-	
+	/** Return true if user is curator or admin */
 	private boolean userIsAuthorized(String token) {
 		boolean result = false;
 		// get ID
@@ -913,6 +919,13 @@ public class EISController {
 		if(maybeRecord.isPresent()) {
 			EISDoc recordToUpdate = maybeRecord.get();
 
+			// Log the important fields of the record from before the update, not after
+			
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, ""))).getId();
+//			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+	        
+			UpdateLog updateLog = updateLogService.newUpdateLogFromEIS(recordToUpdate,id);
+			
 			// translate
 			recordToUpdate.setAgency(Globals.normalizeSpace(itr.agency));
 			recordToUpdate.setCooperatingAgency(Globals.normalizeSpace(itr.cooperating_agency));
@@ -953,22 +966,6 @@ public class EISController {
 			EISDoc updatedRecord = docService.saveEISDoc(recordToUpdate); // save to db
 			
 			if(updatedRecord != null) {
-				
-				// Log
-				UpdateLog updateLog = new UpdateLog();
-				updateLog.setDocumentId(updatedRecord.getId());
-				updateLog.setAgency(updatedRecord.getAgency());
-				updateLog.setTitle(updatedRecord.getTitle());
-				updateLog.setDocument(updatedRecord.getDocumentType());
-				updateLog.setFilename(updatedRecord.getFilename());
-				updateLog.setState(updatedRecord.getState());
-				updateLog.setFolder(updatedRecord.getFolder());
-				updateLog.setLink(updatedRecord.getLink());
-				updateLog.setNotes(updatedRecord.getNotes());
-
-		        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, ""))).getId();
-//				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-				updateLog.setUserId(Long.parseLong(id));
 				updateLogRepository.save(updateLog);
 				
 				return new ResponseEntity<Void>(HttpStatus.OK);
@@ -979,8 +976,7 @@ public class EISController {
 			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 		}
 	}
-	
-	
+
 	/**
 	 * Attempts to return valid parsed LocalDate from String argument, based on formats specified in  
 	 * DateTimeFormatter[] parseFormatters
