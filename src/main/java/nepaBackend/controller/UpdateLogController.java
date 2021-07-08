@@ -1,6 +1,9 @@
 package nepaBackend.controller;
 
+import java.math.BigInteger;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -167,9 +170,58 @@ public class UpdateLogController {
 		}
 	}
 	
+	// Restore all distinct documents from the earliest date within given date range (start and end datetime).
+	// Return list of updated IDs.  Supports blank userid - it's required, but it can be empty string
+	@CrossOrigin
+	@RequestMapping(path = "/restore_date_range", method = RequestMethod.POST)
+	public ResponseEntity<List<Long>> restoreByDateRange(
+											@RequestParam("datetimeStart") String dateStart, 
+											@RequestParam("datetimeEnd") String dateEnd, 
+											@RequestParam("userid") String user, 
+											@RequestHeader Map<String, String> headers) {
+		System.out.println(dateStart);
+		System.out.println(dateEnd);
+		System.out.println(user);
+		
+		String token = headers.get("authorization");
+		List<Long> updated = new ArrayList<Long>();
+		
+		if(isAdmin(token)) {
+			try {
+				
+				// ID to use to save update logs for this update/restoration
+		        String restoringUserID = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, ""))).getId();
+				
+		        // supports blank userid (empty string).
+		        List<BigInteger> documentIds = updateLogService.getDistinctDocumentsFromDateRange(dateStart,dateEnd,user);
+				
+		        for(BigInteger id : documentIds) {
+		        	
+					Optional<EISDoc> recordToRestore = docService.findById(id.longValue());
+					if(recordToRestore.isPresent()) {
+						// now update by earliest updatelog per id after given date (and optional userid)
+						EISDoc restored = restoreFromDateByID(recordToRestore.get(),dateStart,user,restoringUserID);
+						if(restored != null) {
+							updated.add(restored.getId());
+						}
+					}
+				}
+				
+				return new ResponseEntity<List<Long>>(updated, HttpStatus.OK);
+				
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ResponseEntity<List<Long>>(updated, HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} else {
+			return new ResponseEntity<List<Long>>(HttpStatus.UNAUTHORIZED);
+		}
+
+	}
+	
 	private EISDoc restoreFromDateByID(EISDoc recordToRestore, String datetime, String user, String restoringUserID) {
 
-		Optional<UpdateLog> log = updateLogRepository.getByDocumentIdAfterDateTimeByUser(recordToRestore.getId(),datetime,Long.parseLong(user));
+		Optional<UpdateLog> log = updateLogService.getEarliestByDocumentIdAfterDateAndUser(recordToRestore.getId(),datetime,user);
 		if(log.isPresent()) {
 			EISDoc restored = restoreFromUpdate(recordToRestore,log.get(),restoringUserID);
 			

@@ -1,4 +1,9 @@
 package nepaBackend;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -68,6 +73,22 @@ public class UpdateLogService {
 		recordToRestore.setProcessId(logToRestoreFrom.getProcessId());
 		
 		return recordToRestore;
+	}
+
+	public List<BigInteger> getDistinctDocumentsFromDateRange(String start, String end, String userid) {
+		if(userid.isBlank()) {
+			return updateLogRepository.getDistinctDocumentsFromDateRange(start,end);
+		} else {
+			return updateLogRepository.getDistinctDocumentsFromDateRangeAndUser(start,end,Long.parseLong(userid));
+		}
+	}
+
+	public Optional<UpdateLog> getEarliestByDocumentIdAfterDateAndUser(Long id, String dateStart, String user) {
+		if(user.isBlank()) {
+			return updateLogRepository.getByDocumentIdAfterDateTime(id, dateStart);
+		} else {
+			return updateLogRepository.getByDocumentIdAfterDateTimeByUser(id, dateStart, Long.parseLong(user));
+		}
 	}
 	
 }
