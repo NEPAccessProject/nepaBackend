@@ -345,8 +345,8 @@ public class FulltextController {
 	
 	private Long idFromToken(String token) {
 		if(token != null) {
-			/** By necessity token is verified as valid via filter by this point as long as it's going through the 
-			 * public API. */
+			/** By necessity token is verified as valid via filter by this point as long as it's
+			 *  going through the public API. */
 			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 					.getId();
 			
@@ -356,28 +356,51 @@ public class FulltextController {
 		}
 	}
 
+	/** Excludes specific IDs, then excludes if appropriate (admin/curator/...?), otherwise saves log */
 	private void saveSearchLog(SearchInputs searchInputs, String searchMode, Long userId) {
-
-		// current admin user ID is 30; this could change depending on if/how db is migrated
-		// also exclude paul/alex's searches
-		if( userId != null && (userId == 30 || userId == 101 || userId == 104) ) { 
-			// don't save
+		boolean shouldSave = true;
+		
+		if(userId == null) {
+			// save anonymous search
+		}
+		else if( userId == 104 || userId == 80 ) { 
+			// exclude specific ID
+			shouldSave = false;
 		} else {
-			try {
-				SearchLog searchLog = new SearchLog();
-				searchLog.setTerms(searchInputs.title);
-				searchLog.setSearchMode(searchMode);
-				
-				searchLog.setUserId(userId); // TODO: Opt-in/out option?
-				
-	
-				searchLogRepository.save(searchLog);
-				
-			} catch (Exception e) {
-				logger.error(e.getLocalizedMessage());
+			Optional<ApplicationUser> maybeUser = applicationUserRepository.findById(userId);
+			
+			if(maybeUser.isPresent()) {
+				// TODO: Opt-in/out option?
+				String role = maybeUser.get().getRole();
+				// exclude all admin or curator
+				if(role.contentEquals("CURATOR") || role.contentEquals("ADMIN")) {
+					// exclude
+					shouldSave = false;
+				}
 			}
+			
+		} 
+		
+		if(shouldSave) {
+			saveNewSearchLog(searchInputs.title,searchMode,userId);
 		}
 		
+	}
+	
+	/** Helper method performs actual field assignment, saving, and Logging on error */
+	private void saveNewSearchLog(String terms, String searchMode, Long userId) {
+		try {
+			SearchLog searchLog = new SearchLog();
+			searchLog.setTerms(terms);
+			searchLog.setSearchMode(searchMode);
+			
+			searchLog.setUserId(userId); 
+
+			searchLogRepository.save(searchLog);
+			
+		} catch (Exception e) {
+			logger.error(e.getLocalizedMessage());
+		}
 	}
 	
 	
