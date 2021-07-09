@@ -9,6 +9,7 @@ import nepaBackend.model.SearchLog;
 
 // TODO: Get by date range etc.
 public interface SearchLogRepository extends JpaRepository<SearchLog, Long> {
+	
 	List<SearchLog> findAllByUserId(String userId);
 	
 	/** @return List of top 50 searches containing: Long (count); String (title) 
