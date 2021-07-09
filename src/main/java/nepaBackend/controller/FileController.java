@@ -210,7 +210,7 @@ public class FileController {
 		}
 	}
 
-	/** Return list of "missing" files (no size on record) */
+	/** Return list of "missing" files (no size on record, has folder/filename) */
 	@CrossOrigin
 	@RequestMapping(path = "/missing_files", method = RequestMethod.GET)
 	public ResponseEntity<List<Object[]>> missingFiles() {
@@ -221,6 +221,20 @@ public class FileController {
 				e.printStackTrace();
 			}
 			return new ResponseEntity<List<Object[]>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/** Return list of no files (no size on record) */
+	@CrossOrigin
+	@RequestMapping(path = "/missing_size", method = RequestMethod.GET)
+	public ResponseEntity<List<EISDoc>> missingSize() {
+		try {
+			return new ResponseEntity<List<EISDoc>>(docRepository.findMissingSize(),HttpStatus.OK);
+		} catch (Exception e) {
+			if(testing) {
+				e.printStackTrace();
+			}
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	
