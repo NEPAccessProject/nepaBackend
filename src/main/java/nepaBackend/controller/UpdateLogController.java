@@ -59,6 +59,19 @@ public class UpdateLogController {
 	}
 
 
+	@RequestMapping(path = "/find_all_by_id", method = RequestMethod.GET)
+	public ResponseEntity<List<UpdateLog>> findAllById(@RequestParam("id") String metaId, 
+											@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(userIsAuthorized(token)) {
+			return new ResponseEntity<List<UpdateLog>>(
+						updateLogRepository.findAllByDocumentId(Long.parseLong(metaId)),
+						HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<UpdateLog>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+
 	/** restore EISDoc by update log ID, using update log contents therein */
 	@CrossOrigin
 	@RequestMapping(path = "/restore", method = RequestMethod.POST)
@@ -282,7 +295,7 @@ public class UpdateLogController {
 	
 	
 	
-	/** Return true if user is curator or admin */
+	/** Return true if user token is curator or admin */
 	private boolean userIsAuthorized(String token) {
 		boolean result = false;
 		// get ID
