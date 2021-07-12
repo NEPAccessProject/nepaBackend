@@ -37,7 +37,7 @@ public interface SearchLogRepository extends JpaRepository<SearchLog, Long> {
 	List<Object> countDistinctLegacyTerms();
 	
 	@Query(
-			value = "SELECT DISTINCT a.username,terms,search_time,search_mode FROM test.search_log JOIN application_user a ON a.id = user_id WHERE terms IS NOT NULL "
+			value = "SELECT a.username,terms,search_time,search_mode FROM test.search_log JOIN application_user a ON a.id = user_id WHERE terms IS NOT NULL "
 					+ "AND a.username != 'jvinal' AND search_time > '2021-05-01' GROUP BY terms;",
 			nativeQuery=true)
 	List<Object> findAllWithUsername();
