@@ -606,7 +606,7 @@ public class EISController {
 	@GetMapping(path = "/search_logs")
 	public @ResponseBody ResponseEntity<List<Object>> getAllSearchLogs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(approverOrHigher(token)) {
 			return new ResponseEntity<List<Object>>(searchLogRepository.countDistinctTerms(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object>>(HttpStatus.UNAUTHORIZED);
@@ -909,6 +909,21 @@ public class EISController {
 
 	}
 	
+	private boolean approverOrHigher(String token) {
+		boolean result = false;
+		// get ID
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().equalsIgnoreCase("APPROVER") || user.getRole().equalsIgnoreCase("CURATOR") || user.getRole().equalsIgnoreCase("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+	}
+	
 	
 	/** Turns UploadInputs into valid, current EISDoc and updates it, returns 200 (OK) or 500 (error), 
 	 * 404 is no current EISDoc for ID, 400 if title, type or date are missing,
@@ -1033,6 +1048,19 @@ public class EISController {
 //	}
 	
 
+
+	/** Return whether JWT is from Curator role */
+	private boolean isApprover(String token) {
+		boolean result = false;
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
+			if(user.getRole().contentEquals("APPROVER")) {
+				result = true;
+			}
+		}
+		return result;
+	}
 	/** Return whether JWT is from Curator role */
 	private boolean isCurator(String token) {
 		boolean result = false;
