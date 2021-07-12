@@ -2,18 +2,26 @@ package nepaBackend.controller;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.auth0.jwt.JWT;
+
+import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
+import nepaBackend.SearchLogRepository;
 import nepaBackend.TextRepository;
+import nepaBackend.model.ApplicationUser;
+import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/stats")
@@ -23,6 +31,10 @@ public class StatsController {
 	private DocRepository docRepository;
 	@Autowired
 	private TextRepository textRepository;
+	@Autowired
+	private SearchLogRepository searchLogRepository;
+	@Autowired
+	private ApplicationUserRepository applicationUserRepository;
 	
 	public StatsController() {
 	}
@@ -310,6 +322,75 @@ public class StatsController {
 			//	e.printStackTrace();
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+	}
+	
+	@CrossOrigin
+	@GetMapping(path = "/find_all_searches")
+	public @ResponseBody ResponseEntity<List<Object>> findAllWithUsername(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(isAdmin(token) || isCurator(token) || isApprover(token)) {
+			return new ResponseEntity<List<Object>>(searchLogRepository.findAllWithUsername(), HttpStatus.OK);			
+		} else {
+			return new ResponseEntity<List<Object>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	
+	
+	/** Return ApplicationUser given JWT String */
+	private ApplicationUser getUser(String token) {
+		if(token != null) {
+			// get ID
+			try {
+				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+					.getId();
+//				if(testing) {System.out.println("ID: " + id);}
+
+				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+//				if(testing) {System.out.println("User ID: " + user.getId());}
+				return user;
+			} catch (Exception e) {
+				return null;
+			}
+		} else {
+			return null;
+		}
+	}
+	
+	/** Return whether trusted JWT is from Admin role */
+	private boolean isAdmin(String token) {
+		boolean result = false;
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
+			if(user.getRole().contentEquals("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+	}
+	/** Return whether trusted JWT is from Curator role */
+	private boolean isCurator(String token) {
+		boolean result = false;
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
+			if(user.getRole().contentEquals("CURATOR")) {
+				result = true;
+			}
+		}
+		return result;
+	}
+	/** Return whether trusted JWT is from Approver role */
+	private boolean isApprover(String token) {
+		boolean result = false;
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
+			if(user.getRole().contentEquals("APPROVER")) {
+				result = true;
+			}
+		}
+		return result;
 	}
 	
 }
