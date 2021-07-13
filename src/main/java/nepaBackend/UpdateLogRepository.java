@@ -28,8 +28,8 @@ public interface UpdateLogRepository extends JpaRepository<UpdateLog, Long> {
 			nativeQuery = true)
 	Optional<UpdateLog> getByDocumentIdAfterDateTimeByUser(
 			@Param("id") Long id, 
-			@Param("date_time") String datetime, 
-			@Param("userid") Long user);
+			@Param("date_time") String date_time, 
+			@Param("userid") Long userid);
 
 	@Query(value = 
 			"SELECT * FROM test.update_log where document_id = :id and saved_time >= :date_time order by saved_time asc limit 1;",
@@ -75,12 +75,15 @@ public interface UpdateLogRepository extends JpaRepository<UpdateLog, Long> {
 			"SELECT DISTINCT document_id FROM test.update_log where id >= :id_start and id <= :id_end",
 			nativeQuery = true)
 	List<BigInteger> getDistinctDocumentsFromIdRange(
-			@Param("id_start") String idStart, 
-			@Param("id_end") String idEnd);
+			@Param("id_start") String id_start, 
+			@Param("id_end") String id_end);
 
 	@Query(value = 
 			"SELECT DISTINCT document_id FROM test.update_log where user_id = :userid and id >= :id_start and id <= :id_end",
 			nativeQuery = true)
-	List<BigInteger> getDistinctDocumentsFromIdRangeAndUser(String idStart, String idEnd, Long userid);
+	List<BigInteger> getDistinctDocumentsFromIdRangeAndUser(
+			@Param("id_start") String id_start, 
+			@Param("id_end") String id_end, 
+			@Param("userid") Long userid);
 	
 }
