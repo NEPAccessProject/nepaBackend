@@ -610,6 +610,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 				return finalResults;
 			}
+		} catch(ParseException pe) {
+			String problem = pe.getLocalizedMessage();
+			MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
+			List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
+			results.add(result);
+			return results;
 		} catch(Exception e) {
 			e.printStackTrace();
 			String problem = e.getLocalizedMessage();
@@ -622,7 +628,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 
 	/** Search both fields at once and return in combined scored order with lucene IDs */
-	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception {
+	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception, ParseException {
 		long startTime = System.currentTimeMillis();
 		
 		String formattedTerms = mutateTermModifiers(terms);
