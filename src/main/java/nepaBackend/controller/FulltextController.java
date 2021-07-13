@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -56,6 +58,12 @@ public class FulltextController {
 	private boolean testing = Globals.TESTING;
 	private static final Logger logger = LoggerFactory.getLogger(FulltextController.class);
 	
+	@CrossOrigin
+	@GetMapping(path = "/test_terms")
+	public ResponseEntity<String> testTerms(@RequestParam String terms) {
+		return new ResponseEntity<String>(textRepository.testTerms(terms), HttpStatus.OK);
+	}
+	
 
 	// Metadata search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
@@ -95,6 +103,16 @@ public class FulltextController {
 			List<MetadataWithContext3> metaAndFilenames = 
 					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL);
 			return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
+		} catch(ParseException pe) {
+			searchInputs.title = MultiFieldQueryParser.escape(searchInputs.title);
+			try {
+				List<MetadataWithContext3> metaAndFilenames = 
+						textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL);
+				return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			}
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -115,6 +133,23 @@ public class FulltextController {
 				List<List<String>> highlights = new ArrayList<List<String>>(
 						(textRepository.getHighlightsFVHNoMarkup( unhighlighted )));
 				return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+			}
+		} catch(ParseException pe) {
+			unhighlighted.setTerms( MultiFieldQueryParser.escape(unhighlighted.getTerms()) );
+
+			try {
+				if(unhighlighted.isMarkup()) {
+					List<List<String>> highlights = new ArrayList<List<String>>(
+							(textRepository.getHighlightsFVH( unhighlighted )));
+					return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+				} else {
+					List<List<String>> highlights = new ArrayList<List<String>>(
+							(textRepository.getHighlightsFVHNoMarkup( unhighlighted )));
+					return new ResponseEntity<List<List<String>>>(highlights, HttpStatus.OK);
+				}
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ResponseEntity<List<List<String>>>(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
 		} catch(Exception e) {
 			e.printStackTrace();

@@ -17,10 +17,12 @@ public interface CustomizedTextRepository {
 
 	boolean sync();
 	
-	List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType);
+	List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType) throws ParseException;
 	
 	ArrayList<ArrayList<String>> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws Exception;
 	ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(UnhighlightedDTO unhighlighted) throws Exception;
 	
 	int getTotalHits(String field) throws Exception;
+
+	String testTerms(String terms);
 }

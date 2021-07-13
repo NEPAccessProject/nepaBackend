@@ -109,6 +109,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		return true;
 	}
 	
+	public String testTerms(String terms) {
+		
+		System.out.println("Terms: " + terms);
+		
+		String formattedTerms = mutateTermModifiers(terms);
+	
+		System.out.println("Formatted terms: " + formattedTerms);
+		
+		try {
+			MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+					new String[] {"title", "plaintext"},
+					analyzer);
+			mfqp.parse(formattedTerms);
+			return terms;
+		} catch(ParseException pe) {
+			pe.printStackTrace();
+			return MultiFieldQueryParser.escape(formattedTerms);
+		}
+	}
+	
 
 	/** Returns search terms after enforcing two rules:  Proximity matching was limited to 1 billion, just under absolute upper limit 
 	 * (when going beyond the limit, proximity matching stopped working at all).  
@@ -537,7 +557,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				 * @throws ParseException
 				 * */
 	@Override
-	public List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType) {
+	public List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType) throws ParseException {
 		try {
 			
 
@@ -611,11 +631,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				return finalResults;
 			}
 		} catch(ParseException pe) {
-			String problem = pe.getLocalizedMessage();
-			MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
-			List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
-			results.add(result);
-			return results;
+			throw pe;
+//			String problem = pe.getLocalizedMessage();
+//			MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
+//			List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
+//			results.add(result);
+//			return results;
 		} catch(Exception e) {
 			e.printStackTrace();
 			String problem = e.getLocalizedMessage();
@@ -872,7 +893,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	/** Fastest highlighting available, requires full term vectors indexed */
 	@Override
-	public ArrayList<ArrayList<String>> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws Exception {
+	public ArrayList<ArrayList<String>> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws Exception, ParseException {
 		long startTime = System.currentTimeMillis();
 		int fragmentSizeCustom = setFragmentSize(unhighlighted.getFragmentSizeValue());
 
