@@ -83,11 +83,27 @@ public class UpdateLogService {
 		}
 	}
 
+	public List<BigInteger> getDistinctDocumentsFromIdRange(String idStart, String idEnd, String userid) {
+		if(userid.isBlank()) {
+			return updateLogRepository.getDistinctDocumentsFromIdRange(idStart,idEnd);
+		} else {
+			return updateLogRepository.getDistinctDocumentsFromIdRangeAndUser(idStart,idEnd,Long.parseLong(userid));
+		}
+	}
+
 	public Optional<UpdateLog> getEarliestByDocumentIdAfterDateAndUser(Long id, String dateStart, String user) {
 		if(user.isBlank()) {
 			return updateLogRepository.getByDocumentIdAfterDateTime(id, dateStart);
 		} else {
 			return updateLogRepository.getByDocumentIdAfterDateTimeByUser(id, dateStart, Long.parseLong(user));
+		}
+	}
+
+	public Optional<UpdateLog> getEarliestByDocumentIdAfterIdAndUser(Long id, String idStart, String user) {
+		if(user.isBlank()) {
+			return updateLogRepository.getByDocumentIdAfterId(id, idStart);
+		} else {
+			return updateLogRepository.getByDocumentIdAfterIdByUser(id, idStart, Long.parseLong(user));
 		}
 	}
 	

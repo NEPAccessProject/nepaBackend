@@ -22,6 +22,7 @@ public interface UpdateLogRepository extends JpaRepository<UpdateLog, Long> {
 			nativeQuery = true)
 	Optional<UpdateLog> getMostRecentByDocumentId(@Param("id") Long id);
 
+	
 	@Query(value = 
 			"SELECT * FROM test.update_log where document_id = :id and user_id = :userid and saved_time >= :date_time order by saved_time asc limit 1;",
 			nativeQuery = true)
@@ -36,6 +37,24 @@ public interface UpdateLogRepository extends JpaRepository<UpdateLog, Long> {
 	Optional<UpdateLog> getByDocumentIdAfterDateTime(
 			@Param("id") Long id, 
 			@Param("date_time") String datetime);
+	
+
+	@Query(value = 
+			"SELECT * FROM test.update_log where document_id = :id and user_id = :userid and id >= :id_start order by id asc limit 1;",
+			nativeQuery = true)
+	Optional<UpdateLog> getByDocumentIdAfterIdByUser(
+			@Param("id") Long id, 
+			@Param("id_start") String idStart,
+			@Param("userid") Long user);
+	
+	@Query(value = 
+			"SELECT * FROM test.update_log where document_id = :id and id >= :id_start order by id asc limit 1;",
+			nativeQuery = true)
+	Optional<UpdateLog> getByDocumentIdAfterId(
+			@Param("id") Long id, 
+			@Param("id_start") String idStart);
+	
+	
 
 	@Query(value = 
 			"SELECT DISTINCT document_id FROM test.update_log where saved_time >= :start and saved_time <= :end",
@@ -51,5 +70,17 @@ public interface UpdateLogRepository extends JpaRepository<UpdateLog, Long> {
 			@Param("date_start") String start, 
 			@Param("date_end") String end,
 			@Param("userid") Long userid);
+
+	@Query(value = 
+			"SELECT DISTINCT document_id FROM test.update_log where id >= :id_start and id <= :id_end",
+			nativeQuery = true)
+	List<BigInteger> getDistinctDocumentsFromIdRange(
+			@Param("id_start") String idStart, 
+			@Param("id_end") String idEnd);
+
+	@Query(value = 
+			"SELECT DISTINCT document_id FROM test.update_log where user_id = :userid and id >= :id_start and id <= :id_end",
+			nativeQuery = true)
+	List<BigInteger> getDistinctDocumentsFromIdRangeAndUser(String idStart, String idEnd, Long userid);
 	
 }
