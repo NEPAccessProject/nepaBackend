@@ -70,5 +70,9 @@ public class DocService {
 	public List<EISDoc> findAllDuplicatesCloseDates() {
 		return docRepository.findAllDuplicatesCloseDates();
 	}
+	
+	public List<EISDoc> findAllSameTitleType() {
+		return docRepository.findAllSameTitleType();
+	}
 
 }

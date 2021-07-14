@@ -314,6 +314,18 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllDuplicatesCloseDates();
 
+	@Query(value = 
+			"		select t.* " + 
+			"		from eisdoc t join " + 
+			"		(select document_type, title, count(*) as NumDuplicates " + 
+			"		  from eisdoc " + 
+			"		  group by document_type, title " + 
+			"		  having NumDuplicates > 1 " + 
+			"		) tsum " + 
+			"		on t.document_type = tsum.document_type and t.title = tsum.title " +
+			"		ORDER BY title", nativeQuery = true)
+	List<EISDoc> findAllSameTitleType();
+
 	List<EISDoc> findAllByProcessId(Long processId);
 
 	@Query(value = 	
