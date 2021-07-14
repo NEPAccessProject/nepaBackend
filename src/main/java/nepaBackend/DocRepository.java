@@ -310,7 +310,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"		  having NumDuplicates > 1 " + 
 			"		) tsum " + 
 			"		on t.document_type = tsum.document_type and t.title = tsum.title " +
-			"       and ABS(DATEDIFF(t.register_date,tsum.register_date)) < 30" + 
+			"       and ABS(DATEDIFF(t.register_date,tsum.register_date)) <= 31" + 
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllDuplicatesCloseDates();
 
