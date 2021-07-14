@@ -1157,7 +1157,7 @@ public class FileController {
 			
 					    // If file uploaded, proceed to import and logging
 					    if(uploaded) {
-					    	results[i] = origFilename + ": OK";
+					    	results[i] = "OK: " + files[i].getOriginalFilename();
 
 					    	// Need to update EISDoc for size and to look in the correct place.
 					    	EISDoc existingDoc = foundDoc.get();
@@ -1204,11 +1204,11 @@ public class FileController {
 //					    	}
 					    } else {
 					    	// File already exists in legacy style
-					    	results[i] = origFilename + ": Couldn't upload";
+					    	results[i] = "Couldn't upload: " + origFilename;
 					    }
 			    	} else {
 				    	// Do nothing (reject file: no upload, no log)
-				    	results[i] = origFilename + ": No folder and no filename match";
+				    	results[i] = "No folder and no filename match: " + files[i].getOriginalFilename();
 			    	}
 			    } else if(metadataExists(folderName)){
 			    	logger.info("Uploading " + files[i].getOriginalFilename());
@@ -1243,8 +1243,8 @@ public class FileController {
 				    // If file uploaded, see if we can link it, then proceed to saving to table and logging
 				    List<EISDoc> existingDocs = docRepository.findAllByFolder(folderName);
 				    if(uploaded) {
-				    	logger.info("Done uploading " + origFilename);
-				    	results[i] = origFilename + ": OK";
+				    	logger.info("Done uploading " + files[i].getOriginalFilename());
+				    	results[i] = "OK: " + files[i].getOriginalFilename();
 				    	// Save NEPAFile
 
 				    	// 1. Requires ability to link from previous CSV import
@@ -1262,7 +1262,7 @@ public class FileController {
 				    	// Save FileLog
 				    	
 				    	if(savedNEPAFile == null) {
-					    	results[i] = origFilename + ": Duplicate (File exists, nothing done)";
+					    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
 				    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 				    	} else {
 				    		uploadLog.setFilename(getPathOnly(origFilename) + getFilenameOnly(origFilename)); // full path incl. filename with agency base folder subbed in if needed
@@ -1288,20 +1288,20 @@ public class FileController {
 				    	}
 				    } else {
 				    	logger.info("Couldn't upload: " + origFilename);
-				    	results[i] = origFilename + ": Couldn't upload";
+				    	results[i] = "Couldn't upload: " + origFilename;
 				    }
 			    } else {
 			    	// Inform client this file can't be linked to anything, and has been rejected
 			    	logger.info("Can't link file (no folder or filename match in metadata): " + origFilename);
-			    	results[i] = origFilename + ": Can't link file (no folder or filename match in metadata)";
+			    	results[i] = "Can't link file (no folder or filename match in metadata): " + origFilename;
 			    }
 	
 		    } catch (java.util.NoSuchElementException e) {
-				results[i] = files[i].getOriginalFilename() + ": Can't link (no match for folder with document type)";
+				results[i] = "Can't link (no match for folder with document type): " + files[i].getOriginalFilename();
 			} catch (Exception e) {
 				e.printStackTrace();
 		    	logger.error("Exception:: " + e.getMessage() + ": " + files[i].getOriginalFilename());
-				results[i] = files[i].getOriginalFilename() + ": Exception:: " + e.getMessage();
+				results[i] = "Exception:: " + e.getMessage() + ": " + files[i].getOriginalFilename();
 			} finally {
 			    files[i].getInputStream().close();
 			    if(uploadLog.getUser() != null) { 
