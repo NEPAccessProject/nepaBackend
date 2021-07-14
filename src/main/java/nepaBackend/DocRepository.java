@@ -348,4 +348,17 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	List<EISDoc> sizeUnder200();
 
+	@Query(value ="select agency,count(*) from eisdoc group by agency;",
+	nativeQuery = true)
+	List<Object[]> reportTotalMetadataByAgency();
+	@Query(value ="select agency,count(*) from eisdoc where size > 200 group by agency;",
+	nativeQuery = true)
+	List<Object[]> reportHasFilesByAgency();
+	@Query(value ="select agency,count(*) from eisdoc where YEAR(register_date) >= 2000 group by agency;",
+	nativeQuery = true)
+	List<Object[]> reportTotalMetadataByAgencyAfter2000();
+	@Query(value ="select agency,count(*) from eisdoc where size > 200 and YEAR(register_date) >= 2000 group by agency;",
+	nativeQuery = true)
+	List<Object[]> reportHasFilesByAgencyAfter2000();
+
 }
