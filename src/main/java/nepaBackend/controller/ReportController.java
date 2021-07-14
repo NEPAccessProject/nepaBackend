@@ -34,39 +34,20 @@ public class ReportController {
 	}
 
 	@GetMapping(path = "/report_agency")
-	public @ResponseBody ResponseEntity<List<Object[]>> reportTotalMetadataByAgency(@RequestHeader Map<String, String> headers) {
+	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyCombined(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		if(isAdmin(token)) {
-			return new ResponseEntity<List<Object[]>>(docRepository.reportTotalMetadataByAgency(), HttpStatus.OK);
-		} else {
-			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
-		}
-	}
-	@GetMapping(path = "/report_files_agency")
-	public @ResponseBody ResponseEntity<List<Object[]>> reportHasFilesByAgency(@RequestHeader Map<String, String> headers) {
-		String token = headers.get("authorization");
-		if(isAdmin(token)) {
-			return new ResponseEntity<List<Object[]>>(docRepository.reportHasFilesByAgency(), HttpStatus.OK);
+			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyCombined(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
 	// 2000 incl.
-
 	@GetMapping(path = "/report_agency_2000")
-	public @ResponseBody ResponseEntity<List<Object[]>> reportTotalMetadataByAgencyAfter2000(@RequestHeader Map<String, String> headers) {
+	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyCombinedAfter2000(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		if(isAdmin(token)) {
-			return new ResponseEntity<List<Object[]>>(docRepository.reportTotalMetadataByAgencyAfter2000(), HttpStatus.OK);
-		} else {
-			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
-		}
-	}
-	@GetMapping(path = "/report_files_agency_2000")
-	public @ResponseBody ResponseEntity<List<Object[]>> reportHasFilesByAgencyAfter2000(@RequestHeader Map<String, String> headers) {
-		String token = headers.get("authorization");
-		if(isAdmin(token)) {
-			return new ResponseEntity<List<Object[]>>(docRepository.reportHasFilesByAgencyAfter2000(), HttpStatus.OK);
+			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyCombinedAfter2000(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
 		}

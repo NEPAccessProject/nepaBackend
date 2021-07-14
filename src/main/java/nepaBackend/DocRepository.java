@@ -348,6 +348,35 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	List<EISDoc> sizeUnder200();
 
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files\r\n" + 
+			"FROM (SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
+			"      FROM eisdoc GROUP BY agency\r\n" + 
+			"      UNION \r\n" + 
+			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount\r\n" + 
+			"      FROM eisdoc \r\n" + 
+			"      WHERE size > 200\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"     ) AS A\r\n" + 
+			"GROUP BY A.agency\r\n" + 
+			"ORDER BY A.agency",nativeQuery = true)
+	List<Object[]> reportAgencyCombined();
+	
+
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files\r\n" + 
+			"FROM (SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
+			"      FROM eisdoc WHERE YEAR(register_date) >= 2000 GROUP BY agency\r\n" + 
+			"      UNION \r\n" + 
+			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount\r\n" + 
+			"      FROM eisdoc \r\n" + 
+			"      WHERE size > 200 AND YEAR(register_date) >= 2000\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"     ) AS A\r\n" + 
+			"GROUP BY A.agency\r\n" + 
+			"ORDER BY A.agency",nativeQuery = true)
+	List<Object[]> reportAgencyCombinedAfter2000();
+	
+	
+	
 	@Query(value ="select agency,count(*) from eisdoc group by agency;",
 	nativeQuery = true)
 	List<Object[]> reportTotalMetadataByAgency();
