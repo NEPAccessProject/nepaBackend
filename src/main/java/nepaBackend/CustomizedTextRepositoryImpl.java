@@ -110,22 +110,26 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 	
 	public String testTerms(String terms) {
-		
 		System.out.println("Terms: " + terms);
 		
-		String formattedTerms = mutateTermModifiers(terms);
-	
-		System.out.println("Formatted terms: " + formattedTerms);
+		if(terms == null || terms.isBlank()) { // parser exceptions on blank query
+			return "";
+		} else {
+			
+			String formattedTerms = mutateTermModifiers(terms);
 		
-		try {
-			MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
-					new String[] {"title", "plaintext"},
-					analyzer);
-			mfqp.parse(formattedTerms);
-			return terms;
-		} catch(ParseException pe) {
-			pe.printStackTrace();
-			return MultiFieldQueryParser.escape(formattedTerms);
+			System.out.println("Formatted terms: " + formattedTerms);
+			
+			try {
+				MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
+						new String[] {"title", "plaintext"},
+						analyzer);
+				mfqp.parse(formattedTerms);
+				return terms;
+			} catch(ParseException pe) {
+				pe.printStackTrace();
+				return MultiFieldQueryParser.escape(formattedTerms);
+			}
 		}
 	}
 	
