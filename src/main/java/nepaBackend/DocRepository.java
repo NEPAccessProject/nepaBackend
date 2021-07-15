@@ -349,7 +349,11 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<EISDoc> sizeUnder200();
 
 	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files\r\n" + 
-			"FROM (SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
+			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount\r\n" + 
+			"	  FROM eisdoc\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"      UNION\r\n" + 
+			"      SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
 			"      FROM eisdoc GROUP BY agency\r\n" + 
 			"      UNION \r\n" + 
 			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount\r\n" + 
@@ -363,8 +367,14 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	
 
 	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files\r\n" + 
-			"FROM (SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
-			"      FROM eisdoc WHERE YEAR(register_date) >= 2000 GROUP BY agency\r\n" + 
+			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount\r\n" + 
+			"	  FROM eisdoc\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"      UNION\r\n" + 
+			"	   SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
+			"      FROM eisdoc \r\n" + 
+			"      WHERE YEAR(register_date) >= 2000\r\n" + 
+			"      GROUP BY agency\r\n" + 
 			"      UNION \r\n" + 
 			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount\r\n" + 
 			"      FROM eisdoc \r\n" + 
