@@ -17,6 +17,7 @@ import com.auth0.jwt.JWT;
 import nepaBackend.ApplicationUserRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.model.EISDoc;
 import nepaBackend.security.SecurityConstants;
 
 @RestController
@@ -69,6 +70,18 @@ public class ReportController {
 			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyProcessAfter2000(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	
+	// duplicates
+
+	@GetMapping(path = "/duplicates_size")
+	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicatesBySize(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(isAdmin(token)) {
+			return new ResponseEntity<List<EISDoc>>(docRepository.findAllSameSize(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
 

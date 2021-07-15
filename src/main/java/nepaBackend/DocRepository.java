@@ -325,6 +325,20 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"		on t.document_type = tsum.document_type and t.title = tsum.title " +
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllSameTitleType();
+	// if we have duplicates with the same files and the same exact byte size it can show very clear
+	// duplicates to handle
+	@Query(value = 
+			"		select t.* " + 
+			"		from eisdoc t join " + 
+			"		(select size, count(*) as NumDuplicates " + 
+			"		  from eisdoc " + 
+			"         where size > 200 " +
+			"		  group by size " + 
+			"		  having NumDuplicates > 1 " + 
+			"		) tsum " + 
+			"		on t.size = tsum.size " +
+			"		ORDER BY title", nativeQuery = true)
+	List<EISDoc> findAllSameSize();
 
 	List<EISDoc> findAllByProcessId(Long processId);
 
