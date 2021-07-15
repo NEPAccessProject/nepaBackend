@@ -209,12 +209,12 @@ public class UserController {
     	
     	Gson gson=new Gson();
     	ApplicationUser user=gson.fromJson(jsonUser,ApplicationUser.class);
-    	
-    	if(usernameExists(user.getUsername().strip())) { // check for duplicates
+
+    	if(usernameExists(user.getUsername().replaceAll("\\s+", ""))) { // check for duplicates
     		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
     	} else if(Globals.validPassword(user.getPassword())) {
     		try {
-    			user.setUsername(user.getUsername().strip());
+    			user.setUsername(user.getUsername().replaceAll("\\s+", ""));
                 user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                 user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
@@ -264,10 +264,11 @@ public class UserController {
     		Gson gson=new Gson();
         	ApplicationUser user=gson.fromJson(jsonUser,ApplicationUser.class);
         	
-        	if(usernameExists(user.getUsername())) { // check for duplicates
+        	if(usernameExists(user.getUsername().replaceAll("\\s+", ""))) { // check for duplicates
         		return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT); 
         	} else if( Globals.validPassword(user.getPassword()) ) {
         		try {
+        			user.setUsername(user.getUsername().replaceAll("\\s+", ""));
                     user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
                     user.setFirstName(Globals.normalizeSpace(user.getFirstName()));
                     user.setLastName(Globals.normalizeSpace(user.getLastName()));
