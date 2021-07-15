@@ -384,6 +384,60 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"GROUP BY A.agency\r\n" + 
 			"ORDER BY A.agency",nativeQuery = true)
 	List<Object[]> reportAgencyCombinedAfter2000();
+
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files, MAX(tableCCount) as processCount, MAX(tableDCount) as processAndFileCount\r\n" + 
+	"FROM ("+
+	"	  SELECT agency, COUNT(1) tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
+	"      FROM eisdoc \r\n" + 
+	"      GROUP BY agency\r\n" + 
+	"      UNION \r\n" + 
+	"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
+	"      FROM eisdoc \r\n" + 
+	"      WHERE size > 200\r\n" + 
+	"      GROUP BY agency\r\n" + 
+	"      UNION\r\n" + 
+	"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, COUNT(DISTINCT process_id) tableCCount, 0 AS tableDCount\r\n" + 
+	"      FROM eisdoc \r\n" + 
+	"      WHERE process_id IS NOT NULL AND process_id >= 0\r\n" + 
+	"      GROUP BY agency\r\n" + 
+	"      UNION\r\n" + 
+	"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, COUNT(1) tableDCount\r\n" + 
+	"      FROM eisdoc \r\n" + 
+	"      WHERE process_id IS NOT NULL AND process_id >= 0 AND size > 200\r\n" + 
+	"      GROUP BY agency\r\n" + 
+	"     ) AS A\r\n" + 
+	"GROUP BY A.agency\r\n" + 
+	"ORDER BY A.agency",nativeQuery = true)
+	List<Object[]> reportAgencyProcess();
+	
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files, MAX(tableCCount) as processCount, MAX(tableDCount) as processAndFileCount\r\n" + 
+			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
+			"	  FROM eisdoc\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"      UNION\r\n" + 
+			"	  SELECT agency, COUNT(1) tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
+			"      FROM eisdoc \r\n" + 
+			"      WHERE YEAR(register_date) >= 2000\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"      UNION \r\n" + 
+			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
+			"      FROM eisdoc \r\n" + 
+			"      WHERE size > 200 AND YEAR(register_date) >= 2000\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"      UNION\r\n" + 
+			"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, COUNT(DISTINCT process_id) tableCCount, 0 AS tableDCount\r\n" + 
+			"      FROM eisdoc \r\n" + 
+			"      WHERE process_id IS NOT NULL AND process_id >= 0 AND YEAR(register_date) >= 2000\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"      UNION\r\n" + 
+			"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, COUNT(1) tableDCount\r\n" + 
+			"      FROM eisdoc \r\n" + 
+			"      WHERE process_id IS NOT NULL AND process_id >= 0 AND YEAR(register_date) >= 2000 AND size > 200\r\n" + 
+			"      GROUP BY agency\r\n" + 
+			"     ) AS A\r\n" + 
+			"GROUP BY A.agency\r\n" + 
+			"ORDER BY A.agency",nativeQuery = true)
+	List<Object[]> reportAgencyProcessAfter2000();
 	
 	
 	

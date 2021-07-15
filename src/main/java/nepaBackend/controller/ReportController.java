@@ -52,6 +52,25 @@ public class ReportController {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
+	@GetMapping(path = "/report_agency_process")
+	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyProcess(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(isAdmin(token)) {
+			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyProcess(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	// 2000 incl.
+	@GetMapping(path = "/report_agency_process_2000")
+	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyProcessAfter2000(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(isAdmin(token)) {
+			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyProcessAfter2000(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
 
 	/** Return ApplicationUser given JWT String */
 	private ApplicationUser getUser(String token) {
