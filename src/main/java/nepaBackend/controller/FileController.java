@@ -77,6 +77,8 @@ import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
 import nepaBackend.ProcessRepository;
 import nepaBackend.TextRepository;
+import nepaBackend.UpdateLogRepository;
+import nepaBackend.UpdateLogService;
 import nepaBackend.ZipExtractor;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
@@ -84,6 +86,7 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.NEPAProcess;
+import nepaBackend.model.UpdateLog;
 import nepaBackend.pojo.ProcessInputs;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
@@ -100,6 +103,10 @@ public class FileController {
 	private TextRepository textRepository;
 	@Autowired
 	private FileLogRepository fileLogRepository;
+	@Autowired
+	private UpdateLogService updateLogService;
+	@Autowired
+	private UpdateLogRepository updateLogRepository;
 	@Autowired
 	private ApplicationUserRepository applicationUserRepository;
 	@Autowired
@@ -1085,23 +1092,28 @@ public class FileController {
 					Optional<EISDoc> recordThatMayExist = docRepository.findById(Long.parseLong(itr.id));
 					
 					if( recordThatMayExist.isPresent() ) {
-						ResponseEntity<Long> status = updateDto(itr, recordThatMayExist);
-						
-						if(status.getStatusCodeValue() == 500) { // Error
-							results.add("Item " + count + ": Error saving: " + itr.title);
-				    	} else {
-							results.add("Item " + count + ": Updated: " + itr.title);
+						if(itr.state.contentEquals(recordThatMayExist.get().getState())) {
+							// never mind, no need to update
+							results.add("Item " + count + ": Unchanged (value was already "+itr.state+"): " + itr.id);
+						} else {
+							EISDoc record = recordThatMayExist.get();
+							UpdateLog doc = updateLogService.newUpdateLogFromEIS(record,getUser(token).getId());
+
+							// we're JUST updating the state, don't mess with anything else
+							if(itr.state != null && !itr.state.isBlank()) {
+								record.setState(Globals.normalizeSpace(itr.state));
+							}
 							
-				    		// Log success
-							FileLog recordLog = new FileLog();
-							recordLog.setErrorType("Updated existing record location value");
-				    		recordLog.setDocumentId(status.getBody());
-				    		recordLog.setFilename(itr.filename);
-				    		recordLog.setImported(false);
-				    		recordLog.setLogTime(LocalDateTime.now());
-				    		recordLog.setUser(getUser(token));
-				    		fileLogRepository.save(recordLog);
-				    	}
+							try {
+								docRepository.save(record); // save to db
+								results.add("Item " + count + ": Updated: " + itr.id);
+								
+					    		// Log success
+								updateLogRepository.save(doc);
+							} catch(Exception e) {
+								results.add("Item " + count + ": Error saving: " + itr.id);
+							}
+						}
 					}
 					
 					// If id doesn't exist, then skip

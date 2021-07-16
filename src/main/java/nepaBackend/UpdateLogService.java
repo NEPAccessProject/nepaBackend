@@ -30,10 +30,16 @@ public class UpdateLogService {
 		
 		return saved;
 	}
-	
+
 	/** Creates update log using fields from a given EISDoc, and user ID.
 	 *  Does not actually save it to database. */
 	public UpdateLog newUpdateLogFromEIS(EISDoc recordToUpdate, String id) {
+		return this.newUpdateLogFromEIS(recordToUpdate, Long.parseLong(id));
+	}
+	/** Creates update log using fields from a given EISDoc, and user ID.
+	 *  Does not actually save it to database. */
+	public UpdateLog newUpdateLogFromEIS(EISDoc recordToUpdate, long id) {
+
 		UpdateLog updateLog = new UpdateLog();
 		
 		updateLog.setDocumentId(recordToUpdate.getId());
@@ -51,7 +57,7 @@ public class UpdateLogService {
 		updateLog.setDate(recordToUpdate.getRegisterDate());
 		updateLog.setProcessId(recordToUpdate.getProcessId());
 		
-		updateLog.setUserId(Long.parseLong(id));
+		updateLog.setUserId(id);
 		
 		return updateLog;
 	}
