@@ -1048,6 +1048,80 @@ public class FileController {
 		return results;
 	}
 	
+	/** For updating metadata states by ID, from a spreadsheet. */	
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_id_state", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSVFixStatesByID(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		String token = headers.get("authorization");
+		
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		
+		fillAgencies();
+		
+		List<String> results = new ArrayList<String>();
+		
+	    // Expect these headers:
+	    // id, state
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+		    // Ensure metadata is valid
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				
+				itr.state = Globals.normalizeSpace(itr.state);
+				
+			    // Need ID
+			    if(itr.id != null && itr.id.length() > 0) {
+					// get match for possible update
+					
+					Optional<EISDoc> recordThatMayExist = docRepository.findById(Long.parseLong(itr.id));
+					
+					if( recordThatMayExist.isPresent() ) {
+						ResponseEntity<Long> status = updateDto(itr, recordThatMayExist);
+						
+						if(status.getStatusCodeValue() == 500) { // Error
+							results.add("Item " + count + ": Error saving: " + itr.title);
+				    	} else {
+							results.add("Item " + count + ": Updated: " + itr.title);
+							
+				    		// Log success
+							FileLog recordLog = new FileLog();
+							recordLog.setErrorType("Updated existing record location value");
+				    		recordLog.setDocumentId(status.getBody());
+				    		recordLog.setFilename(itr.filename);
+				    		recordLog.setImported(false);
+				    		recordLog.setLogTime(LocalDateTime.now());
+				    		recordLog.setUser(getUser(token));
+				    		fileLogRepository.save(recordLog);
+				    	}
+					}
+					
+					// If id doesn't exist, then skip
+					else 
+					{ 
+						results.add("Item " + count + ": No match on ID: " + itr.id);
+			    	} 
+				} else {
+					results.add("Item " + count + ": Missing ID");
+				}
+			    count++;
+			}
+			
+		} catch (Exception e) {
+			results.add(e.getLocalizedMessage());
+		}
+
+		return new ResponseEntity<List<String>>(results,HttpStatus.OK);
+	}
+	
 	/** 
 	 * Returns if the given path can be linked to any records, either through folder+type, or filename 
 	 * */
