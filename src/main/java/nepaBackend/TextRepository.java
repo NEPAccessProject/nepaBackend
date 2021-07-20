@@ -27,11 +27,18 @@ public interface TextRepository extends JpaRepository<DocumentText, Long>, Custo
 
 	Optional<DocumentText> findByEisdocAndFilenameIn(EISDoc eisDoc, String filename);
 
+	/** this'll allow filenames returned (and therefore downloads) even if the indexing didn't work. */
+	@Query(value = "SELECT filename FROM nepafile WHERE " +
+			"(nepafile.document_id = :document_id) " +
+			"LIMIT 100",
+			nativeQuery = true)
+	List<String> findFilenameByDocumentId(@Param("document_id") long document_id);
+	/** old version: only returns filenames if files were successfully converted to text and indexed. */
 	@Query(value = "SELECT filename FROM document_text WHERE " +
 			"(document_text.document_id = :document_id) " +
 			"LIMIT 100",
 			nativeQuery = true)
-	List<String> findFilenameByDocumentId(@Param("document_id") long document_id);
+	List<String> findFilenameByDocumentIdOld(@Param("document_id") long document_id);
 
 	@Query(value = "SELECT id FROM document_text WHERE " +
 			"(length(document_text.plaintext) = :len) " +

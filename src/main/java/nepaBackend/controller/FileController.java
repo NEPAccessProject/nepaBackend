@@ -250,6 +250,10 @@ public class FileController {
 	public ResponseEntity<List<String>> filenames(@RequestParam long document_id) {
 		try {
 			List<String> filenames = textRepository.findFilenameByDocumentId(document_id);
+			if(filenames == null || filenames.size() == 0) {
+				// try the old way instead?
+				filenames = textRepository.findFilenameByDocumentIdOld(document_id);
+			}
 			return new ResponseEntity<List<String>>(filenames, HttpStatus.OK);
 		} catch (Exception e) {
 			return new ResponseEntity<List<String>>(HttpStatus.NOT_FOUND);
