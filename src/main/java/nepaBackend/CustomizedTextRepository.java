@@ -13,7 +13,7 @@ import nepaBackend.pojo.UnhighlightedDTO;
 
 public interface CustomizedTextRepository {
 	List<EISDoc> searchTitles(String terms) throws ParseException;
-	List<EISDoc> metadataSearch(SearchInputs searchInputs, int limit, int offset, SearchType searchType);
+	List<EISDoc> metadataSearch(SearchInputs searchInputs, int limit, int offset, SearchType searchType) throws ParseException;
 
 	boolean sync();
 	

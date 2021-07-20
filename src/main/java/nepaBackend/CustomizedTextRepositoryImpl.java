@@ -178,7 +178,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	 * */
     /** Title-only search */
 	@Override
-	public List<EISDoc> metadataSearch(SearchInputs searchInputs, int limit, int offset, SearchType searchType) {
+	public List<EISDoc> metadataSearch(
+			SearchInputs searchInputs, 
+			int limit, 
+			int offset, 
+			SearchType searchType) 
+			throws ParseException {
 		try {
 			
 			searchInputs.title = mutateTermModifiers(searchInputs.title);
@@ -369,6 +374,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				return records;
 			}
 			
+		} catch (ParseException pe) {
+			throw pe;
 		} catch (Exception e) {
 			e.printStackTrace();
 			return null;
