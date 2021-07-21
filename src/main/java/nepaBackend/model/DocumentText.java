@@ -44,7 +44,7 @@ public class DocumentText {
 
     // norms is default YES but term vectors are default NO which is a huge problem for the highlighting efficiency of large documents
 	// Actual converted text from file (can be multiple files for one EISDoc, and that's okay, but ordering them correctly programmatically could be tricky)
-	@Column(name="plaintext") // Need to manually change to longtext
+	@Column(name="plaintext",columnDefinition="longtext") // MAY need to manually change to longtext, mysql version depending?
 	@FullTextField(
 			projectable=Projectable.YES, // Must be projectable to highlight with FVH
 			norms=Norms.YES,
