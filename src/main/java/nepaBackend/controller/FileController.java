@@ -2804,6 +2804,55 @@ public class FileController {
 		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
 	}
 
+
+	/** Expects matching record and new folder; updates; preserves most metadata */
+	private ResponseEntity<Long> updateDtoJustFolder(UploadInputs itr, EISDoc existingRecord) {
+
+		if(existingRecord == null) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+
+		existingRecord.setFolder(itr.eis_identifier);
+		if(itr.link != null && itr.link.length() > 0) {
+			existingRecord.setLink(itr.link.strip());
+		}
+		if(itr.notes != null && itr.notes.length() > 0) {
+			existingRecord.setNotes(itr.notes);
+		}
+		
+		docRepository.save(existingRecord); // save to db, ID shouldn't change
+		
+		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
+	}
+	private ResponseEntity<Long> updateDtoJustFilename(UploadInputs itr, EISDoc existingRecord) {
+
+		if(existingRecord == null) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+
+		existingRecord.setFilename(itr.filename);
+		
+		docRepository.save(existingRecord); // save to db, ID shouldn't change
+		
+		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
+	}
+	/** Expects matching record and new folder; updates; preserves most metadata */
+	private ResponseEntity<Long> updateDtoJustRod(UploadInputs itr, EISDoc existingRecord) {
+
+		if(existingRecord == null) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		if(itr.first_rod_date == null || itr.first_rod_date.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setFirstRodDate(parseDate(itr.first_rod_date));
+		}
+		
+		docRepository.save(existingRecord); // save to db, ID shouldn't change
+		
+		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
+	}
+
 	private boolean save(@RequestBody DocumentText docText) {
 		if(docText.getPlaintext().trim().length()>0) {
 			try {
@@ -3398,6 +3447,69 @@ public class FileController {
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
 
+	/** 
+	 * Updates first rod date only for matching titles */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_titles_rod", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importCSVTitlesOnlyRod(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		
+		String token = headers.get("authorization");
+		
+		fillAgencies();
+		
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		List<String> results = new ArrayList<String>();
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				
+				// Handle any leading/trailing invisible characters, double spacing
+				itr.title = Globals.normalizeSpace(itr.title);
+				
+				// Title-only option for Buomsoo's data, to update all title matches
+			    
+			    if(itr.title != null && itr.title.length() > 0) {
+
+			    	// Parse the four new date values
+					try {
+						itr.first_rod_date = parseDate(itr.first_rod_date).toString();
+					} catch (Exception e) {
+						// Since this is optional, we can just proceed
+					}
+					List<EISDoc> matchingRecords = docRepository.findAllByTitle(itr.title);
+					
+					for(EISDoc record : matchingRecords) {
+
+						/** Special update function that only adds new data */
+						ResponseEntity<Long> status = updateDtoJustRod(itr, record);
+						
+						if(status.getStatusCodeValue() == 500) { // Error
+							results.add("Item " + count + ": Error saving: " + itr.title);
+				    	} else {
+							results.add("Item " + count + ": Updated: " + itr.title);
+				    	}
+					}
+				} else {
+					results.add("Item " + count + ": Missing title");
+				}
+			    count++;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
 
 	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination, accounts for
 	 * missing apostrophes and commas also. */
@@ -3463,38 +3575,6 @@ public class FileController {
 		return result;
 	}
 
-
-	/** Expects matching record and new folder; updates; preserves most metadata */
-	private ResponseEntity<Long> updateDtoJustFolder(UploadInputs itr, EISDoc existingRecord) {
-
-		if(existingRecord == null) {
-			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-
-		existingRecord.setFolder(itr.eis_identifier);
-		if(itr.link != null && itr.link.length() > 0) {
-			existingRecord.setLink(itr.link.strip());
-		}
-		if(itr.notes != null && itr.notes.length() > 0) {
-			existingRecord.setNotes(itr.notes);
-		}
-		
-		docRepository.save(existingRecord); // save to db, ID shouldn't change
-		
-		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
-	}
-	private ResponseEntity<Long> updateDtoJustFilename(UploadInputs itr, EISDoc existingRecord) {
-
-		if(existingRecord == null) {
-			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-
-		existingRecord.setFilename(itr.filename);
-		
-		docRepository.save(existingRecord); // save to db, ID shouldn't change
-		
-		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
-	}
 
 
 	private boolean canMatchCustom(UploadInputs dto) {
