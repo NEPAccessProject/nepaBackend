@@ -973,7 +973,11 @@ public class EISController {
 			recordToUpdate.setFolder(itr.eis_identifier.strip());
 			recordToUpdate.setLink(itr.link.strip());
 			recordToUpdate.setNotes(itr.notes.strip());
-			recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
+			if(itr.process_id == null || itr.process_id.isBlank()) {
+				recordToUpdate.setProcessId(null);
+			} else {
+				recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
+			}
 
 			recordToUpdate.setSubtype(itr.subtype.strip());
 			recordToUpdate.setCounty(itr.county.strip());
