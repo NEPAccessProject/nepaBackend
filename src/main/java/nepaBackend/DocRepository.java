@@ -468,4 +468,8 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	nativeQuery = true)
 	List<Object[]> reportHasFilesByAgencyAfter2000();
 
+	@Query(value ="select * from eisdoc where first_rod_date is not null and document_type LIKE 'final';",
+	nativeQuery = true)
+	List<EISDoc> findAllFinalsWithFirstRodDates();
+
 }

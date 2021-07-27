@@ -1,5 +1,6 @@
 package nepaBackend;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,6 +74,14 @@ public class DocService {
 	
 	public List<EISDoc> findAllSameTitleType() {
 		return docRepository.findAllSameTitleType();
+	}
+
+	public boolean existsByTitleTypeDate(String title, String documentType, LocalDate registerDate) {
+		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title, documentType, registerDate).isPresent();
+	}
+
+	public List<EISDoc> findAllFinalsWithFirstRodDates() {
+		return docRepository.findAllFinalsWithFirstRodDates();
 	}
 
 }

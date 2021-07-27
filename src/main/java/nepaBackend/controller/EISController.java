@@ -1002,6 +1002,53 @@ public class EISController {
 		}
 	}
 
+	@CrossOrigin
+	@RequestMapping(path = "/add_rods", method = RequestMethod.POST)
+	public ResponseEntity<List<String>> addRodsFromFinals(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(isAdmin(token)) {
+			List<EISDoc> finals = docService.findAllFinalsWithFirstRodDates();
+			List<String> results = new ArrayList<String>();
+			for(EISDoc doc : finals) {
+				results.add(this.addRodFromFinal(doc));
+			}
+			
+			return new ResponseEntity<List<String>>(results,HttpStatus.OK);
+		} else {
+			
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+			
+		}
+	}
+	
+	public String addRodFromFinal(EISDoc finalRecord) {
+		if(!docService.existsByTitleTypeDate(
+				finalRecord.getTitle(),
+				"ROD",
+				finalRecord.getFirstRodDate())
+		) {
+			EISDoc rodRecord = new EISDoc();
+			
+			rodRecord.setTitle(finalRecord.getTitle());
+			rodRecord.setDocumentType("ROD");
+			rodRecord.setRegisterDate(finalRecord.getFirstRodDate());
+			
+			rodRecord.setAgency(finalRecord.getAgency());
+			rodRecord.setCooperatingAgency(finalRecord.getCooperatingAgency());
+			rodRecord.setDepartment(finalRecord.getDepartment());
+			rodRecord.setState(finalRecord.getState());
+			rodRecord.setCounty(finalRecord.getCounty());
+			rodRecord.setProcessId(finalRecord.getProcessId());
+			
+			docService.saveEISDoc(rodRecord);
+			
+			return ("OK: " + rodRecord.getTitle());
+		} else {
+			// else we already have this, so don't create a duplicate ROD.
+			return ("Already exists: " + finalRecord.getTitle());
+		}
+	}
+
 	/**
 	 * Attempts to return valid parsed LocalDate from String argument, based on formats specified in  
 	 * DateTimeFormatter[] parseFormatters
