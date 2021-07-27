@@ -954,14 +954,10 @@ public class EISController {
 			recordToUpdate.setAgency(Globals.normalizeSpace(itr.agency));
 			recordToUpdate.setCooperatingAgency(Globals.normalizeSpace(itr.cooperating_agency));
 			recordToUpdate.setDocumentType(Globals.normalizeSpace(itr.document));
-			recordToUpdate.setFilename(itr.filename);
+			recordToUpdate.setFilename(itr.filename.strip());
 			recordToUpdate.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+			recordToUpdate.setCommentsFilename(itr.comments_filename);
 			
-			if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
-				// skip
-			} else {
-				recordToUpdate.setCommentsFilename(itr.comments_filename);
-			}
 			if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
 				// okay, if you insist, remove it
 				recordToUpdate.setCommentDate(null);
@@ -974,13 +970,10 @@ public class EISController {
 			
 			recordToUpdate.setState(Globals.normalizeSpace(itr.state));
 			recordToUpdate.setTitle(Globals.normalizeSpace(itr.title));
-			recordToUpdate.setFolder(itr.eis_identifier.trim());
-			recordToUpdate.setLink(itr.link.trim());
-			recordToUpdate.setNotes(itr.notes.trim());
-			
-			if(itr.process_id != null && !itr.process_id.isBlank()) {
-				recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
-			}
+			recordToUpdate.setFolder(itr.eis_identifier.strip());
+			recordToUpdate.setLink(itr.link.strip());
+			recordToUpdate.setNotes(itr.notes.strip());
+			recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
 			
 			if(recordToUpdate.getTitle().isBlank() || recordToUpdate.getDocumentType().isBlank() 
 					|| recordToUpdate.getRegisterDate() == null) {

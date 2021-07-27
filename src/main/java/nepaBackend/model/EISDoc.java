@@ -75,7 +75,7 @@ public class EISDoc {
 	@Column(name="subtype", columnDefinition="text")
     private String subtype; // (optional)
 
-    @Column(name="summary_text",columnDefinition="text")
+	@Column(name="summary_text",columnDefinition="text")
     private String summaryText; 
 	
     @Column(name="noi_date",columnDefinition="DATE")
@@ -318,6 +318,15 @@ public class EISDoc {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+
+    public String getSubtype() {
+		return subtype;
+	}
+
+	public void setSubtype(String subtype) {
+		this.subtype = subtype;
 	}
 	
 }

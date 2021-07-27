@@ -29,6 +29,9 @@ public class UploadInputs {
 	public String final_noa; 
 	public String first_rod_date; 
 	public String process_id;
+	public String county;
+	public String status;
+	public String subtype;
 	
 	public UploadInputs() {
 	}

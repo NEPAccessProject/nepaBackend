@@ -2672,6 +2672,9 @@ public class FileController {
 		newRecord.setFolder(itr.eis_identifier);
 		newRecord.setLink(itr.link);
 		newRecord.setNotes(itr.notes);
+		newRecord.setCounty(itr.county);
+		newRecord.setStatus(itr.status);
+		newRecord.setSubtype(itr.subtype);
 		
 		EISDoc savedRecord = docRepository.save(newRecord); // save to db
 		
@@ -2737,9 +2740,27 @@ public class FileController {
 		if(itr.agency != null && !itr.agency.isBlank()) {
 			oldRecord.setAgency(Globals.normalizeSpace(itr.agency));
 		}
-		oldRecord.setFolder(itr.eis_identifier);
-		oldRecord.setLink(itr.link);
-		oldRecord.setNotes(itr.notes);
+		if(itr.eis_identifier != null && !itr.eis_identifier.isBlank()) {
+			oldRecord.setFolder(itr.eis_identifier);
+		}
+		if(itr.link != null && !itr.link.isBlank()) {
+			oldRecord.setLink(itr.link);
+		}
+		if(itr.notes != null && !itr.notes.isBlank()) {
+			oldRecord.setNotes(itr.notes);
+		}
+		if(itr.process_id != null && !itr.process_id.isBlank()) {
+			oldRecord.setProcessId(Long.parseLong(itr.process_id));
+		}
+		if(itr.county != null && !itr.county.isBlank()) {
+			oldRecord.setCounty(itr.county);
+		}
+		if(itr.status != null && !itr.status.isBlank()) {
+			oldRecord.setStatus(itr.status);
+		}
+		if(itr.subtype != null && !itr.subtype.isBlank()) {
+			oldRecord.setSubtype(itr.subtype);
+		}
 		
 		docRepository.save(oldRecord); // save to db, ID shouldn't change
 		
