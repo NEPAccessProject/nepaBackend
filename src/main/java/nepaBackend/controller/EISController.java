@@ -953,6 +953,7 @@ public class EISController {
 			// translate
 			recordToUpdate.setAgency(Globals.normalizeSpace(itr.agency));
 			recordToUpdate.setCooperatingAgency(Globals.normalizeSpace(itr.cooperating_agency));
+			recordToUpdate.setDepartment(itr.department);
 			recordToUpdate.setDocumentType(Globals.normalizeSpace(itr.document));
 			recordToUpdate.setFilename(itr.filename.strip());
 			recordToUpdate.setRegisterDate(LocalDate.parse(itr.federal_register_date));
