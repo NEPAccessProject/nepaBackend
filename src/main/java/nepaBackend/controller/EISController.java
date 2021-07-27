@@ -974,6 +974,10 @@ public class EISController {
 			recordToUpdate.setLink(itr.link.strip());
 			recordToUpdate.setNotes(itr.notes.strip());
 			recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
+
+			recordToUpdate.setSubtype(itr.subtype.strip());
+			recordToUpdate.setCounty(itr.county.strip());
+			recordToUpdate.setStatus(itr.status.strip());
 			
 			if(recordToUpdate.getTitle().isBlank() || recordToUpdate.getDocumentType().isBlank() 
 					|| recordToUpdate.getRegisterDate() == null) {
