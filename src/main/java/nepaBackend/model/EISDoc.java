@@ -48,8 +48,10 @@ public class EISDoc {
     
 	@Column(name="state",columnDefinition="text")
     private String state;
-  
-    @Column(name="filename",columnDefinition="VARCHAR(256)")
+	@Column(name="county", columnDefinition="text")
+    private String county; // (optional)
+
+	@Column(name="filename",columnDefinition="VARCHAR(256)")
     private String filename; // name of zip file of EIS PDF(s) (optional)
 
     @Column(name="comments_filename",columnDefinition="VARCHAR(256)")
@@ -66,6 +68,12 @@ public class EISDoc {
 
 	@Column(name="notes", columnDefinition="text")
     private String notes; // (optional)
+
+	@Column(name="status", columnDefinition="text")
+    private String status; // (optional)
+
+	@Column(name="subtype", columnDefinition="text")
+    private String subtype; // (optional)
 
     @Column(name="summary_text",columnDefinition="text")
     private String summaryText; 
@@ -99,7 +107,7 @@ public class EISDoc {
 			String agency, String department, String cooperatingAgency, String summaryText, String state,
 			String filename, String commentsFilename, String folder, Long size, String link, String notes,
 			LocalDate noiDate, LocalDate draftNoa, LocalDate finalNoa, LocalDate firstRodDate,
-			Long processId) {
+			Long processId, String county, String status, String subtype) {
 		this.id = id;
 		this.title = title;
 		this.documentType = documentType;
@@ -121,11 +129,19 @@ public class EISDoc {
 		this.finalNoa = finalNoa;
 		this.firstRodDate = firstRodDate;
 		this.processId = processId;
+		this.county = county;
+		this.status = status;
+		this.subtype = subtype;
 	}
 
 	public Long getId() {
 		return id;
 	}
+	
+	public void setId(Long id) {
+		this.id = id;
+	}
+
 
 	public String getTitle() {
 		return title;
@@ -287,4 +303,21 @@ public class EISDoc {
 		this.processId = processId;
 	}
 
+	  
+    public String getCounty() {
+		return county;
+	}
+
+	public void setCounty(String county) {
+		this.county = county;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	
 }

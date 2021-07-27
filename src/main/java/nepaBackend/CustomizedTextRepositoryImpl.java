@@ -165,7 +165,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //    				.replace("or", "OR") // Lowercase term modifiers could easily trip people up accidentally if they're pasting something in and they don't actually want to OR them
 //    				.replace("not", "NOT")
 //    				.replace("&", "AND")
-				.replace("!", "-");
+				.replace("!", "-")
+				.replace(":",""); // better to not support this term modifier so either delete or escape it
 //    				.replace("%", "-")
 //    				.replace("/", "~") // westlaw? options, can also add confusion
 				// QueryParser doesn't support |, does support ?, OR, NOT
@@ -185,166 +186,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			SearchType searchType) 
 			throws ParseException {
 		try {
-			
+
 			searchInputs.title = mutateTermModifiers(searchInputs.title);
 			
-			// Init parameter lists
-			ArrayList<String> inputList = new ArrayList<String>();
-			ArrayList<String> whereList = new ArrayList<String>();
-
-			// Select tables, columns
-			String sQuery = "SELECT * FROM eisdoc";
-			
-			// Populate lists
-			if(Globals.saneInput(searchInputs.startPublish)) {
-				inputList.add(searchInputs.startPublish);
-				whereList.add(" ((register_date) >= ?)");
-			}
-			
-			if(Globals.saneInput(searchInputs.endPublish)) {
-				inputList.add(searchInputs.endPublish);
-				whereList.add(" ((register_date) <= ?)");
-			}
-	
-			if(Globals.saneInput(searchInputs.startComment)) {
-				inputList.add(searchInputs.startComment);
-				whereList.add(" ((comment_date) >= ?)");
-			}
-			
-			if(Globals.saneInput(searchInputs.endComment)) {
-				inputList.add(searchInputs.endComment);
-				whereList.add(" ((comment_date) <= ?)");
-			}
-			
-			if(Globals.saneInput(searchInputs.typeAll)) { 
-				// do nothing
-			} else {
-				
-				ArrayList<String> typesList = new ArrayList<>();
-				StringBuilder query = new StringBuilder(" document_type IN (");
-				if(Globals.saneInput(searchInputs.typeFinal)) {
-					typesList.add("Final");
-				}
-	
-				if(Globals.saneInput(searchInputs.typeDraft)) {
-					typesList.add("Draft");
-				}
-				
-				if(Globals.saneInput(searchInputs.typeOther)) {
-					typesList.addAll(Globals.EIS_TYPES);
-				}
-				String[] docTypes = typesList.toArray(new String[0]);
-				for (int i = 0; i < docTypes.length; i++) {
-					if (i > 0) {
-						query.append(",");
-					}
-					query.append("?");
-				}
-				query.append(")");
-	
-				for (int i = 0; i < docTypes.length; i++) {
-					inputList.add(docTypes[i]);
-				}
-				
-				if(docTypes.length>0) {
-					whereList.add(query.toString());
-				}
-	
-			}
-	
-			if(Globals.saneInput(searchInputs.needsComments)) {
-				whereList.add(" (comments_filename<>'')");
-			}
-	
-			if(Globals.saneInput(searchInputs.needsDocument)) { 
-				whereList.add(" (filename<>'')");
-			}
-			
-			if(Globals.saneInput(searchInputs.state)) {
-				StringBuilder query = new StringBuilder(" state IN (");
-				for (int i = 0; i < searchInputs.state.length; i++) {
-					if (i > 0) {
-						query.append(",");
-					}
-					query.append("?");
-				}
-				query.append(")");
-	
-				for (int i = 0; i < searchInputs.state.length; i++) {
-					inputList.add(searchInputs.state[i]);
-				}
-				whereList.add(query.toString());
-			}
-	
-			if(Globals.saneInput(searchInputs.agency)) {
-				StringBuilder query = new StringBuilder(" agency IN (");
-				for (int i = 0; i < searchInputs.agency.length; i++) {
-					if (i > 0) {
-						query.append(",");
-					}
-					query.append("?");
-				}
-				query.append(")");
-	
-				for (int i = 0; i < searchInputs.agency.length; i++) {
-					inputList.add(searchInputs.agency[i]);
-				}
-				whereList.add(query.toString());
-			}
-			
-			boolean addAnd = false;
-			for (String i : whereList) {
-				if(addAnd) { // Not first conditional, append AND
-					sQuery += " AND";
-				} else { // First conditional, append WHERE
-					sQuery += " WHERE";
-				}
-				sQuery += i; // Append conditional
-				
-				addAnd = true; // Raise AND flag for future iterations
-			}
-			
-			// Finalize query
-			
-			// No reason to limit metadata-only search
-			int queryLimit = 1000000;
-			
-			sQuery += " LIMIT " + String.valueOf(queryLimit);
-			
-			// Run query
-			List<EISDoc> records = jdbcTemplate.query
-			(
-				sQuery, 
-				inputList.toArray(new Object[] {}),
-				(rs, rowNum) -> new EISDoc(
-					rs.getLong("id"), 
-					rs.getString("title"), 
-					rs.getString("document_type"),
-					rs.getObject("comment_date", LocalDate.class), 
-					rs.getObject("register_date", LocalDate.class), 
-					rs.getString("agency"),
-					rs.getString("department"),
-					rs.getString("cooperating_agency"),
-					rs.getString("summary_text"),
-					rs.getString("state"), 
-					rs.getString("filename"),
-					rs.getString("comments_filename"),
-					rs.getString("folder"),
-					rs.getLong("size"),
-					rs.getString("web_link"),
-					rs.getString("notes"),
-					rs.getObject("noi_date", LocalDate.class), 
-					rs.getObject("draft_noa", LocalDate.class), 
-					rs.getObject("final_noa", LocalDate.class), 
-					rs.getObject("first_rod_date", LocalDate.class),
-					rs.getLong("process_id")
-				)
-			);
-			
-			// debugging
-			if(Globals.TESTING) {
-				System.out.println(sQuery); 
-			}
+			// get filtered records
+			List<EISDoc> records = doQuery(searchInputs,1000000);
 
 			// Run Lucene query on title if we have one, join with JDBC results, return final results
 			if(!searchInputs.title.isBlank()) {
@@ -383,185 +229,6 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 	}
 	
-	/** Uses full parameters (not just a String for terms) to narrow down results */
-	private List<EISDoc> getFilteredRecords(SearchInputs searchInputs) {
-		searchInputs.title = mutateTermModifiers(searchInputs.title);
-		
-		ArrayList<String> inputList = new ArrayList<String>();
-		ArrayList<String> whereList = new ArrayList<String>();
-
-		// Select tables, columns
-		String sQuery = "SELECT * FROM eisdoc";
-		
-		// Populate lists
-		if(Globals.saneInput(searchInputs.startPublish)) {
-			inputList.add(searchInputs.startPublish);
-			whereList.add(" ((register_date) >= ?)");
-		}
-		
-		if(Globals.saneInput(searchInputs.endPublish)) {
-			inputList.add(searchInputs.endPublish);
-			whereList.add(" ((register_date) <= ?)");
-		}
-
-		if(Globals.saneInput(searchInputs.startComment)) {
-			inputList.add(searchInputs.startComment);
-			whereList.add(" ((comment_date) >= ?)");
-		}
-		
-		if(Globals.saneInput(searchInputs.endComment)) {
-			inputList.add(searchInputs.endComment);
-			whereList.add(" ((comment_date) <= ?)");
-		}
-		
-		if(Globals.saneInput(searchInputs.typeAll)) { 
-			// do nothing
-		} else {
-			
-			ArrayList<String> typesList = new ArrayList<>();
-			StringBuilder query = new StringBuilder(" document_type IN (");
-			if(Globals.saneInput(searchInputs.typeFinal)) {
-				typesList.add("Final");
-			}
-
-			if(Globals.saneInput(searchInputs.typeDraft)) {
-				typesList.add("Draft");
-			}
-			
-			if(Globals.saneInput(searchInputs.typeOther)) {
-				typesList.addAll(Globals.EIS_TYPES);
-			}
-			String[] docTypes = typesList.toArray(new String[0]);
-			for (int i = 0; i < docTypes.length; i++) {
-				if (i > 0) {
-					query.append(",");
-				}
-				query.append("?");
-			}
-			query.append(")");
-
-			for (int i = 0; i < docTypes.length; i++) {
-				inputList.add(docTypes[i]);
-			}
-			
-			if(docTypes.length>0) {
-				whereList.add(query.toString());
-			}
-
-		}
-
-		if(Globals.saneInput(searchInputs.needsComments)) { // Don't need an input for this right now
-			whereList.add(" (comments_filename<>'')");
-		}
-
-		if(Globals.saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
-			whereList.add(" (filename<>'')");
-		}
-		
-		if(Globals.saneInput(searchInputs.state)) {
-			StringBuilder query = new StringBuilder(" state IN (");
-			for (int i = 0; i < searchInputs.state.length; i++) {
-				if (i > 0) {
-					query.append(",");
-				}
-				query.append("?");
-			}
-			query.append(")");
-
-			for (int i = 0; i < searchInputs.state.length; i++) {
-				inputList.add(searchInputs.state[i]);
-			}
-			whereList.add(query.toString());
-		}
-
-		if(Globals.saneInput(searchInputs.agency)) {
-			StringBuilder query = new StringBuilder(" agency IN (");
-			for (int i = 0; i < searchInputs.agency.length; i++) {
-				if (i > 0) {
-					query.append(",");
-				}
-				query.append("?");
-			}
-			query.append(")");
-
-			for (int i = 0; i < searchInputs.agency.length; i++) {
-				inputList.add(searchInputs.agency[i]);
-			}
-			whereList.add(query.toString());
-		}
-		
-		boolean addAnd = false;
-		for (String i : whereList) {
-			if(addAnd) { // Not first conditional, append AND
-				sQuery += " AND";
-			} else { // First conditional, append WHERE
-				sQuery += " WHERE";
-			}
-			sQuery += i; // Append conditional
-			
-			addAnd = true; // Raise AND flag for future iterations
-		}
-		
-		
-		// Finalize query
-		int queryLimit = 1000000;
-
-		// Note: For the metadata results, query is very fast and since we use this dataset for a join/comparison later
-		// we do not want to limit it (for now, 1 million is fine)
-//		if(Globals.saneInput(searchInputs.limit)) {
-//			if(searchInputs.limit <= 100000) {
-//				queryLimit = searchInputs.limit;
-//			}
-//		}
-		
-		
-		sQuery += " LIMIT " + String.valueOf(queryLimit);
-
-		// Run query
-		List<EISDoc> records = jdbcTemplate.query
-		(
-			sQuery, 
-			inputList.toArray(new Object[] {}),
-			(rs, rowNum) -> new EISDoc(
-				rs.getLong("id"), 
-				rs.getString("title"), 
-				rs.getString("document_type"),
-				rs.getObject("comment_date", LocalDate.class), 
-				rs.getObject("register_date", LocalDate.class), 
-				rs.getString("agency"),
-				rs.getString("department"),
-				rs.getString("cooperating_agency"),
-				rs.getString("summary_text"),
-				rs.getString("state"), 
-				rs.getString("filename"),
-				rs.getString("comments_filename"),
-				rs.getString("folder"),
-				rs.getLong("size"),
-				rs.getString("web_link"),
-				rs.getString("notes"),
-				rs.getObject("noi_date", LocalDate.class), 
-				rs.getObject("draft_noa", LocalDate.class), 
-				rs.getObject("final_noa", LocalDate.class), 
-				rs.getObject("first_rod_date", LocalDate.class),
-				rs.getLong("process_id")
-			)
-		);
-
-		// debugging
-		if(Globals.TESTING) {
-//			if(searchInputs.endPublish != null) {
-//				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
-//				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-//				System.out.println(validator.isValid(searchInputs.endPublish));
-//				System.out.println(searchInputs.endPublish);
-//			}
-//			System.out.println(sQuery); 
-//			System.out.println(searchInputs.title);
-		}
-		
-		return records;
-	}
-
 	/** Combination title/fulltext query including the metadata parameters like agency/state/...
 				 * and this is currently the default search; returns metadata plus filename 
 				 * using Lucene's internal default scoring algorithm
@@ -597,7 +264,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			long initTime = System.currentTimeMillis();
 
 			long startTime = System.currentTimeMillis();
-			List<EISDoc> records = getFilteredRecords(searchInputs);
+
+			searchInputs.title = mutateTermModifiers(searchInputs.title);
+			
+			// get filtered records
+			List<EISDoc> records = doQuery(searchInputs, 1000000);
+			
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
 			System.out.println("Filtered records time: " + elapsedTime + "ms");
@@ -1140,4 +812,170 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			return 2000;
 		}
 	}
+
+
+	/** Uses full parameters (not just a String for terms) to narrow down results */
+	private List<EISDoc> doQuery(SearchInputs searchInputs, int queryLimit) {
+		
+		// Init parameter lists
+		ArrayList<String> inputList = new ArrayList<String>();
+		ArrayList<String> whereList = new ArrayList<String>();
+
+		// Select tables, columns
+		String sQuery = "SELECT * FROM eisdoc";
+		
+		// Populate lists
+		if(Globals.saneInput(searchInputs.startPublish)) {
+			inputList.add(searchInputs.startPublish);
+			whereList.add(" ((register_date) >= ?)");
+		}
+		
+		if(Globals.saneInput(searchInputs.endPublish)) {
+			inputList.add(searchInputs.endPublish);
+			whereList.add(" ((register_date) <= ?)");
+		}
+
+		if(Globals.saneInput(searchInputs.startComment)) {
+			inputList.add(searchInputs.startComment);
+			whereList.add(" ((comment_date) >= ?)");
+		}
+		
+		if(Globals.saneInput(searchInputs.endComment)) {
+			inputList.add(searchInputs.endComment);
+			whereList.add(" ((comment_date) <= ?)");
+		}
+		
+		if(Globals.saneInput(searchInputs.typeAll)) { 
+			// do nothing
+		} else {
+
+			// Wishlist: Redo the types logic if we ever put these search params back in
+			ArrayList<String> typesList = new ArrayList<>();
+			StringBuilder query = new StringBuilder(" document_type IN (");
+			if(Globals.saneInput(searchInputs.typeFinal)) {
+				typesList.add("Final");
+			}
+
+			if(Globals.saneInput(searchInputs.typeDraft)) {
+				typesList.add("Draft");
+			}
+			
+			if(Globals.saneInput(searchInputs.typeOther)) {
+				typesList.addAll(Globals.EIS_TYPES);
+			}
+			String[] docTypes = typesList.toArray(new String[0]);
+			for (int i = 0; i < docTypes.length; i++) {
+				if (i > 0) {
+					query.append(",");
+				}
+				query.append("?");
+			}
+			query.append(")");
+
+			for (int i = 0; i < docTypes.length; i++) {
+				inputList.add(docTypes[i]);
+			}
+			
+			if(docTypes.length>0) {
+				whereList.add(query.toString());
+			}
+
+		}
+
+		if(Globals.saneInput(searchInputs.needsComments)) {
+			whereList.add(" (comments_filename<>'')");
+		}
+
+		if(Globals.saneInput(searchInputs.needsDocument)) { 
+			whereList.add(" (filename<>'')");
+		}
+		
+		if(Globals.saneInput(searchInputs.state)) {
+			StringBuilder query = new StringBuilder(" state IN (");
+			for (int i = 0; i < searchInputs.state.length; i++) {
+				if (i > 0) {
+					query.append(",");
+				}
+				query.append("?");
+			}
+			query.append(")");
+
+			for (int i = 0; i < searchInputs.state.length; i++) {
+				inputList.add(searchInputs.state[i]);
+			}
+			whereList.add(query.toString());
+		}
+
+		if(Globals.saneInput(searchInputs.agency)) {
+			StringBuilder query = new StringBuilder(" agency IN (");
+			for (int i = 0; i < searchInputs.agency.length; i++) {
+				if (i > 0) {
+					query.append(",");
+				}
+				query.append("?");
+			}
+			query.append(")");
+
+			for (int i = 0; i < searchInputs.agency.length; i++) {
+				inputList.add(searchInputs.agency[i]);
+			}
+			whereList.add(query.toString());
+		}
+		
+		boolean addAnd = false;
+		for (String i : whereList) {
+			if(addAnd) { // Not first conditional, append AND
+				sQuery += " AND";
+			} else { // First conditional, append WHERE
+				sQuery += " WHERE";
+			}
+			sQuery += i; // Append conditional
+			
+			addAnd = true; // Raise AND flag for future iterations
+		}
+		
+		// Finalize query
+		
+		sQuery += " LIMIT " + String.valueOf(queryLimit);
+		
+
+		// debugging
+		if(Globals.TESTING) {
+			System.out.println(sQuery); 
+		}
+		
+		
+		return jdbcTemplate.query
+			(
+				sQuery, 
+				inputList.toArray(new Object[] {}),
+				(rs, rowNum) -> new EISDoc(
+					rs.getLong("id"), 
+					rs.getString("title"), 
+					rs.getString("document_type"),
+					rs.getObject("comment_date", LocalDate.class), 
+					rs.getObject("register_date", LocalDate.class), 
+					rs.getString("agency"),
+					rs.getString("department"),
+					rs.getString("cooperating_agency"),
+					rs.getString("summary_text"),
+					rs.getString("state"), 
+					rs.getString("filename"),
+					rs.getString("comments_filename"),
+					rs.getString("folder"),
+					rs.getLong("size"),
+					rs.getString("web_link"),
+					rs.getString("notes"),
+					rs.getObject("noi_date", LocalDate.class), 
+					rs.getObject("draft_noa", LocalDate.class), 
+					rs.getObject("final_noa", LocalDate.class), 
+					rs.getObject("first_rod_date", LocalDate.class),
+					rs.getLong("process_id"),
+					rs.getString("status"),
+					rs.getString("county"), 
+					rs.getString("subtype")
+				)
+			);
+	}
+	
 }
