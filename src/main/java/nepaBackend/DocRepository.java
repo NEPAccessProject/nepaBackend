@@ -292,12 +292,12 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	@Query(value = 
 			"		select t.* \r\n" + 
 			"		from eisdoc t join \r\n" + 
-			"		(select document_type, title, register_date, count(*) as NumDuplicates \r\n" + 
+			"		(select document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z ]', '') as title, register_date, count(*) as NumDuplicates \r\n" + 
 			"		  from eisdoc \r\n" + 
-			"		  group by document_type, title, register_date\r\n" + 
+			"		  group by document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z ]', ''), register_date\r\n" + 
 			"		  having NumDuplicates > 1\r\n" + 
 			"		) tsum \r\n" + 
-			"		on t.document_type = tsum.document_type and REGEXP_REPLACE(t.title, '[^0-9a-zA-Z ]', '') = REGEXP_REPLACE(tsum.title, '[^0-9a-zA-Z ]', '') and t.register_date = tsum.register_date\r\n" + 
+			"		on t.document_type = tsum.document_type and REGEXP_REPLACE(t.title, '[^0-9a-zA-Z ]', '') = tsum.title and t.register_date = tsum.register_date\r\n" + 
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllDuplicates();
 
