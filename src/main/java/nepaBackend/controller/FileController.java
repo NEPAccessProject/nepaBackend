@@ -981,10 +981,9 @@ public class FileController {
 						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
 						
 						
-						// If record exists but has no filename and no folder, then update it instead of skipping
-						// This is because current data is based on having a .zip or a folder listed, 
-						// so new data can add files where there are none, without adding redundant data when there is data.
-						// If the user insists (force update header exists, and value of "Yes" for it) we will update it anyway.
+						// If record exists but has no filename and no folder, then update it.
+						// Or if the user insists (force update header exists, and value of "Yes" for it) we will update it anyway,
+						// potentially replacing the filename/folder values
 						if(recordThatMayExist.isPresent() && 
 								( 
 									(
@@ -996,25 +995,26 @@ public class FileController {
 						) {
 							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
 							if(shouldImport) {
-								status = updateDto(itr, recordThatMayExist);
+								status = updateDto(itr, recordThatMayExist, getUser(token).getId());
 							}
 							
 							if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
 								results.add("Item " + count + ": Updated: " + itr.title);
-
-								if(shouldImport) {
-						    		// Log successful record update for accountability (can know last person to update an EISDoc)
-									FileLog recordLog = new FileLog();
-									recordLog.setErrorType("Updated existing record because it had no filename");
-						    		recordLog.setDocumentId(status.getBody());
-						    		recordLog.setFilename(itr.filename);
-						    		recordLog.setImported(false);
-						    		recordLog.setLogTime(LocalDateTime.now());
-						    		recordLog.setUser(getUser(token));
-						    		fileLogRepository.save(recordLog);
-								}
+					    	}
+						}
+						// Otherwise update the non-file fields only if present
+						else if(recordThatMayExist.isPresent()) {
+							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
+							if(shouldImport) {
+								status = updateDtoExceptFile(itr, recordThatMayExist, getUser(token).getId());
+							}
+							
+							if(status.getStatusCodeValue() == 500) { // Error
+								results.add("Item " + count + ": Error saving: " + itr.title);
+					    	} else {
+								results.add("Item " + count + ": Updated fields (did not overwrite filename or folder if it existed already): " + itr.title);
 					    	}
 						}
 						// If file doesn't exist, then create new record
@@ -2142,13 +2142,8 @@ public class FileController {
 	@CrossOrigin
 	@RequestMapping(path = "/existsTitleTypeDate", method = RequestMethod.GET)
 	private boolean recordExists(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
-		// Original data has no apostrophes, so a better dupe check ORs the results of comparing both with the original title, and 
-		// a title without apostrophes, specifically
-		String noApostropheTitle = title.replaceAll("'", "");
-		return (docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title.trim(), type.trim(), parseDate(date)).isPresent()
-				|| docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(noApostropheTitle.trim(), type.trim(), parseDate(date)).isPresent()
-			);
-		}
+		return docRepository.findByTitleTypeDateCompareAlphanumericOnly(title, type, parseDate(date)).isPresent();
+	}
 	
 	// Experimental, probably useless (was trying to get document outlines)
 //	@CrossOrigin
@@ -2248,50 +2243,15 @@ public class FileController {
 //			return results;
 //		}
 //	}
-	
+
 	/** Returns top EISDoc if database contains at least one instance of a title/type/date combination, accounts for
-	 * missing apostrophes and commas also. */
-	private Optional<EISDoc> getEISDocByTitleTypeDate(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
-
-		// Try without apostrophes (legacy data has no apostrophes?)
-		String noApostropheTitle = title.replaceAll("'", "");
-		Optional<EISDoc> docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-				noApostropheTitle, 
-				type.strip(), 
-				parseDate(date));
-		
-		if(!docToReturn.isPresent()) {
-			
-			// Try without commas (legacy data has no commas?)
-			String noCommaTitle = title.replaceAll(",", "");
-			docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-					noCommaTitle, 
-					type.strip(), 
-					parseDate(date));
-			
-			// Try without apostrophes or commas? (legacy data has no apostrophes)
-			if(!docToReturn.isPresent()) {
-				String noApostrophesCommasTitle = noCommaTitle.replaceAll("'", "");
-				docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-						noApostrophesCommasTitle, 
-						type.strip(), 
-						parseDate(date));
-				
-				// Try with unmodified title
-				if(!docToReturn.isPresent()) {
-					docToReturn = docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(
-							title, 
-							type.strip(), 
-							parseDate(date));
-				} // else no match
-			}
-		}
-
-
-		
-
-
-		
+	 * punctuation differences by comparing on alphanumeric only using regexp (MySQL 8.0+ only). */
+	private Optional<EISDoc> getEISDocByTitleTypeDate(
+			@RequestParam String title, 
+			@RequestParam String type,
+			@RequestParam String date) {
+		Optional<EISDoc> docToReturn = docRepository.findByTitleTypeDateCompareAlphanumericOnly(
+				title,type,parseDate(date));
 		return docToReturn;
 	}
 
@@ -2685,8 +2645,82 @@ public class FileController {
 		}
 	}
 
+	// only updates filename or folder fields if blank
+	private ResponseEntity<Long> updateDtoExceptFile(UploadInputs itr, Optional<EISDoc> existingRecord, Long userid) {
+		if(!existingRecord.isPresent()) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		EISDoc oldRecord = existingRecord.get();
+
+		// "Multi" is actually counterproductive, will have to amend spec
+		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
+			itr.filename = "";
+		}
+		
+		if(oldRecord.getFilename() == null || oldRecord.getFilename().isBlank()) {
+			oldRecord.setFilename(itr.filename);
+		}
+		
+		if(oldRecord.getFolder() == null || oldRecord.getFolder().isBlank()) {
+			oldRecord.setFolder(itr.eis_identifier);
+		}
+
+		// at this point we've matched on title, date and document type already
+		// but the new title might have better punctuation
+		oldRecord.setTitle(Globals.normalizeSpace(itr.title));
+		
+		if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
+			// skip, leave original
+		} else {
+			oldRecord.setCommentsFilename(itr.comments_filename);
+		}
+		
+//		oldRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
+		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
+			// skip, leave original
+		} else {
+			try {
+				oldRecord.setCommentDate(parseDate(itr.epa_comment_letter_date));
+			} catch (IllegalArgumentException e) {
+				// never mind
+			}
+		}
+		
+		if(itr.state != null && !itr.state.isBlank()) {
+			oldRecord.setState(Globals.normalizeSpace(itr.state));
+		}
+		if(itr.agency != null && !itr.agency.isBlank()) {
+			oldRecord.setAgency(Globals.normalizeSpace(itr.agency));
+		}
+		if(itr.link != null && !itr.link.isBlank()) {
+			oldRecord.setLink(itr.link);
+		}
+		if(itr.notes != null && !itr.notes.isBlank()) {
+			oldRecord.setNotes(itr.notes);
+		}
+		if(itr.process_id != null && !itr.process_id.isBlank()) {
+			oldRecord.setProcessId(Long.parseLong(itr.process_id));
+		}
+		if(itr.county != null && !itr.county.isBlank()) {
+			oldRecord.setCounty(itr.county);
+		}
+		if(itr.status != null && !itr.status.isBlank()) {
+			oldRecord.setStatus(itr.status);
+		}
+		if(itr.subtype != null && !itr.subtype.isBlank()) {
+			oldRecord.setSubtype(itr.subtype);
+		}
+		
+		docRepository.save(oldRecord); // save to db, ID shouldn't change
+
+		// Save log for accountability and restore option
+		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
+		updateLogRepository.save(ul);
+		
+		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
+	}
 	/** Expects matching record and new data; updates; preserves comments/comments date, state, agency if no new values for those */
-	private ResponseEntity<Long> updateDto(UploadInputs itr, Optional<EISDoc> existingRecord) {
+	private ResponseEntity<Long> updateDto(UploadInputs itr, Optional<EISDoc> existingRecord, Long userid) {
 
 		if(!existingRecord.isPresent()) {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -2750,7 +2784,11 @@ public class FileController {
 			oldRecord.setNotes(itr.notes);
 		}
 		if(itr.process_id != null && !itr.process_id.isBlank()) {
-			oldRecord.setProcessId(Long.parseLong(itr.process_id));
+			try {
+				oldRecord.setProcessId(Long.parseLong(itr.process_id));
+			} catch(Exception e) {
+				e.printStackTrace();
+			}
 		}
 		if(itr.county != null && !itr.county.isBlank()) {
 			oldRecord.setCounty(itr.county);
@@ -2764,11 +2802,15 @@ public class FileController {
 		
 		docRepository.save(oldRecord); // save to db, ID shouldn't change
 		
+		// Save log for accountability and restore option
+		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
+		updateLogRepository.save(ul);
+		
 		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
 	}
 
-	/** For Buomsoo's data, updates blank fields with seven new metadatums */
-	private ResponseEntity<Long> updateDtoNoOverwrite(UploadInputs itr, EISDoc existingRecord) {
+	/** Updates but doesn't overwrite anything with a blank value */
+	private ResponseEntity<Long> updateDtoNoOverwrite(UploadInputs itr, EISDoc existingRecord, Long userid) {
 
 		existingRecord.setTitle(Globals.normalizeSpace(itr.title));
 		
@@ -2821,6 +2863,10 @@ public class FileController {
 		}
 		
 		docRepository.save(existingRecord); // save to db, ID shouldn't change
+
+		// Save log for accountability and restore option
+		UpdateLog ul = updateLogService.newUpdateLogFromEIS(existingRecord, userid);
+		updateLogRepository.save(ul);
 		
 		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
 	}
@@ -2897,38 +2943,27 @@ public class FileController {
 
 	/** Check that required fields exist (doesn't verify document type from a list of acceptable types) */
 	private boolean isValid(UploadInputs dto) {
-	//		System.out.println(dto.title);
-	//		System.out.println(dto.federal_register_date);
-	//		System.out.println(dto.document);
-	//		System.out.println(dto.filename);
 		boolean valid = true;
 
+		// Necessary values (can't be null)
 		if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
 			valid = false;
-			return valid; // Just stop here and don't have to worry about validating null values
 		}
-		// Check for empty
-		if(dto.title.isBlank()) {
-			valid = false; // Need title
-		}
-
-		if(dto.document.isBlank()) {
-			valid = false; // Need type
+		// Can't be empty, need title/type/date
+		else if(dto.title.isBlank() || dto.document.isBlank() || dto.federal_register_date.isBlank()) {
+			valid = false; 
 		}
 		
 		// Don't require filename or EISID if force update==yes
-		if(valid && dto.force_update != null && dto.force_update.equalsIgnoreCase("yes")) {
-			return true;
-		}
+//		if(valid && dto.force_update != null && dto.force_update.equalsIgnoreCase("yes")) {
+//			return valid;
+//		}
 		
-		// Expect EIS identifier or filename
-		if( ( dto.eis_identifier == null || dto.eis_identifier.isBlank() ) 
-				&& (dto.filename == null || dto.filename.isBlank() || dto.filename.equalsIgnoreCase("n/a") || dto.filename.equalsIgnoreCase("null"))) {
-			valid = false;
-//			System.out.println("Filename fail");
-//			System.out.println(dto.filename);
-			return valid;
-		}
+		// Expect EIS identifier or filename: disabled on request
+//		if( ( dto.eis_identifier == null || dto.eis_identifier.isBlank() ) 
+//				&& (dto.filename == null || dto.filename.isBlank() || dto.filename.equalsIgnoreCase("n/a") || dto.filename.equalsIgnoreCase("null"))) {
+//			valid = false;
+//		}
 
 		return valid;
 	}
@@ -3437,22 +3472,12 @@ public class FileController {
 					for(EISDoc record : matchingRecords) {
 
 						/** Special update function that only adds new data */
-						ResponseEntity<Long> status = updateDtoNoOverwrite(itr, record);
+						ResponseEntity<Long> status = updateDtoNoOverwrite(itr, record, getUser(token).getId());
 						
 						if(status.getStatusCodeValue() == 500) { // Error
 							results.add("Item " + count + ": Error saving: " + itr.title);
 				    	} else {
 							results.add("Item " + count + ": Updated: " + itr.title);
-
-				    		// Log successful record update for accountability (can know last person to update an EISDoc)
-							FileLog recordLog = new FileLog();
-							recordLog.setErrorType("Updated existing record by title match");
-				    		recordLog.setDocumentId(status.getBody());
-				    		recordLog.setFilename(itr.filename);
-				    		recordLog.setImported(false);
-				    		recordLog.setLogTime(LocalDateTime.now());
-				    		recordLog.setUser(getUser(token));
-				    		fileLogRepository.save(recordLog);
 				    	}
 					}
 				} else {
