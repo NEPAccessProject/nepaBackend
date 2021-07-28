@@ -297,7 +297,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"		  group by document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z ]', ''), register_date\r\n" + 
 			"		  having NumDuplicates > 1\r\n" + 
 			"		) tsum \r\n" + 
-			"		on t.document_type = tsum.document_type and REGEXP_REPLACE(t.title, '[^0-9a-zA-Z ]', '') = tsum.title and t.register_date = tsum.register_date\r\n" + 
+			"		on t.document_type = tsum.document_type and (REGEXP_REPLACE(t.title, '[^0-9a-zA-Z ]', '')) = tsum.title and t.register_date = tsum.register_date\r\n" + 
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllDuplicates();
 
