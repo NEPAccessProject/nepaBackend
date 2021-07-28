@@ -472,4 +472,18 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	nativeQuery = true)
 	List<EISDoc> findAllFinalsWithFirstRodDates();
 
+	/** compares titles on alphanumeric and spaces only.  We probably want this most of the time.
+	/* New titles should also have their space normalized 
+	/* (remove tabs, newlines, reduce double spaces+ to one space and remove trailing/leading space) */
+	@Query(value ="select * from eisdoc where REGEXP_REPLACE(title, '[^0-9a-zA-Z ]', '') " + 
+			"LIKE REGEXP_REPLACE(:title, '[^0-9a-zA-Z ]', '') " + 
+			"AND document_type = :type " +
+			"AND register_date = :date " + 
+			"LIMIT 1;",
+	nativeQuery = true)
+	Optional<EISDoc> findByTitleTypeDateCompareAlphanumericOnly(
+			@Param("title") String title, 
+			@Param("type") String type, 
+			@Param("date") LocalDate date);
+
 }

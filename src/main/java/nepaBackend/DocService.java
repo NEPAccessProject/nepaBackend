@@ -76,8 +76,11 @@ public class DocService {
 		return docRepository.findAllSameTitleType();
 	}
 
-	public boolean existsByTitleTypeDate(String title, String documentType, LocalDate registerDate) {
+	public boolean existsByTitleTypeDateOld(String title, String documentType, LocalDate registerDate) {
 		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title, documentType, registerDate).isPresent();
+	}
+	public boolean existsByTitleTypeDate(String title, String documentType, LocalDate registerDate) {
+		return docRepository.findByTitleTypeDateCompareAlphanumericOnly(title, documentType, registerDate).isPresent();
 	}
 
 	public List<EISDoc> findAllFinalsWithFirstRodDates() {
