@@ -63,13 +63,13 @@ public class NEPAProcessController {
 			
 			// no process ID for any of them
 			if(!linkedFolders) {
-				// generate our own process ID and create an official process connecting them, initialized at 2000000
-				long goodProcessId = 2000000;
+				// generate our own process ID and create an official process connecting them, initialized at 3000000
+				long goodProcessId = 3000000;
 				
 				Optional<EISDoc> maybeExists = docRepository.findByProcessId(goodProcessId);
 				
 				if(maybeExists.isPresent()) {
-					// okay, we've previously initialized 2000000 (existing processes were initialized at 1000000, so we won't overlap with those
+					// okay, we've previously initialized 3000000 (existing processes were initialized at 1000000, so we won't overlap with those
 					// unless someone curates a million of them),
 					// so just go with max + 1
 					goodProcessId = (this.findMaxProcessId() + 1);
