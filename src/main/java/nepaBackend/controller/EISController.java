@@ -948,7 +948,9 @@ public class EISController {
 	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, ""))).getId();
 //			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
 	        
+	        // Save log of this record before the fields are changed
 			UpdateLog updateLog = updateLogService.newUpdateLogFromEIS(recordToUpdate,id);
+			updateLogRepository.save(updateLog);
 			
 			// translate
 			recordToUpdate.setAgency(Globals.normalizeSpace(itr.agency));
@@ -992,8 +994,6 @@ public class EISController {
 			EISDoc updatedRecord = docService.saveEISDoc(recordToUpdate); // save to db
 			
 			if(updatedRecord != null) {
-				updateLogRepository.save(updateLog);
-				
 				return new ResponseEntity<Void>(HttpStatus.OK);
 			} else {
 				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);

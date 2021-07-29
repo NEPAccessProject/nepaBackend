@@ -1101,21 +1101,23 @@ public class FileController {
 							results.add("Item " + count + ": Unchanged (value was already "+itr.state+"): " + itr.id);
 						} else {
 							EISDoc record = recordThatMayExist.get();
+							
 							UpdateLog doc = updateLogService.newUpdateLogFromEIS(record,getUser(token).getId());
+							updateLogRepository.save(doc);
 
 							// we're JUST updating the state, don't mess with anything else
 							if(itr.state != null && !itr.state.isBlank()) {
 								record.setState(Globals.normalizeSpace(itr.state));
-							}
-							
-							try {
-								docRepository.save(record); // save to db
-								results.add("Item " + count + ": Updated: " + itr.id);
 								
-					    		// Log success
-								updateLogRepository.save(doc);
-							} catch(Exception e) {
-								results.add("Item " + count + ": Error saving: " + itr.id);
+								try {
+									docRepository.save(record); // save to db
+									results.add("Item " + count + ": Updated: " + itr.id);
+									
+								} catch(Exception e) {
+									results.add("Item " + count + ": Error saving: " + itr.id);
+								}
+							} else {
+								results.add("Item " + count + ": No action: " + itr.id);
 							}
 						}
 					}
@@ -2651,6 +2653,9 @@ public class FileController {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 		EISDoc oldRecord = existingRecord.get();
+		// Save log for accountability and restore option
+		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
+		updateLogRepository.save(ul);
 
 		// "Multi" is actually counterproductive, will have to amend spec
 		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
@@ -2712,10 +2717,6 @@ public class FileController {
 		}
 		
 		docRepository.save(oldRecord); // save to db, ID shouldn't change
-
-		// Save log for accountability and restore option
-		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
-		updateLogRepository.save(ul);
 		
 		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
 	}
@@ -2726,6 +2727,10 @@ public class FileController {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 		EISDoc oldRecord = existingRecord.get();
+		
+		// Save log for accountability and restore option
+		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
+		updateLogRepository.save(ul);
 
 		// "Multi" is actually counterproductive, will have to amend spec
 		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
@@ -2802,16 +2807,16 @@ public class FileController {
 		
 		docRepository.save(oldRecord); // save to db, ID shouldn't change
 		
-		// Save log for accountability and restore option
-		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
-		updateLogRepository.save(ul);
-		
 		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
 	}
 
 	/** Updates but doesn't overwrite anything with a blank value */
 	private ResponseEntity<Long> updateDtoNoOverwrite(UploadInputs itr, EISDoc existingRecord, Long userid) {
 
+		// Save log for accountability and restore option
+		UpdateLog ul = updateLogService.newUpdateLogFromEIS(existingRecord, userid);
+		updateLogRepository.save(ul);
+		
 		existingRecord.setTitle(Globals.normalizeSpace(itr.title));
 		
 		if(itr.agency == null || itr.agency.isBlank()) {
@@ -2863,10 +2868,6 @@ public class FileController {
 		}
 		
 		docRepository.save(existingRecord); // save to db, ID shouldn't change
-
-		// Save log for accountability and restore option
-		UpdateLog ul = updateLogService.newUpdateLogFromEIS(existingRecord, userid);
-		updateLogRepository.save(ul);
 		
 		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
 	}
