@@ -1058,7 +1058,7 @@ public class FileController {
 		return results;
 	}
 	
-	/** For updating metadata states by ID, from a spreadsheet. */	
+	/** For updating metadata states by ID, from a spreadsheet. Also updates coop. agency */	
 	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV_id_state", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importCSVFixStatesByID(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
@@ -1106,7 +1106,13 @@ public class FileController {
 
 							// we're JUST updating the state, don't mess with anything else
 							if(itr.state != null && !itr.state.isBlank()) {
+								String newNotes = "Fixed state FROM:"+record.getState()+";"+Globals.normalizeSpace(record.getNotes());
+								record.setNotes(newNotes);
 								record.setState(Globals.normalizeSpace(itr.state));
+								// same problems exist for coop. agency (delimiters etc.)
+								if(itr.cooperating_agency != null && !itr.cooperating_agency.isBlank()) {
+									record.setCooperatingAgency(itr.cooperating_agency);
+								}
 								
 								try {
 									docRepository.save(record); // save to db
