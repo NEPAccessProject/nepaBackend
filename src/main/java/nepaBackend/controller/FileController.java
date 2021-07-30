@@ -3235,9 +3235,13 @@ public class FileController {
 						Optional<EISDoc> docToUpdate = docRepository.findById(Long.parseLong(itr.id));
 						if(docToUpdate.isPresent()) {
 							EISDoc doc = docToUpdate.get();
-							doc.setProcessId(Long.parseLong(itr.process_id));
-							docRepository.save(doc);
-							result = ("Item " + count + ": OK: ID: " + itr.id);
+							if(Long.parseLong(itr.process_id) == doc.getProcessId()) {
+								result = ("Item " + count + ": No change");
+							} else {
+								doc.setProcessId(Long.parseLong(itr.process_id));
+								docRepository.save(doc);
+								result = ("Item " + count + ": OK: ID: " + itr.id);
+							}
 						} else {
 							result = ("Item " + count + ": Document not found at ID " + itr.id);
 						}
