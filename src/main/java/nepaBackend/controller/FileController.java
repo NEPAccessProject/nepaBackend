@@ -69,9 +69,7 @@ import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import nepaBackend.ApplicationUserRepository;
-import nepaBackend.CustomizedTextRepositoryImpl;
 import nepaBackend.DocRepository;
-import nepaBackend.DocService;
 import nepaBackend.FileLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
@@ -87,6 +85,7 @@ import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.NEPAProcess;
 import nepaBackend.model.UpdateLog;
+import nepaBackend.pojo.DumbProcessInputs;
 import nepaBackend.pojo.ProcessInputs;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
@@ -3183,6 +3182,75 @@ public class FileController {
 
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
+
+
+	/** 
+	 * Admin-only. 
+	 * ONLY updates process IDs.  Doesn't save update log.
+	 * 
+	 * Valid records: Must have process ID and document ID
+	 * 
+	 * @return List of strings with message per record (zero-based) indicating success/error 
+	 * and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/uploadCSV_processes_dumb", 
+					method = RequestMethod.POST, 
+					consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importDumbProcesses(
+			@RequestPart(name="csv") String csv, 
+			@RequestHeader Map<String, String> headers) throws IOException { 
+
+		String token = headers.get("authorization");
+		if(!isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} 
+		
+		List<String> results = new ArrayList<String>();
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+	    	DumbProcessInputs dto[] = mapper.readValue(csv, DumbProcessInputs[].class);
+	    	
+			int count = 0;
+			for (DumbProcessInputs itr : dto) {
+
+				// default message: generic "error"
+				String result = ("Item " + count + ": Error: " + itr.process_id);
+				try {
+					
+				    if(itr.process_id != null && itr.process_id.length() > 0 
+				    		&& itr.id != null && itr.id.length() > 0) {
+						Optional<EISDoc> docToUpdate = docRepository.findById(Long.parseLong(itr.id));
+						if(docToUpdate.isPresent()) {
+							EISDoc doc = docToUpdate.get();
+							doc.setProcessId(Long.parseLong(itr.process_id));
+							docRepository.save(doc);
+							result = ("Item " + count + ": OK: ID: " + itr.id);
+						} else {
+							result = ("Item " + count + ": Document not found at ID " + itr.id);
+						}
+					} else {
+						result = ("Item " + count + ": Missing ID or process ID");
+					}
+
+				} catch(Exception e) {
+//					e.printStackTrace();
+					result = ("Item " + count + ": Error: " + e.getLocalizedMessage());
+				} finally {
+					results.add(result);
+				    count++;
+				}
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+	
 
 	/** 
 	 * Admin-only.  Built to re-add missing commas and apostrophes.  Takes .tsv file with required headers and updates titles with incoming ones.

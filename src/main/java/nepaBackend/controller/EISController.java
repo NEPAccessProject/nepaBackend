@@ -955,11 +955,11 @@ public class EISController {
 			// translate
 			recordToUpdate.setAgency(Globals.normalizeSpace(itr.agency));
 			recordToUpdate.setCooperatingAgency(Globals.normalizeSpace(itr.cooperating_agency));
-			recordToUpdate.setDepartment(itr.department);
+			recordToUpdate.setDepartment(Globals.normalizeSpace(itr.department));
 			recordToUpdate.setDocumentType(Globals.normalizeSpace(itr.document));
-			recordToUpdate.setFilename(itr.filename.strip());
+			recordToUpdate.setFilename(Globals.normalizeSpace(itr.filename));
 			recordToUpdate.setRegisterDate(LocalDate.parse(itr.federal_register_date));
-			recordToUpdate.setCommentsFilename(itr.comments_filename);
+			recordToUpdate.setCommentsFilename(Globals.normalizeSpace(itr.comments_filename));
 			
 			if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
 				// okay, if you insist, remove it
@@ -973,18 +973,18 @@ public class EISController {
 			
 			recordToUpdate.setState(Globals.normalizeSpace(itr.state));
 			recordToUpdate.setTitle(Globals.normalizeSpace(itr.title));
-			recordToUpdate.setFolder(itr.eis_identifier.strip());
-			recordToUpdate.setLink(itr.link.strip());
-			recordToUpdate.setNotes(itr.notes.strip());
+			recordToUpdate.setFolder(Globals.normalizeSpace(itr.eis_identifier));
+			recordToUpdate.setLink(Globals.normalizeSpace(itr.link));
+			recordToUpdate.setNotes(Globals.normalizeSpace(itr.notes));
 			if(itr.process_id == null || itr.process_id.isBlank()) {
 				recordToUpdate.setProcessId(null);
 			} else {
 				recordToUpdate.setProcessId(Long.parseLong(itr.process_id));
 			}
 
-			recordToUpdate.setSubtype(itr.subtype.strip());
-			recordToUpdate.setCounty(itr.county.strip());
-			recordToUpdate.setStatus(itr.status.strip());
+			recordToUpdate.setSubtype(Globals.normalizeSpace(itr.subtype));
+			recordToUpdate.setCounty(Globals.normalizeSpace(itr.county));
+			recordToUpdate.setStatus(Globals.normalizeSpace(itr.status));
 			
 			if(recordToUpdate.getTitle().isBlank() || recordToUpdate.getDocumentType().isBlank() 
 					|| recordToUpdate.getRegisterDate() == null) {
@@ -1034,19 +1034,22 @@ public class EISController {
 			rodRecord.setDocumentType("ROD");
 			rodRecord.setRegisterDate(finalRecord.getFirstRodDate());
 			
-			rodRecord.setAgency(finalRecord.getAgency());
-			rodRecord.setCooperatingAgency(finalRecord.getCooperatingAgency());
-			rodRecord.setDepartment(finalRecord.getDepartment());
-			rodRecord.setState(finalRecord.getState());
-			rodRecord.setCounty(finalRecord.getCounty());
+			rodRecord.setAgency(Globals.normalizeSpace(finalRecord.getAgency()));
+			rodRecord.setCooperatingAgency(Globals.normalizeSpace(finalRecord.getCooperatingAgency()));
+			rodRecord.setDepartment(Globals.normalizeSpace(finalRecord.getDepartment()));
+			rodRecord.setState(Globals.normalizeSpace(finalRecord.getState()));
+			rodRecord.setCounty(Globals.normalizeSpace(finalRecord.getCounty()));
 			rodRecord.setProcessId(finalRecord.getProcessId());
 			
 			docService.saveEISDoc(rodRecord);
 			
-			return ("OK: " + rodRecord.getTitle());
+			return ( "OK:" + rodRecord.getTitle() 
+					+ ":FINAL_ID:"+finalRecord.getId() 
+					+ ":ROD_DATE:"+rodRecord.getRegisterDate()
+					+ ":ROD_ID:"+rodRecord.getId() );
 		} else {
 			// else we already have this, so don't create a duplicate ROD.
-			return ("Already exists: " + finalRecord.getTitle());
+			return ( "Already exists:"+finalRecord.getTitle() + ":FINAL_ID:"+finalRecord.getId() );
 		}
 	}
 
