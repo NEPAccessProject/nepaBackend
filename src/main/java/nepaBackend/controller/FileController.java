@@ -1095,7 +1095,11 @@ public class FileController {
 					Optional<EISDoc> recordThatMayExist = docRepository.findById(Long.parseLong(itr.id));
 					
 					if( recordThatMayExist.isPresent() ) {
-						if(itr.state.contentEquals(recordThatMayExist.get().getState())) {
+						if(itr.state.contentEquals(recordThatMayExist.get().getState())
+								&& Globals.normalizeSpace(itr.cooperating_agency).contentEquals(
+										Globals.normalizeSpace(recordThatMayExist.get().getCooperatingAgency())
+									)
+						) {
 							// never mind, no need to update
 							results.add("Item " + count + ": Unchanged (value was already "+itr.state+"): " + itr.id);
 						} else {
