@@ -3211,7 +3211,7 @@ public class FileController {
 			@RequestHeader Map<String, String> headers) throws IOException { 
 
 		String token = headers.get("authorization");
-		if(!isAdmin(token)) 
+		if(!isCurator(token) && !isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
