@@ -241,9 +241,10 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** For finding documents that expect files on disk (filename or folder listed) 
 	 * but have no size recorded, implying they're missing the actual files (nothing to download/index) */
-	@Query(value = "SELECT id,filename,folder,document_type "
+	@Query(value = "SELECT folder,id,document_type,filename "
 			+ "FROM test.eisdoc "
-			+ "where (size is null OR size <=200) and (length(filename)>0 OR length(folder)>0)",
+			+ "where (size is null OR size <=200) and (length(filename)>0 OR length(folder)>0) "
+			+ "ORDER BY folder",
 			nativeQuery = true)
 	List<Object[]> findMissingFiles();
 
