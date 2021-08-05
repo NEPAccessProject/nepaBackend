@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.DeleteRequestRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.EISDoc;
 import nepaBackend.security.SecurityConstants;
 
@@ -30,6 +32,8 @@ public class ReportController {
 	private ApplicationUserRepository applicationUserRepository;
 	@Autowired
 	private DocRepository docRepository;
+	@Autowired
+	private DeleteRequestRepository drr;
 	
 	public ReportController() {
 	}
@@ -83,6 +87,24 @@ public class ReportController {
 		} else {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
 		}
+	}
+	
+	// TODO: Get proposed filenames to be deleted and the record ID each belongs to
+	// (requires some custom sql, joins)
+	@GetMapping(path = "/get_delete_requests")
+	public @ResponseBody ResponseEntity<List<DeleteRequest>> findAllDeleteRequests(@RequestHeader Map<String,String> headers) {
+
+		List<DeleteRequest> requests = drr.findAll();
+		for(DeleteRequest req: requests) {
+			if(!req.getFulfilled()) {
+				if(req.getIdType().contentEquals("document_text")) {
+					// get filename from table and document ID
+				} else if(req.getIdType().contentEquals("nepafile")) { 
+					// get filename from table and document ID
+				}
+			}
+		}
+		return new ResponseEntity<List<DeleteRequest>>(requests, HttpStatus.OK);
 	}
 
 	/** Return ApplicationUser given JWT String */

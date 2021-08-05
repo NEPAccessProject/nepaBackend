@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.DeleteRequestRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.EISMatchService;
 import nepaBackend.EmailLogRepository;
@@ -37,6 +38,7 @@ import nepaBackend.NEPAFileRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.UpdateLogRepository;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
@@ -70,6 +72,8 @@ public class AdminController {
     private EISMatchService matchService;
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
+    @Autowired
+    private DeleteRequestRepository deleteReqRepo;
 
     public AdminController() {
     }
@@ -107,6 +111,45 @@ public class AdminController {
 			return new ResponseEntity<List<UpdateLog>>(new ArrayList<UpdateLog>(), HttpStatus.UNAUTHORIZED);
 		}
     }
+
+    @CrossOrigin
+    @RequestMapping(path = "/exec_delete_requests", method = RequestMethod.POST)
+    ResponseEntity<String> execDeleteRequests(@RequestHeader Map<String,String> headers) {
+		String token = headers.get("authorization");
+		if(isAdmin(token)) {
+			String results = "";
+			
+			List<DeleteRequest> requests = deleteReqRepo.findAll();
+			
+			for(DeleteRequest req: requests) {
+				if(req.getFulfilled()) {
+					// already processed
+				}
+				else if(req.getIdType().contentEquals("nepafile") ) {
+					String result = this.deleteNepaFileById(req.getIdToDelete().toString(), headers)
+							.toString();
+
+					results += result + "\r\n";
+					
+					req.setFulfilled(true);
+					deleteReqRepo.save(req);
+				} else if(req.getIdType().contentEquals("document_text") ) {
+					String result = this.deleteFileByDocumentTextId(req.getIdToDelete().toString(), headers)
+							.toString();
+
+					results += result + "\r\n";
+					
+					req.setFulfilled(true);
+					deleteReqRepo.save(req);
+				} else {
+					results += "Unknown type: " + req.getIdType() + "\r\n";
+				}
+			}
+			return new ResponseEntity<String>(results, HttpStatus.OK);
+		} else {
+			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+		}
+    }
     
     
     /** Given DocumentText ID, delete the DocumentText and any NEPAFile(s) for it from the linked EISDoc.
@@ -115,14 +158,10 @@ public class AdminController {
     @CrossOrigin
     @RequestMapping(path = "/delete_text", method = RequestMethod.POST)
     ResponseEntity<String> deleteFileByDocumentTextId(@RequestBody String id, @RequestHeader Map<String, String> headers) {
-    	System.out.println(id);
     	// Normally probably want to go by NEPAFile ID but for the original files there are no NEPAFiles anyway
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdmin(token)) {
-    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
-    		}
-    		else {
+    		if(isAdmin(token)) {
     			ApplicationUser user = getUser(token);
     			
     			// Get DocumentText by ID
@@ -171,6 +210,14 @@ public class AdminController {
 				// logged as imported, then it would never be re-processed.
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
+    		} else if(isCurator(token)) {
+    			ApplicationUser user = getUser(token);
+    			deleteReqRepo.save(
+    					new DeleteRequest("document_text", Long.valueOf(id), user.getId())
+				);
+    			return new ResponseEntity<String>("Request entered", HttpStatus.ACCEPTED);
+    		} else {
+    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     	} catch(Exception e) {
     		e.printStackTrace();
@@ -185,15 +232,9 @@ public class AdminController {
     @CrossOrigin
     @RequestMapping(path = "/delete_nepa_file", method = RequestMethod.POST)
     ResponseEntity<String> deleteNepaFileById(@RequestBody String id, @RequestHeader Map<String, String> headers) {
-    	// TODO: Verify logic in this and in deleteAll with respect to zip files
-    	// TODO: "Orphaned files" algorithm to list files we aren't using, which we could then feed to a new process to delete them all
-    	// or delete manually
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdmin(token)) {
-    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
-    		}
-    		else {
+    		if(isAdmin(token)) {
     			ApplicationUser user = getUser(token);
     			
     			// Get NEPAFile by ID
@@ -233,6 +274,14 @@ public class AdminController {
 				nepaFileRepository.delete(presentFile);
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
+    		} else if(isCurator(token)) {
+    			ApplicationUser user = getUser(token);
+    			deleteReqRepo.save(
+    					new DeleteRequest("nepafile", Long.valueOf(id), user.getId())
+				);
+    			return new ResponseEntity<String>("Request filled", HttpStatus.ACCEPTED);
+    		} else {
+    			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     	} catch(Exception e) {
     		e.printStackTrace();
@@ -508,6 +557,20 @@ public class AdminController {
 		// get user
 		if(user != null) {
 			if(user.getRole().contentEquals("ADMIN")) {
+				result = true;
+			}
+		}
+		return result;
+	}
+
+
+	/** Return whether trusted JWT is from Admin role */
+	private boolean isCurator(String token) {
+		boolean result = false;
+		ApplicationUser user = getUser(token);
+		// get user
+		if(user != null) {
+			if(user.getRole().contentEquals("CURATOR")) {
 				result = true;
 			}
 		}
