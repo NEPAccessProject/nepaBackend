@@ -115,7 +115,7 @@ public class AdminController {
 				if(req.getFulfilled()) {
 					// already processed
 				}
-				else if(req.getIdType().contentEquals("nepafile") ) {
+				else if( req.getIdType().contentEquals("nepafile") ) {
 					String result = this.deleteNepaFileById(req.getIdToDelete().toString(), headers)
 							.toString();
 
@@ -123,8 +123,17 @@ public class AdminController {
 					
 					req.setFulfilled(true);
 					deleteReqRepo.save(req);
-				} else if(req.getIdType().contentEquals("document_text") ) {
+				} else if( req.getIdType().contentEquals("document_text") ) {
 					String result = this.deleteFileByDocumentTextId(req.getIdToDelete().toString(), headers)
+							.toString();
+
+					results += result + "\r\n";
+					
+					req.setFulfilled(true);
+					deleteReqRepo.save(req);
+				} else if( req.getIdType().contentEquals("entire_record") ) {
+					// Note that this deletes everything - texts, metadata, title matching scores
+					String result = this.deleteDoc(req.getIdToDelete().toString(), headers)
 							.toString();
 
 					results += result + "\r\n";
@@ -377,8 +386,19 @@ public class AdminController {
     ResponseEntity<String> deleteDoc(@RequestBody String id, @RequestHeader Map<String, String> headers) {
 
 		String token = headers.get("authorization");
-		if(!applicationUserService.isAdmin(token)) {
-			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
+
+		ApplicationUser user = applicationUserService.getUserFromToken(token);
+		
+		if(!applicationUserService.isAdmin(user)) {
+			// Delete request logic if curator
+			if(applicationUserService.isCurator(user)) {
+    			deleteReqRepo.save(
+    					new DeleteRequest("entire_record", Long.valueOf(id), user.getId())
+				);
+    			return new ResponseEntity<String>("Request entered", HttpStatus.ACCEPTED);
+			} else {
+				return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
+			}
 		}
     	
     	try {
@@ -391,8 +411,6 @@ public class AdminController {
         	}
 
         	Long idToDelete = Long.valueOf(id);
-
-			ApplicationUser user = applicationUserService.getUserFromToken(token);
 			
 			// Try to get by ID
 			Optional<EISDoc> doc = docRepository.findById(idToDelete);
