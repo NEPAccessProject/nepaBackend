@@ -46,6 +46,7 @@ import com.auth0.jwt.JWT;
 import com.google.gson.Gson;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.ContactRepository;
 import nepaBackend.EmailLogRepository;
 import nepaBackend.Globals;
@@ -72,6 +73,8 @@ public class UserController {
 
     @Autowired
     private ApplicationUserRepository applicationUserRepository;
+    @Autowired
+	private ApplicationUserService applicationUserService;
     @Autowired
     private ContactRepository contactRepository;
     @Autowired
@@ -126,9 +129,6 @@ public class UserController {
     			@RequestParam boolean approved, 
     			@RequestHeader Map<String, String> headers) {
     	
-//    	System.out.println(userId);
-//    	System.out.println(approved);
-    	
     	String token = headers.get("authorization");
     	
     	if(!checkAdmin(headers).getBody() && !checkCurator(headers).getBody() && !checkApprover(headers).getBody()) {
@@ -136,19 +136,18 @@ public class UserController {
     	} else {
     		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
 
-    		// Only admin can deactivate elevated roles
-    		if(!approved && (isApprover(token) || isCurator(token))) {
-    			if(user.getRole().contentEquals("ADMIN") 
-    					|| user.getRole().contentEquals("CURATOR") 
-    					|| user.getRole().contentEquals("APPROVER")) {
-    	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
-    			}
-    		}
-    		
-    		user.setActive(approved);
-    		applicationUserRepository.save(user);
+    		// Only admin can deactivate elevated roles, so if token isn't admin and
+    		// user is elevated, return unauthorized
+    		if( !approved 
+    				&& applicationUserService.isBelowAdmin(token) 
+    				&& applicationUserService.approverOrHigher(user) ) {
+	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    		} else {
+        		user.setActive(approved);
+        		applicationUserRepository.save(user);
 
-    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
+        		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
+    		}
     	}
     }
     
@@ -165,18 +164,16 @@ public class UserController {
     		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
 
     		// Only admin can deactivate elevated roles
-    		if(!approved && (isApprover(token) || isCurator(token))) {
-    			if(user.getRole().contentEquals("ADMIN") 
-    					|| user.getRole().contentEquals("CURATOR") 
-    					|| user.getRole().contentEquals("APPROVER")) {
-    	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
-    			}
+    		if( !approved 
+    				&& applicationUserService.isBelowAdmin(token) 
+    				&& applicationUserService.approverOrHigher(user) ) {
+	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
+    		} else {
+	    		user.setVerified(approved);
+	    		applicationUserRepository.save(user);
+	
+	    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
     		}
-    		
-    		user.setVerified(approved);
-    		applicationUserRepository.save(user);
-
-    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
     	}
     }
     
@@ -403,17 +400,13 @@ public class UserController {
     		produces = "application/json", 
     		headers = "Accept=application/json")
     public @ResponseBody ResponseEntity<ApplicationUser[]> generate(@RequestBody Generate gen,
-//    		@RequestBody ApplicationUser users[],
-//    		@RequestBody boolean shouldSendEmail,
 			@RequestHeader Map<String, String> headers) {
     	
-    	// TODO: Need an option to not email user their account info
-    	// TODO: Change this to true for production
     	boolean sendUserEmails = gen.shouldSend;
-    	// TODO: Need an option to include role
+    	// TODO: Need an option to include role?
 
     	String token = headers.get("authorization");
-    	if(!isAdmin(token)) {
+    	if(!applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<ApplicationUser[]>(HttpStatus.UNAUTHORIZED);
     	}
     	
@@ -1079,7 +1072,7 @@ public class UserController {
 	@PostMapping(path = "/checkAdmin")
 	public ResponseEntity<Boolean> checkAdmin(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		boolean result = isAdmin(token);
+		boolean result = applicationUserService.isAdmin(token);
 		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
 		if(result) {
 			returnStatus = HttpStatus.OK;
@@ -1091,7 +1084,7 @@ public class UserController {
 	@PostMapping(path = "/checkCurator")
 	public ResponseEntity<Boolean> checkCurator(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		boolean result = isAdmin(token) || isCurator(token);
+		boolean result = applicationUserService.curatorOrHigher(token);
 		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
 		if(result) {
 			returnStatus = HttpStatus.OK;
@@ -1103,7 +1096,7 @@ public class UserController {
 	@PostMapping(path = "/checkApprover")
 	public ResponseEntity<Boolean> checkApprover(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		boolean result = isAdmin(token) || isCurator(token) || isApprover(token);
+		boolean result = applicationUserService.approverOrHigher(token);
 		HttpStatus returnStatus = HttpStatus.UNAUTHORIZED;
 		if(result) {
 			returnStatus = HttpStatus.OK;
@@ -1111,57 +1104,6 @@ public class UserController {
 		return new ResponseEntity<Boolean>(result, returnStatus);
 	}
 	
-	// Helper function for checkAdmin
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-
-	}
-	
-	// Helper function for checkCurator
-	private boolean isCurator(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-			if(user.getRole().contentEquals("CURATOR")) {
-				result = true;
-			}
-		}
-		return result;
-
-	}
-
-	// Helper function for checkApprover
-	private boolean isApprover(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-			if(user.getRole().contentEquals("APPROVER")) {
-				result = true;
-			}
-		}
-		return result;
-
-	}
-
 	/** 
 	 *  Bulk user generation.  
 	 *  Sends no emails.  (Purpose: Manually invite users from returned array)
@@ -1176,7 +1118,7 @@ public class UserController {
 			@RequestHeader Map<String, String> headers) {
 
     	String token = headers.get("authorization");
-    	if(!isAdmin(token)) {
+		if(!applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<ApplicationUser[]>(HttpStatus.UNAUTHORIZED);
     	}
     	
@@ -1312,7 +1254,7 @@ public class UserController {
     	
     	Boolean authorized = false;
     	String token = headers.get("authorization");
-    	if(isAdmin(token)) {
+    	if(applicationUserService.isAdmin(token)) {
     		authorized = true;
     	}
     	
@@ -1356,7 +1298,7 @@ public class UserController {
     	
     	Boolean authorized = false;
     	String token = headers.get("authorization");
-    	if(isAdmin(token)) {
+    	if(applicationUserService.isAdmin(token)) {
     		authorized = true;
     	}
     	

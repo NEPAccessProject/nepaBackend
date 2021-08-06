@@ -9,7 +9,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.auth0.jwt.JWT;
+
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.security.SecurityConstants;
 
 @Repository
 public interface ApplicationUserRepository extends JpaRepository<ApplicationUser, Long> {

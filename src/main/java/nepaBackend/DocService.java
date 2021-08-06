@@ -79,6 +79,8 @@ public class DocService {
 	public boolean existsByTitleTypeDateOld(String title, String documentType, LocalDate registerDate) {
 		return docRepository.findTopByTitleAndDocumentTypeAndRegisterDateIn(title, documentType, registerDate).isPresent();
 	}
+	/** Title is compared alphanumerically (special characters/punctuation "ignored" on each side, 
+	 * spaces still matter); type and date are compared exactly */
 	public boolean existsByTitleTypeDate(String title, String documentType, LocalDate registerDate) {
 		return docRepository.findByTitleTypeDateCompareAlphanumericOnly(title, documentType, registerDate).isPresent();
 	}

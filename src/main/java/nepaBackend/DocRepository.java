@@ -41,8 +41,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 //			nativeQuery = true)
 //	List<String> queryAllTitles();
 
-	// TODO: Do a natural language mode search to get top X (5-10?) suggestions
-	// and then plug them into the search box as selectable suggestions
+	/** TODO: Do this in Lucene instead */
 	@Query(value = "SELECT DISTINCT title FROM eisdoc"
 			+ " WHERE MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)"
 			+ " LIMIT 5",

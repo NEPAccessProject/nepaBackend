@@ -112,5 +112,9 @@ public class UpdateLogService {
 			return updateLogRepository.getByDocumentIdAfterIdByUser(id, idStart, Long.parseLong(user));
 		}
 	}
+
+	public void save(UpdateLog updateLog) {
+		updateLogRepository.save(updateLog);
+	}
 	
 }

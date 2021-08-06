@@ -32,15 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.Globals;
 import nepaBackend.ProcessRepository;
 import nepaBackend.SearchLogRepository;
-import nepaBackend.UpdateLogRepository;
 import nepaBackend.UpdateLogService;
-import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
 import nepaBackend.model.SearchLog;
@@ -58,9 +56,7 @@ public class EISController {
 	@Autowired
 	private SearchLogRepository searchLogRepository;
 	@Autowired
-	private ApplicationUserRepository applicationUserRepository;
-	@Autowired
-	private UpdateLogRepository updateLogRepository;
+	private ApplicationUserService applicationUserService;
 	@Autowired
 	private UpdateLogService updateLogService;
 	@Autowired
@@ -85,383 +81,11 @@ public class EISController {
 	@Autowired
 	DocService docService;
 	
-//	@CrossOrigin
-//	@PostMapping(path = "/search", 
-//	consumes = "application/json", 
-//	produces = "application/json", 
-//	headers = "Accept=application/json")
-//	public @ResponseBody ResponseEntity<List<EISDoc>> search(@RequestBody SearchInputs searchInputs) {
-//
-//		saveSearchLog(searchInputs);
-//		
-//		try {
-//			// Init parameter list
-//			ArrayList<String> inputList = new ArrayList<String>();
-//			ArrayList<String> whereList = new ArrayList<String>();
-//			
-//			// Select tables, columns
-//			String sQuery = "SELECT * FROM eisdoc";
-//			
-//			// TODO: join lists/logic
-//			
-//			// TODO: For the future, load Dates of format yyyy-MM=dd into db.
-//			// This will change STR_TO_DATE(register_date, '%m/%d/%Y') >= ?
-//			// to just register_date >= ?
-//			// Right now the db has Strings of MM/dd/yyyy
-//			
-//			// Populate lists
-//			if(saneInput(searchInputs.startPublish)) {
-//				inputList.add(searchInputs.startPublish);
-//				whereList.add(" ((register_date) >= ?)");
-//			}
-//			
-//			if(saneInput(searchInputs.endPublish)) {
-//				inputList.add(searchInputs.endPublish);
-//				whereList.add(" ((register_date) <= ?)");
-//			}
-//
-//			if(saneInput(searchInputs.startComment)) {
-//				inputList.add(searchInputs.startComment);
-//				whereList.add(" ((comment_date) >= ?)");
-//			}
-//			
-//			if(saneInput(searchInputs.endComment)) {
-//				inputList.add(searchInputs.endComment);
-//				whereList.add(" ((comment_date) <= ?)");
-//			}
-//			
-//			if(saneInput(searchInputs.typeAll)) { 
-//				// do nothing
-//			} else {
-//				ArrayList<String> typesList = new ArrayList<>();
-//				StringBuilder query = new StringBuilder(" document_type IN (");
-//				if(saneInput(searchInputs.typeFinal)) {
-//					typesList.add("Final");
-//				}
-//
-//				if(saneInput(searchInputs.typeDraft)) {
-//					typesList.add("Draft");
-//				}
-//				
-//				if(saneInput(searchInputs.typeOther)) {
-//					List<String> typesListOther = Arrays.asList("Draft Supplement",
-//							"Final Supplement",
-//							"Second Draft Supplemental",
-//							"Second Draft",
-//							"Adoption",
-//							"LF",
-//							"Revised Final",
-//							"LD",
-//							"Third Draft Supplemental",
-//							"Second Final",
-//							"Second Final Supplemental",
-//							"DC",
-//							"FC",
-//							"RF",
-//							"RD",
-//							"Third Final Supplemental",
-//							"DD",
-//							"Revised Draft",
-//							"NF",
-//							"F2",
-//							"D2",
-//							"F3",
-//							"DE",
-//							"FD",
-//							"DF",
-//							"FE",
-//							"A3",
-//							"A1");
-//					typesList.addAll(typesListOther);
-//				}
-//				String[] docTypes = typesList.toArray(new String[0]);
-//				for (int i = 0; i < docTypes.length; i++) {
-//					if (i > 0) {
-//						query.append(",");
-//					}
-//					query.append("?");
-//				}
-//				query.append(")");
-//
-//				for (int i = 0; i < docTypes.length; i++) {
-//					inputList.add(docTypes[i]);
-//				}
-//				
-//				if(docTypes.length>0) {
-//					whereList.add(query.toString());
-//				}
-//
-//			}
-//
-//			// TODO: Temporary logic, filenames should each have their own field in the database later 
-//			// and they may also be a different format
-//			// (this will eliminate the need for the _% LIKE logic also)
-//			// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
-//			if(saneInput(searchInputs.needsComments)) {
-////				whereList.add(" (documents LIKE 'CommentLetters-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
-//				whereList.add(" (comments_filename<>'')");
-//			}
-//
-//			if(saneInput(searchInputs.needsDocument)) { // Don't need an input for this right now
-////				whereList.add(" (documents LIKE 'EisDocuments-_%' OR documents LIKE 'EisDocuments-_%;CommentLetters-_%')");
-//				whereList.add(" (filename<>'')");
-//			}
-//			
-//			if(saneInput(searchInputs.state)) {
-//				StringBuilder query = new StringBuilder(" state IN (");
-//				for (int i = 0; i < searchInputs.state.length; i++) {
-//					if (i > 0) {
-//						query.append(",");
-//					}
-//					query.append("?");
-//				}
-//				query.append(")");
-//
-//				for (int i = 0; i < searchInputs.state.length; i++) {
-//					inputList.add(searchInputs.state[i]);
-//				}
-//				whereList.add(query.toString());
-//			}
-//
-//			if(saneInput(searchInputs.agency)) {
-//				StringBuilder query = new StringBuilder(" agency IN (");
-//				for (int i = 0; i < searchInputs.agency.length; i++) {
-//					if (i > 0) {
-//						query.append(",");
-//					}
-//					query.append("?");
-//				}
-//				query.append(")");
-//
-//				for (int i = 0; i < searchInputs.agency.length; i++) {
-//					inputList.add(searchInputs.agency[i]);
-//				}
-//				whereList.add(query.toString());
-//			}
-//			
-//			boolean no_title = false;
-//			if(saneInput(searchInputs.title)) { // Good to put this last
-//				inputList.add(searchInputs.title);
-////				if(searchInputs.searchMode.equals("boolean")) {
-//					whereList.add(" MATCH(title) AGAINST(? IN BOOLEAN MODE)");
-////				} else {
-////					whereList.add(" MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)");
-////				}
-//			} else {
-//				no_title = true;
-//			}
-//			
-//			boolean addAnd = false;
-//			for (String i : whereList) {
-//				if(addAnd) { // Not first conditional, append AND
-//					sQuery += " AND";
-//				} else { // First conditional, append WHERE
-//					sQuery += " WHERE";
-//				}
-//				sQuery += i; // Append conditional
-//				
-//				addAnd = true; // Raise AND flag for future iterations
-//			}
-//			
-//			// If natural language mode with title, accept default order (sorted by internal score). Otherwise, order by title
-//			if(no_title || searchInputs.searchMode.equals("boolean")) {
-//				sQuery += " ORDER BY title";
-//			}
-//			
-//			// Finalize query
-//			int limit = 100000;
-//			if(saneInput(searchInputs.limit)) {
-//				if(searchInputs.limit <= 100000) {
-//					limit = searchInputs.limit;
-//				}
-//			}
-//			sQuery += " LIMIT " + String.valueOf(limit);
-//			
-//			// Run query
-//			List<EISDoc> records = jdbcTemplate.query
-//			(
-//				sQuery, 
-//				inputList.toArray(new Object[] {}),
-//				(rs, rowNum) -> new EISDoc(
-//					rs.getLong("id"), 
-//					rs.getString("title"), 
-//					rs.getString("document_type"),
-//					rs.getObject("comment_date", LocalDate.class), 
-//					rs.getObject("register_date", LocalDate.class), 
-//					rs.getString("agency"),
-//					rs.getString("department"),
-//					rs.getString("cooperating_agency"),
-//					rs.getString("summary_text"),
-//					rs.getString("state"), 
-//					rs.getString("filename"),
-//					rs.getString("comments_filename"),
-//					rs.getString("folder"),
-//					rs.getLong("size"),
-//					rs.getString("web_link"),
-//					rs.getString("notes"),
-//					rs.getObject("noi_date", LocalDate.class), 
-//					rs.getObject("draft_noa", LocalDate.class), 
-//					rs.getObject("final_noa", LocalDate.class), 
-//					rs.getObject("first_rod_date", LocalDate.class)
-//				)
-//			);
-//			
-//			
-//			// TODO: If title is blank, or if using boolean mode, order by title.
-//			// Otherwise let natural language mode pick the top results
-//			
-//			// debugging
-//			if(Globals.TESTING && searchInputs.endPublish != null) {
-//				DateTimeFormatter dateFormatter = DateTimeFormatter.ISO_DATE_TIME;
-//				DateValidator validator = new DateValidatorUsingLocalDate(dateFormatter);
-//				System.out.println(validator.isValid(searchInputs.endPublish));
-//				System.out.println(sQuery); 
-//				System.out.println(searchInputs.endPublish);
-//				System.out.println(searchInputs.title);
-//			}
-//			
-//
-//			return new ResponseEntity<List<EISDoc>>(records, HttpStatus.OK);
-//		} catch (Exception e) {
-////	if (log.isDebugEnabled()) {
-////		log.debug(e);
-////	}
-//			e.printStackTrace();
-//			return new ResponseEntity<List<EISDoc>>(HttpStatus.NO_CONTENT);
-//		}
-//	}
-	
-//	private void saveSearchLog(SearchInputs searchInputs) {
-//		try {
-//			SearchLog searchLog = new SearchLog();
-//			
-//			// TODO: For the future, load Dates of format yyyy-MM=dd into db.
-//			// This will change STR_TO_DATE(register_date, '%m/%d/%Y') >= ?
-//			// to just register_date >= ?
-//			// Right now the db has Strings of MM/dd/yyyy
-//			
-//			// Populate lists
-//			if(saneInput(searchInputs.startPublish)) {
-//				searchLog.setStartPublish(searchInputs.startPublish);
-//			}
-//			
-//			if(saneInput(searchInputs.endPublish)) {
-//				searchLog.setEndPublish(searchInputs.endPublish);
-//			}
-//
-//			if(saneInput(searchInputs.startComment)) {
-//				searchLog.setStartComment(searchInputs.startComment);
-//			}
-//			
-//			if(saneInput(searchInputs.endComment)) {
-//				searchLog.setEndComment(searchInputs.endComment);
-//			}
-//
-//			searchLog.setDocumentTypes("All"); // handles all or blank (equivalent to all)
-//			if(saneInput(searchInputs.typeAll)) { 
-//				// do nothing
-//			} else {
-//				ArrayList<String> typesList = new ArrayList<>();
-//				if(saneInput(searchInputs.typeFinal)) {
-//					typesList.add("Final");
-//				}
-//
-//				if(saneInput(searchInputs.typeDraft)) {
-//					typesList.add("Draft");
-//				}
-//				
-//				if(saneInput(searchInputs.typeOther)) {
-//					List<String> typesListOther = Arrays.asList("Draft Supplement",
-//							"Final Supplement",
-//							"Second Draft Supplemental",
-//							"Second Draft",
-//							"Adoption",
-//							"LF",
-//							"Revised Final",
-//							"LD",
-//							"Third Draft Supplemental",
-//							"Second Final",
-//							"Second Final Supplemental",
-//							"DC",
-//							"FC",
-//							"RF",
-//							"RD",
-//							"Third Final Supplemental",
-//							"DD",
-//							"Revised Draft",
-//							"NF",
-//							"F2",
-//							"D2",
-//							"F3",
-//							"DE",
-//							"FD",
-//							"DF",
-//							"FE",
-//							"A3",
-//							"A1");
-//					typesList.addAll(typesListOther);
-//				}
-//				if(typesList.size() > 0) {
-//					searchLog.setDocumentTypes( String.join(",", typesList) );
-//				}
-//
-//			}
-//
-//			// TODO: Temporary logic, filenames should each have their own field in the database later 
-//			// and they may also be a different format
-//			// (this will eliminate the need for the _% LIKE logic also)
-//			// _ matches exactly one character and % matches zero to many, so _% matches at least one arbitrary character
-//			if(saneInput(searchInputs.needsComments)) {
-//				searchLog.setNeedsComments(searchInputs.needsComments);
-//			}
-//
-//			if(saneInput(searchInputs.needsDocument)) { 
-//				searchLog.setNeedsDocument(searchInputs.needsDocument);
-//			}
-//			
-//			if(saneInput(searchInputs.state)) {
-//				searchLog.setState(String.join(",", searchInputs.state));
-//			}
-//
-//			if(saneInput(searchInputs.agency)) {
-//				searchLog.setAgency(String.join(",", searchInputs.agency));
-//			}
-//			
-//			if(saneInput(searchInputs.title)) {
-//				searchLog.setTitle(searchInputs.title);
-//			}
-//			
-//			if(saneInput(searchInputs.searchMode)) {
-//				searchLog.setSearchMode(searchInputs.searchMode);
-//			}
-//			
-//			searchLog.setHowMany(1000); 
-//			if(saneInput(searchInputs.limit)) {
-//				if(searchInputs.limit > 100000) {
-//					searchLog.setHowMany(100000); // TODO: Review 100k as upper limit
-//				} else {
-//					searchLog.setHowMany(searchInputs.limit);
-//				}
-//			}
-//			
-//			searchLog.setUserId(null); // TODO: Non-anonymous user IDs if opted-in
-//			searchLog.setSavedTime(LocalDateTime.now());
-//
-//			searchLogRepository.save(searchLog);
-//			
-//		} catch (Exception e) {
-////			if (log.isDebugEnabled()) {
-////				log.debug(e);
-////			}
-////			System.out.println(e);
-//		}
-//	
-//	}
 	
     @GetMapping("/findAllDocs")
-    private @ResponseBody ResponseEntity<List<EISDoc>> findAllDocs(@RequestHeader Map<String, String> headers) {
+    public @ResponseBody ResponseEntity<List<EISDoc>> findAllDocs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-    	if(isCurator(token) || isAdmin(token)) {
+    	if(applicationUserService.curatorOrHigher(token)) {
     		return new ResponseEntity<List<EISDoc>>(docService.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(new ArrayList<EISDoc>(), HttpStatus.UNAUTHORIZED);
@@ -469,9 +93,9 @@ public class EISController {
     }
 	
     @GetMapping("/findAllSearchLogs")
-    private @ResponseBody ResponseEntity<List<SearchLog>> findAllSearchLogs(@RequestHeader Map<String, String> headers) {
+    public @ResponseBody ResponseEntity<List<SearchLog>> findAllSearchLogs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-    	if(isCurator(token) || isAdmin(token)) {
+    	if(applicationUserService.curatorOrHigher(token)) {
     		return new ResponseEntity<List<SearchLog>>(searchLogRepository.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<SearchLog>>(new ArrayList<SearchLog>(), HttpStatus.UNAUTHORIZED);
@@ -479,9 +103,9 @@ public class EISController {
     }
     
     @GetMapping("/findMissingProcesses")
-    private @ResponseBody ResponseEntity<List<EISDoc>> findMissingProcesses(@RequestHeader Map<String, String> headers) {
+    public @ResponseBody ResponseEntity<List<EISDoc>> findMissingProcesses(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-    	if(isCurator(token) || isAdmin(token)) {
+    	if(applicationUserService.curatorOrHigher(token)) {
     		return new ResponseEntity<List<EISDoc>>(docService.findMissingProcesses(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(new ArrayList<EISDoc>(), HttpStatus.UNAUTHORIZED);
@@ -495,8 +119,6 @@ public class EISController {
 	headers = "Accept=application/json")
 	public @ResponseBody ResponseEntity<EISMatchData> match(@RequestBody MatchParams matchParams) {
 		try {
-//			System.out.println("ID " + matchParams.id);
-//			System.out.println("Match % " + matchParams.matchPercent);
 			
 			// Sanity check match percent, force bounds 1-100
 			BigDecimal match_percent = validateInput(matchParams.matchPercent);
@@ -536,7 +158,7 @@ public class EISController {
 	@GetMapping(path = "/duplicates_process")
 	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicatesProcess(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<List<EISDoc>>(docService.findAllDuplicatesProcess(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
@@ -546,7 +168,7 @@ public class EISController {
 	@GetMapping(path = "/duplicates")
 	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicates(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<List<EISDoc>>(docService.findAllDuplicates(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
@@ -555,7 +177,7 @@ public class EISController {
 	@GetMapping(path = "/duplicates_close")
 	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicatesCloseDates(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<List<EISDoc>>(docService.findAllDuplicatesCloseDates(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
@@ -564,7 +186,7 @@ public class EISController {
 	@GetMapping(path = "/duplicates_no_date")
 	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicatesNoDates(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<List<EISDoc>>(docService.findAllSameTitleType(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
@@ -574,7 +196,7 @@ public class EISController {
 	@GetMapping(path = "/size_under_200")
 	public @ResponseBody ResponseEntity<List<EISDoc>> sizeUnder200(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<List<EISDoc>>(docService.sizeUnder200(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
@@ -585,7 +207,7 @@ public class EISController {
 	@GetMapping(path = "/match_all_pairs")
 	public @ResponseBody ResponseEntity<Object> getAllPairs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<Object>(matchService.getAllPairs(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
@@ -595,7 +217,7 @@ public class EISController {
 	@GetMapping(path = "/match_all_pairs_one")
 	public @ResponseBody ResponseEntity<Object> getAllPairsOne(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<Object>(matchService.getAllPairsAtLeastOneFile(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
@@ -605,7 +227,7 @@ public class EISController {
 	@GetMapping(path = "/match_all_pairs_two")
 	public @ResponseBody ResponseEntity<Object> getAllPairsTwo(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<Object>(matchService.getAllPairsTwoFiles(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
@@ -615,7 +237,7 @@ public class EISController {
 	@GetMapping(path = "/search_logs")
 	public @ResponseBody ResponseEntity<List<Object>> getAllSearchLogs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(approverOrHigher(token)) {
+		if(applicationUserService.approverOrHigher(token)) {
 			return new ResponseEntity<List<Object>>(searchLogRepository.countDistinctTerms(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object>>(HttpStatus.UNAUTHORIZED);
@@ -646,9 +268,6 @@ public class EISController {
 	headers = "Accept=application/json")
 	public @ResponseBody ResponseEntity<EISMatchData> matchAdvanced(@RequestBody MatchParams matchParams) {
 		
-		System.out.println(matchParams.id);
-		System.out.println(matchParams.matchPercent);
-		
 		try {
 			// Sanity check ID
 			if(matchParams.id < 0) {
@@ -661,11 +280,7 @@ public class EISController {
 			// Note: Could map eisdocs in the ORM so we don't have to do it this way
 			List<Integer> idList1 = matches.stream().map(EISMatch::getDocument1).collect(Collectors.toList());
 			List<Integer> idList2 = matches.stream().map(EISMatch::getDocument2).collect(Collectors.toList());
-			
-//			idList1.forEach(System.out::println);
-//			idList2.forEach(System.out::println);
-//			System.out.println(matches.get(0).getDocument1());
-//			System.out.println(matches.get(0).getDocument2());
+
 			if(idList1.isEmpty() || idList2.isEmpty()) { // No match
 				return new ResponseEntity<EISMatchData>(HttpStatus.OK);
 			}
@@ -747,9 +362,6 @@ public class EISController {
 //			}
 			
 			EISMatchData matchData = new EISMatchData(matches, docs);
-			
-//			System.out.println(matchData.getDocs().size());
-//			System.out.println(matchData.getMatches().size());
 
 			return new ResponseEntity<EISMatchData>(matchData, HttpStatus.OK);
 		} catch (IndexOutOfBoundsException e ) { // Result set empty (length 0)
@@ -779,14 +391,6 @@ public class EISController {
 	@PostMapping(path = "/check") // to simply verify user has access to /test/**
 	public void check() {
 	}
-
-	/** Get all titles (too heavy to put into a select on frontend) */
-//	@CrossOrigin
-//	@PostMapping(path = "/titles")
-//	public List<String> titles()
-//	{
-//		return docService.getAllTitles();
-//	}
 	
 	/** Get close titles */
 	@CrossOrigin
@@ -819,7 +423,7 @@ public class EISController {
 	public ResponseEntity<Void> updateDoc(@RequestPart(name="doc") String doc, 
 			@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			try {
 				// translate
 				ObjectMapper mapper = new ObjectMapper();
@@ -871,7 +475,8 @@ public class EISController {
 	public ResponseEntity<String> fixAbbrev(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		String returnValue = "";
-		if(userIsAuthorized(token)) {
+		
+		if(applicationUserService.curatorOrHigher(token)) {
 			try {
 				returnValue += fixAgency("ARD","Department of Agriculture"); // Adoption by probably Rural Development, should list as USDA
 				returnValue += fixAgency("AFS","Forest Service");
@@ -901,39 +506,6 @@ public class EISController {
 		return new ResponseEntity<String>(returnValue, HttpStatus.OK);
 	}
 	
-	/** Return true if user is curator or admin */
-	private boolean userIsAuthorized(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-			if(user.getRole().equalsIgnoreCase("CURATOR") || user.getRole().equalsIgnoreCase("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-
-	}
-	
-	private boolean approverOrHigher(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-			if(user.getRole().equalsIgnoreCase("APPROVER") || user.getRole().equalsIgnoreCase("CURATOR") || user.getRole().equalsIgnoreCase("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-	
-	
 	/** Turns UploadInputs into valid, current EISDoc and updates it, returns 200 (OK) or 500 (error), 
 	 * 404 is no current EISDoc for ID, 400 if title, type or date are missing,
 	 * 204 if the .save itself was somehow rejected (database deemed it invalid or no connection?) */
@@ -950,7 +522,7 @@ public class EISController {
 	        
 	        // Save log of this record before the fields are changed
 			UpdateLog updateLog = updateLogService.newUpdateLogFromEIS(recordToUpdate,id);
-			updateLogRepository.save(updateLog);
+			updateLogService.save(updateLog);
 			
 			// translate
 			recordToUpdate.setAgency(Globals.normalizeSpace(itr.agency));
@@ -1007,7 +579,7 @@ public class EISController {
 	@RequestMapping(path = "/add_rods", method = RequestMethod.POST)
 	public ResponseEntity<List<String>> addRodsFromFinals(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			List<EISDoc> finals = docService.findAllFinalsWithFirstRodDates();
 			List<String> results = new ArrayList<String>();
 			for(EISDoc doc : finals) {
@@ -1082,89 +654,4 @@ public class EISController {
 		return match_percent;
 	}
 
-//	private boolean saneInput(String sInput) {
-//		if(sInput == null) {
-//			return false;
-//		}
-//		return (sInput.trim().length() > 0);
-//	}
-//	
-//	private boolean saneInput(String[] sInput) {
-//		if(sInput == null || sInput.length == 0) {
-//			return false;
-//		}
-//		return true;
-//	}
-//	
-//	private boolean saneInput(boolean bInput) {
-//		return bInput;
-//	}
-//	// TODO: Validation for everything, like Dates
-//
-//	private boolean saneInput(int iInput) {
-//		if(iInput > 0 && iInput <= Integer.MAX_VALUE) {
-//			return true;
-//		}
-//		return false;
-//	}
-	
-
-
-	/** Return whether JWT is from Curator role */
-	private boolean isApprover(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("APPROVER")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-	/** Return whether JWT is from Curator role */
-	private boolean isCurator(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("CURATOR")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-	
-	/** Return ApplicationUser given JWT String */
-	private ApplicationUser getUser(String token) {
-		if(token != null) {
-			// get ID
-			try {
-				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-//				if(testing) {System.out.println("ID: " + id);}
-
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-//				if(testing) {System.out.println("User ID: " + user.getId());}
-				return user;
-			} catch (Exception e) {
-				return null;
-			}
-		} else {
-			return null;
-		}
-	}
-	
-	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	}
 }
