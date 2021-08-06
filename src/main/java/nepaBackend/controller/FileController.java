@@ -65,10 +65,9 @@ import org.springframework.web.multipart.MultipartFile;
 //import org.xml.sax.ContentHandler;
 //import org.xml.sax.SAXException;
 
-import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.Globals;
@@ -78,7 +77,6 @@ import nepaBackend.TextRepository;
 import nepaBackend.UpdateLogRepository;
 import nepaBackend.UpdateLogService;
 import nepaBackend.ZipExtractor;
-import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.FileLog;
@@ -88,7 +86,6 @@ import nepaBackend.model.UpdateLog;
 import nepaBackend.pojo.DumbProcessInputs;
 import nepaBackend.pojo.ProcessInputs;
 import nepaBackend.pojo.UploadInputs;
-import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/file")
@@ -107,7 +104,7 @@ public class FileController {
 	@Autowired
 	private UpdateLogRepository updateLogRepository;
 	@Autowired
-	private ApplicationUserRepository applicationUserRepository;
+	private ApplicationUserService applicationUserService;
 	@Autowired
 	private NEPAFileRepository nepaFileRepository;
 	@Autowired
@@ -144,7 +141,7 @@ public class FileController {
     @GetMapping("/findAllNepaFiles")
     private @ResponseBody ResponseEntity<List<NEPAFile>> findAllNepaFiles(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<List<NEPAFile>>(nepaFileRepository.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<NEPAFile>>(new ArrayList<NEPAFile>(), HttpStatus.UNAUTHORIZED);
@@ -414,7 +411,7 @@ public class FileController {
 	public ResponseEntity<List<FileLog>> getAllLogs(@RequestHeader Map<String, String> headers) {
 		
 		String token = headers.get("authorization");
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<FileLog>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -458,7 +455,7 @@ public class FileController {
 	public ResponseEntity<ArrayList<String>> bulk(@RequestHeader Map<String, String> headers) {
 		
 		String token = headers.get("authorization");
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<ArrayList<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -542,7 +539,7 @@ public class FileController {
 		
 	    boolean[] results = new boolean[3];
 		String token = headers.get("authorization");
-		if(!isCurator(token) && !isAdmin(token)) 
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<boolean[]>(results, HttpStatus.UNAUTHORIZED);
 		} 
@@ -584,7 +581,7 @@ public class FileController {
 			}
 			
 	    	// Start log
-		    uploadLog.setUser(getUser(token));
+		    uploadLog.setUser(applicationUserService.getUserFromToken(token));
 		    uploadLog.setLogTime(LocalDateTime.now());
 		    
 		    if(dto.link == null) {
@@ -705,7 +702,7 @@ public class FileController {
 		}
 		
 		String token = headers.get("authorization");
-		if(!isCurator(token) && !isAdmin(token)) // 401
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) // 401
 		{
 			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -793,7 +790,7 @@ public class FileController {
 			    	
 			    	// Save FileLog
 				    uploadLog.setFilename(origFilename);
-				    uploadLog.setUser(getUser(token));
+				    uploadLog.setUser(applicationUserService.getUserFromToken(token));
 				    uploadLog.setLogTime(LocalDateTime.now());
 				    uploadLog.setErrorType("Uploaded");
 				    uploadLog.setDocumentId(savedDoc.getId());
@@ -866,7 +863,7 @@ public class FileController {
 										throws IOException { 
 		String token = headers.get("authorization");
 		
-		if(!isCurator(token) && !isAdmin(token)) 
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -893,7 +890,7 @@ public class FileController {
 		
 		String token = headers.get("authorization");
 		
-		if(!isCurator(token) && !isAdmin(token)) 
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -917,7 +914,7 @@ public class FileController {
 	private List<String> doCSVImport(String csv, boolean shouldImport, String token) {
 
 		// this should be impossible, but just in case
-		if(!isCurator(token) && !isAdmin(token)) 
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
 		{
 			return new ArrayList<String>();
 		} 
@@ -994,7 +991,7 @@ public class FileController {
 						) {
 							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
 							if(shouldImport) {
-								status = updateDto(itr, recordThatMayExist, getUser(token).getId());
+								status = updateDto(itr, recordThatMayExist, applicationUserService.getUserFromToken(token).getId());
 							}
 							
 							if(status.getStatusCodeValue() == 500) { // Error
@@ -1007,7 +1004,7 @@ public class FileController {
 						else if(recordThatMayExist.isPresent()) {
 							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
 							if(shouldImport) {
-								status = updateDtoExceptFile(itr, recordThatMayExist, getUser(token).getId());
+								status = updateDtoExceptFile(itr, recordThatMayExist, applicationUserService.getUserFromToken(token).getId());
 							}
 							
 							if(status.getStatusCodeValue() == 500) { // Error
@@ -1035,7 +1032,7 @@ public class FileController {
 						    		recordLog.setFilename(itr.filename);
 						    		recordLog.setImported(false);
 						    		recordLog.setLogTime(LocalDateTime.now());
-						    		recordLog.setUser(getUser(token));
+						    		recordLog.setUser(applicationUserService.getUserFromToken(token));
 						    		fileLogRepository.save(recordLog);
 					    		}
 					    	}
@@ -1065,7 +1062,7 @@ public class FileController {
 										throws IOException { 
 		String token = headers.get("authorization");
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -1105,7 +1102,7 @@ public class FileController {
 						} else {
 							EISDoc record = recordThatMayExist.get();
 							
-							UpdateLog doc = updateLogService.newUpdateLogFromEIS(record,getUser(token).getId());
+							UpdateLog doc = updateLogService.newUpdateLogFromEIS(record,applicationUserService.getUserFromToken(token).getId());
 							updateLogRepository.save(doc);
 
 							// we're JUST updating the state, don't mess with anything else
@@ -1198,7 +1195,7 @@ public class FileController {
 		}
 		
 		String token = headers.get("authorization");
-		if(!isCurator(token) && !isAdmin(token)) // 401
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) // 401
 		{
 			return new ResponseEntity<String[]>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -1290,7 +1287,7 @@ public class FileController {
 //					    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 //					    	} else {
 //					    		uploadLog.setFilename(savePath + origFilename); // full path
-//							    uploadLog.setUser(getUser(token));
+//							    uploadLog.setUser(applicationUserService.getUserFromToken(token));
 //							    uploadLog.setLogTime(LocalDateTime.now());
 //							    uploadLog.setErrorType("Uploaded");
 //							    // Note: Should be impossible not to have a linked document if the logic got us here
@@ -1367,7 +1364,7 @@ public class FileController {
 				    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 				    	} else {
 				    		uploadLog.setFilename(getPathOnly(origFilename) + getFilenameOnly(origFilename)); // full path incl. filename with agency base folder subbed in if needed
-						    uploadLog.setUser(getUser(token));
+						    uploadLog.setUser(applicationUserService.getUserFromToken(token));
 						    uploadLog.setLogTime(LocalDateTime.now());
 						    uploadLog.setErrorType("Uploaded");
 						    // Note: Should be impossible not to have a linked document if the logic got us here
@@ -2162,7 +2159,7 @@ public class FileController {
 //	public ResponseEntity<List<String>> xhtml(@RequestHeader Map<String, String> headers) {
 //		
 //		String token = headers.get("authorization");
-//		if(!isAdmin(token)) 
+//		if(!applicationUserService.isAdmin(token)) 
 //		{
 //			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 //		} 
@@ -3003,52 +3000,6 @@ public class FileController {
 
 		return valid;
 	}
-
-	/** Return whether JWT is from Admin role */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-
-	/** Return whether JWT is from Curator role */
-	private boolean isCurator(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("CURATOR")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-	
-	/** Return ApplicationUser given JWT String */
-	private ApplicationUser getUser(String token) {
-		if(token != null) {
-			// get ID
-			try {
-				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-//				if(testing) {System.out.println("ID: " + id);}
-
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-//				if(testing) {System.out.println("User ID: " + user.getId());}
-				return user;
-			} catch (Exception e) {
-				return null;
-			}
-		} else {
-			return null;
-		}
-	}
 	
 	/**
 	 * Attempts to return valid parsed LocalDate from String argument, based on formats specified in  
@@ -3076,7 +3027,7 @@ public class FileController {
 	    String result = "Started";
 	    
 		String token = headers.get("authorization");
-		if(!isCurator(token) && !isAdmin(token)) 
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<String>(result, HttpStatus.UNAUTHORIZED);
 		}
@@ -3123,7 +3074,7 @@ public class FileController {
 			@RequestHeader Map<String, String> headers) throws IOException { 
 		
 		String token = headers.get("authorization");
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -3211,7 +3162,7 @@ public class FileController {
 			@RequestHeader Map<String, String> headers) throws IOException { 
 
 		String token = headers.get("authorization");
-		if(!isCurator(token) && !isAdmin(token)) 
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -3280,7 +3231,7 @@ public class FileController {
 		
 		String token = headers.get("authorization");
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -3395,7 +3346,7 @@ public class FileController {
 		
 		String token = headers.get("authorization");
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -3508,7 +3459,7 @@ public class FileController {
 		
 		fillAgencies();
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -3555,7 +3506,7 @@ public class FileController {
 					for(EISDoc record : matchingRecords) {
 
 						/** Special update function that only adds new data */
-						ResponseEntity<Long> status = updateDtoNoOverwrite(itr, record, getUser(token).getId());
+						ResponseEntity<Long> status = updateDtoNoOverwrite(itr, record, applicationUserService.getUserFromToken(token).getId());
 						
 						if(status.getStatusCodeValue() == 500) { // Error
 							results.add("Item " + count + ": Error saving: " + itr.title);
@@ -3587,7 +3538,7 @@ public class FileController {
 		
 		fillAgencies();
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -3743,7 +3694,7 @@ public class FileController {
 		
 		String token = headers.get("authorization");
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 
@@ -3816,7 +3767,7 @@ public class FileController {
 					    		recordLog.setFilename(itr.filename);
 					    		recordLog.setImported(false);
 					    		recordLog.setLogTime(LocalDateTime.now());
-					    		recordLog.setUser(getUser(token));
+					    		recordLog.setUser(applicationUserService.getUserFromToken(token));
 					    		fileLogRepository.save(recordLog);
 					    	}
 						}
@@ -3834,7 +3785,7 @@ public class FileController {
 					    		recordLog.setFilename(itr.filename);
 					    		recordLog.setImported(false);
 					    		recordLog.setLogTime(LocalDateTime.now());
-					    		recordLog.setUser(getUser(token));
+					    		recordLog.setUser(applicationUserService.getUserFromToken(token));
 					    		fileLogRepository.save(recordLog);
 					    	}
 				    	} else {
@@ -3874,7 +3825,7 @@ public class FileController {
 
 		String token = headers.get("authorization");
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
 		} 

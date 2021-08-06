@@ -103,6 +103,21 @@ public class ApplicationUserService {
 		
 		return result;
 	}
+	public boolean isCurator(String token) {
+		boolean result = false;
+		
+		if(token != null) {
+	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+	                .getId();
+
+			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+			if(user.getRole().equalsIgnoreCase("CURATOR")) {
+				result = true;
+			}
+		}
+		
+		return result;
+	}
 
 	public boolean isBelowAdmin(String token) {
 		boolean result = false;
