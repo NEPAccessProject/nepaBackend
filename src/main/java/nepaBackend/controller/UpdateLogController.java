@@ -1,12 +1,10 @@
 package nepaBackend.controller;
 
 import java.math.BigInteger;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
 
-import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.DocService;
 import nepaBackend.UpdateLogRepository;
 import nepaBackend.UpdateLogService;
-import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.security.SecurityConstants;
@@ -38,22 +35,13 @@ public class UpdateLogController {
 	private static final Logger logger = LoggerFactory.getLogger(UpdateLogController.class);
 	
 	@Autowired
-	private ApplicationUserRepository applicationUserRepository;
+	private ApplicationUserService applicationUserService;
 	@Autowired
 	private UpdateLogRepository updateLogRepository;
 	@Autowired
 	private UpdateLogService updateLogService;
 	@Autowired
 	DocService docService;
-	
-	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
-			"yyyy/MM/dd", "MM/dd/yyyy", 
-			"M/dd/yyyy", "yyyy/M/dd", "M-dd-yyyy", "yyyy-M-dd",
-			"MM/d/yyyy", "yyyy/MM/d", "MM-d-yyyy", "yyyy-MM-d",
-			"M/d/yyyy", "yyyy/M/d", "M-d-yyyy", "yyyy-M-d",
-			"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-			.map(DateTimeFormatter::ofPattern)
-			.toArray(DateTimeFormatter[]::new);
 	
 	public UpdateLogController() {
 	}
@@ -63,7 +51,7 @@ public class UpdateLogController {
 	public ResponseEntity<List<UpdateLog>> findAllById(@RequestParam("id") String metaId, 
 											@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(userIsAuthorized(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			return new ResponseEntity<List<UpdateLog>>(
 						updateLogRepository.findAllByDocumentId(Long.parseLong(metaId)),
 						HttpStatus.OK);
@@ -78,7 +66,7 @@ public class UpdateLogController {
 	public ResponseEntity<Void> restoreDoc(@RequestParam("id") String updateLogID, 
 											@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			try {
 		        String userID = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, ""))).getId();
 				Optional<UpdateLog> logToRestoreFrom = updateLogRepository.findById(Long.parseLong(updateLogID));
@@ -115,7 +103,7 @@ public class UpdateLogController {
 	public ResponseEntity<Void> restoreDocFromMostRecentUpdate(@RequestParam("id") String docID, 
 											@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			try {
 		        String userID = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, ""))).getId();
 				Optional<EISDoc> docToRestore = docService.findById(Long.parseLong(docID));
@@ -154,7 +142,7 @@ public class UpdateLogController {
 		System.out.println(user);
 		
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			try {
 				
 				// ID to use to save update logs for this update/restoration
@@ -199,7 +187,7 @@ public class UpdateLogController {
 		String token = headers.get("authorization");
 		List<Long> updated = new ArrayList<Long>();
 		
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			try {
 				
 				// ID to use to save update logs for this update/restoration
@@ -247,7 +235,7 @@ public class UpdateLogController {
 		String token = headers.get("authorization");
 		List<Long> updated = new ArrayList<Long>();
 		
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			try {
 				
 				// ID to use to save update logs for this update/restoration
@@ -348,59 +336,6 @@ public class UpdateLogController {
 			}
 		} catch(Exception e) {
 			logger.error("Restore failed::" + e.getLocalizedMessage());
-			return null;
-		}
-	}
-	
-	
-	
-	
-	/** Return true if user token is curator or admin */
-	private boolean userIsAuthorized(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-	                .getId();
-	
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-			if(user.getRole().equalsIgnoreCase("CURATOR") || user.getRole().equalsIgnoreCase("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	
-	}
-	
-	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-
-	/** Return ApplicationUser given JWT String */
-	private ApplicationUser getUser(String token) {
-		if(token != null) {
-			// get ID
-			try {
-				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-//				if(testing) {System.out.println("ID: " + id);}
-
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-//				if(testing) {System.out.println("User ID: " + user.getId());}
-				return user;
-			} catch (Exception e) {
-				return null;
-			}
-		} else {
 			return null;
 		}
 	}

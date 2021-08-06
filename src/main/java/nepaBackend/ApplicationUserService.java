@@ -1,4 +1,6 @@
 package nepaBackend;
+import java.util.Optional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -11,6 +13,16 @@ import nepaBackend.security.SecurityConstants;
 public class ApplicationUserService {
 	@Autowired
 	private ApplicationUserRepository applicationUserRepository;
+	
+	public ApplicationUser save(ApplicationUser user) {
+		return applicationUserRepository.save(user);
+	}
+	public Optional<ApplicationUser> findById(Long id) {
+		return applicationUserRepository.findById(id);
+	}
+	public ApplicationUser findByEmail(String email) {
+		return applicationUserRepository.findByEmail(email);
+	}
     
     public ApplicationUser getUserFromToken(String token) {
     	ApplicationUser user = null;
@@ -71,7 +83,11 @@ public class ApplicationUserService {
 		
 		return result;
 	}
-    
+
+	/** By necessity token is verified as valid via filter by this point as long as it's going through the 
+	 * public API.  Alternatively you can store admin credentials in the token and hand that to the filter,
+	 * but then if admin access is revoked, that token still has admin access until it expires.
+	 * Therefore this is a slightly more secure flow. */
     public boolean isAdmin(String token) {
 		boolean result = false;
 		
@@ -102,6 +118,13 @@ public class ApplicationUserService {
 		}
 		
 		return result;
+	}
+
+	public boolean isAdmin(ApplicationUser user) {
+		return user.getRole().equalsIgnoreCase("ADMIN");
+	}
+	public boolean isCurator(ApplicationUser user) {
+		return user.getRole().equalsIgnoreCase("CURATOR");
 	}
 	
 }

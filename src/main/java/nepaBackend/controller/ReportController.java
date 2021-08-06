@@ -12,15 +12,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.auth0.jwt.JWT;
-
-import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.DeleteRequestRepository;
 import nepaBackend.DocRepository;
-import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.EISDoc;
-import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/reports")
@@ -29,7 +25,7 @@ public class ReportController {
 //	private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
 	
 	@Autowired
-	private ApplicationUserRepository applicationUserRepository;
+	private ApplicationUserService applicationUserService;
 	@Autowired
 	private DocRepository docRepository;
 	@Autowired
@@ -41,7 +37,7 @@ public class ReportController {
 	@GetMapping(path = "/report_agency")
 	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyCombined(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyCombined(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
@@ -51,7 +47,7 @@ public class ReportController {
 	@GetMapping(path = "/report_agency_2000")
 	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyCombinedAfter2000(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyCombinedAfter2000(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
@@ -60,7 +56,7 @@ public class ReportController {
 	@GetMapping(path = "/report_agency_process")
 	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyProcess(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyProcess(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
@@ -70,7 +66,7 @@ public class ReportController {
 	@GetMapping(path = "/report_agency_process_2000")
 	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyProcessAfter2000(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			return new ResponseEntity<List<Object[]>>(docRepository.reportAgencyProcessAfter2000(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Object[]>>(HttpStatus.UNAUTHORIZED);
@@ -82,7 +78,7 @@ public class ReportController {
 	@GetMapping(path = "/duplicates_size")
 	public @ResponseBody ResponseEntity<List<EISDoc>> findAllDuplicatesBySize(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			return new ResponseEntity<List<EISDoc>>(docRepository.findAllSameSize(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
@@ -105,38 +101,5 @@ public class ReportController {
 			}
 		}
 		return new ResponseEntity<List<DeleteRequest>>(requests, HttpStatus.OK);
-	}
-
-	/** Return ApplicationUser given JWT String */
-	private ApplicationUser getUser(String token) {
-		if(token != null) {
-			// get ID
-			try {
-				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-//				if(testing) {System.out.println("ID: " + id);}
-
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-//				if(testing) {System.out.println("User ID: " + user.getId());}
-				return user;
-			} catch (Exception e) {
-				return null;
-			}
-		} else {
-			return null;
-		}
-	}
-	
-	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
 	}
 }

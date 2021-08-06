@@ -5,13 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMessage;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,13 +17,10 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.auth0.jwt.JWT;
-
-import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.DeleteRequestRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.EISMatchService;
@@ -46,16 +39,13 @@ import nepaBackend.model.EmailLog;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.UpdateLog;
-import nepaBackend.pojo.Generate;
-import nepaBackend.security.PasswordGenerator;
-import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
 
     @Autowired
-    private ApplicationUserRepository applicationUserRepository;
+    private ApplicationUserService applicationUserService;
     @Autowired
     private NEPAFileRepository nepaFileRepository;
     @Autowired
@@ -83,7 +73,7 @@ public class AdminController {
     private @ResponseBody ResponseEntity<List<EmailLog>> findAllEmailLogs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		
-    	if(isAdmin(token)) {
+    	if(applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<List<EmailLog>>(emailLogRepository.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<EmailLog>>(new ArrayList<EmailLog>(), HttpStatus.UNAUTHORIZED);
@@ -94,7 +84,7 @@ public class AdminController {
     private @ResponseBody ResponseEntity<List<FileLog>> findAllFileLogs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		
-    	if(isAdmin(token)) {
+    	if(applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<List<FileLog>>(fileLogRepository.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<FileLog>>(new ArrayList<FileLog>(), HttpStatus.UNAUTHORIZED);
@@ -105,7 +95,7 @@ public class AdminController {
     private @ResponseBody ResponseEntity<List<UpdateLog>> findAllUpdateLogs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		
-    	if(isAdmin(token)) {
+    	if(applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<List<UpdateLog>>(updateLogRepository.findAll(), HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<UpdateLog>>(new ArrayList<UpdateLog>(), HttpStatus.UNAUTHORIZED);
@@ -116,7 +106,7 @@ public class AdminController {
     @RequestMapping(path = "/exec_delete_requests", method = RequestMethod.POST)
     ResponseEntity<String> execDeleteRequests(@RequestHeader Map<String,String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token)) {
+		if(applicationUserService.isAdmin(token)) {
 			String results = "";
 			
 			List<DeleteRequest> requests = deleteReqRepo.findAll();
@@ -161,8 +151,8 @@ public class AdminController {
     	// Normally probably want to go by NEPAFile ID but for the original files there are no NEPAFiles anyway
     	try {
     		String token = headers.get("authorization");
-    		if(isAdmin(token)) {
-    			ApplicationUser user = getUser(token);
+			ApplicationUser user = applicationUserService.getUserFromToken(token);
+    		if(applicationUserService.isAdmin(user)) {
     			
     			// Get DocumentText by ID
     			Optional<DocumentText> textRecord = textRepository.findById(Long.valueOf(id));
@@ -210,8 +200,7 @@ public class AdminController {
 				// logged as imported, then it would never be re-processed.
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
-    		} else if(isCurator(token)) {
-    			ApplicationUser user = getUser(token);
+    		} else if(applicationUserService.isCurator(user)) {
     			deleteReqRepo.save(
     					new DeleteRequest("document_text", Long.valueOf(id), user.getId())
 				);
@@ -234,8 +223,8 @@ public class AdminController {
     ResponseEntity<String> deleteNepaFileById(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	try {
     		String token = headers.get("authorization");
-    		if(isAdmin(token)) {
-    			ApplicationUser user = getUser(token);
+			ApplicationUser user = applicationUserService.getUserFromToken(token);
+    		if(applicationUserService.isAdmin(user)) {
     			
     			// Get NEPAFile by ID
     			Optional<NEPAFile> nepaFile = nepaFileRepository.findById(Long.valueOf(id));
@@ -274,8 +263,7 @@ public class AdminController {
 				nepaFileRepository.delete(presentFile);
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
-    		} else if(isCurator(token)) {
-    			ApplicationUser user = getUser(token);
+    		} else if(applicationUserService.isCurator(user)) {
     			deleteReqRepo.save(
     					new DeleteRequest("nepafile", Long.valueOf(id), user.getId())
 				);
@@ -302,7 +290,7 @@ public class AdminController {
     	
     	try {
     		String token = headers.get("authorization");
-    		if(!isAdmin(token)) {
+    		if(!applicationUserService.isAdmin(token)) {
     			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
     		}
     		
@@ -311,7 +299,7 @@ public class AdminController {
 
     	    	Long idToDelete = Long.valueOf(id);
 
-    			ApplicationUser user = getUser(token);
+    			ApplicationUser user = applicationUserService.getUserFromToken(token);
     			
     			// Delete documenttexts, then disk and nepafiles and possibly eisdoc.filename, then clearing folder name from eisdoc, then log
 
@@ -389,7 +377,7 @@ public class AdminController {
     ResponseEntity<String> deleteDoc(@RequestBody String id, @RequestHeader Map<String, String> headers) {
 
 		String token = headers.get("authorization");
-		if(!isAdmin(token)) {
+		if(!applicationUserService.isAdmin(token)) {
 			return new ResponseEntity<String>("Access denied", HttpStatus.UNAUTHORIZED);
 		}
     	
@@ -404,7 +392,7 @@ public class AdminController {
 
         	Long idToDelete = Long.valueOf(id);
 
-			ApplicationUser user = getUser(token);
+			ApplicationUser user = applicationUserService.getUserFromToken(token);
 			
 			// Try to get by ID
 			Optional<EISDoc> doc = docRepository.findById(idToDelete);
@@ -440,7 +428,7 @@ public class AdminController {
 			@RequestHeader Map<String, String> headers) {
 
     	String token = headers.get("authorization");
-    	if(!isAdmin(token)) {
+    	if(!applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
     	}
     	
@@ -450,7 +438,7 @@ public class AdminController {
     		}
     	}
 
-		ApplicationUser user = getUser(token);
+		ApplicationUser user = applicationUserService.getUserFromToken(token);
     	String serverResponse = "";
     	
     	for(String id : deleteList) {
@@ -500,21 +488,20 @@ public class AdminController {
     			@RequestHeader Map<String, String> headers) {
 
 		String token = headers.get("authorization");
-    	if(!isAdmin(token)) {
+    	if(!applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     	} else if (!Globals.validPassword(password)) {
     		return new ResponseEntity<Boolean>(false, HttpStatus.BAD_REQUEST);
     	} else {
-    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(userId)).get();
+    		ApplicationUser user = applicationUserService.findById(Long.valueOf(userId)).get();
     		if(user.getRole().contentEquals("ADMIN")) {
         		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     		} else {
                 user.setPassword(bCryptPasswordEncoder.encode(password));
-        		applicationUserRepository.save(user);
+                applicationUserService.save(user);
 
         		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
     		}
-
     	}
     }
     
@@ -532,48 +519,4 @@ public class AdminController {
 		fileLogRepository.save(log);
 	}
 	
-
-	/** Return ApplicationUser given trusted JWT String */
-	private ApplicationUser getUser(String token) {
-		if(token != null) {
-			// get ID
-			try {
-				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-				return user;
-			} catch (Exception e) {
-				return null;
-			}
-		} else {
-			return null;
-		}
-	}
-		
-	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-
-
-	/** Return whether trusted JWT is from Admin role */
-	private boolean isCurator(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("CURATOR")) {
-				result = true;
-			}
-		}
-		return result;
-	}
 }

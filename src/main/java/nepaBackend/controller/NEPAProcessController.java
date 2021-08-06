@@ -29,8 +29,6 @@ public class NEPAProcessController {
     private DocRepository docRepository;
 	@Autowired
 	private ProcessRepository processRepository;
-	@Autowired
-	private ApplicationUserRepository applicationUserRepository;
 
     public NEPAProcessController() {
     }
@@ -113,35 +111,5 @@ public class NEPAProcessController {
 
 	private long findMaxProcessId() {
 		return docRepository.findMaxProcessId();
-	}
-
-	/** Return ApplicationUser given trusted JWT String */
-	private ApplicationUser getUser(String token) {
-		if(token != null) {
-			// get ID
-			try {
-				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-				return user;
-			} catch (Exception e) {
-				return null;
-			}
-		} else {
-			return null;
-		}
-	}
-		
-	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
 	}
 }

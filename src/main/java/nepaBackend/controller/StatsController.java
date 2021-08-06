@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.auth0.jwt.JWT;
 
 import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.TextRepository;
@@ -34,7 +35,7 @@ public class StatsController {
 	@Autowired
 	private SearchLogRepository searchLogRepository;
 	@Autowired
-	private ApplicationUserRepository applicationUserRepository;
+	private ApplicationUserService applicationUserService;
 	
 	public StatsController() {
 	}
@@ -328,69 +329,11 @@ public class StatsController {
 	@GetMapping(path = "/find_all_searches")
 	public @ResponseBody ResponseEntity<List<Object>> findAllWithUsername(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(isAdmin(token) || isCurator(token) || isApprover(token)) {
+		if(applicationUserService.approverOrHigher(token)) {
 			return new ResponseEntity<List<Object>>(searchLogRepository.findAllWithUsername(), HttpStatus.OK);			
 		} else {
 			return new ResponseEntity<List<Object>>(HttpStatus.UNAUTHORIZED);
 		}
-	}
-	
-	
-	/** Return ApplicationUser given JWT String */
-	private ApplicationUser getUser(String token) {
-		if(token != null) {
-			// get ID
-			try {
-				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-//				if(testing) {System.out.println("ID: " + id);}
-
-				ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
-//				if(testing) {System.out.println("User ID: " + user.getId());}
-				return user;
-			} catch (Exception e) {
-				return null;
-			}
-		} else {
-			return null;
-		}
-	}
-	
-	/** Return whether trusted JWT is from Admin role */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-	/** Return whether trusted JWT is from Curator role */
-	private boolean isCurator(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("CURATOR")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-	/** Return whether trusted JWT is from Approver role */
-	private boolean isApprover(String token) {
-		boolean result = false;
-		ApplicationUser user = getUser(token);
-		// get user
-		if(user != null) {
-			if(user.getRole().contentEquals("APPROVER")) {
-				result = true;
-			}
-		}
-		return result;
 	}
 	
 }

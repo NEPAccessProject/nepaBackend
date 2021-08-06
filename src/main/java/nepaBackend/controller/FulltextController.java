@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
 
-import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
 import nepaBackend.Globals;
 import nepaBackend.SearchLogRepository;
@@ -48,7 +48,7 @@ public class FulltextController {
 	@Autowired
 	private DocRepository docRepository;
 	@Autowired
-	private ApplicationUserRepository applicationUserRepository;
+	private ApplicationUserService applicationUserService;
 	@Autowired
 	private SearchLogRepository searchLogRepository;
 	
@@ -229,7 +229,7 @@ public class FulltextController {
 	@RequestMapping(path = "/sync", method = RequestMethod.GET)
 	public boolean sync(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return false;
 		} else {
@@ -245,7 +245,7 @@ public class FulltextController {
 	public List<String> normalizeTitleSpace(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		List<String> results = new ArrayList<String>();
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return null;
 		} else {
@@ -278,7 +278,7 @@ public class FulltextController {
 		String token = headers.get("authorization");
 		Long lid = Long.parseLong(id);
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ArrayList<DocumentText>();
 		} else {
@@ -298,7 +298,7 @@ public class FulltextController {
 	public List<DocumentText> getByTitle(@RequestParam String title, @RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ArrayList<DocumentText>();
 		} else {
@@ -323,7 +323,7 @@ public class FulltextController {
 	public List<DocumentText> getByFilename(@RequestParam String filename, @RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
 		
-		if(!isAdmin(token)) 
+		if(!applicationUserService.isAdmin(token)) 
 		{
 			return new ArrayList<DocumentText>();
 		} else {
@@ -371,30 +371,6 @@ public class FulltextController {
 		}
 	}
 	
-	
-	
-	/** Decode trusted token and then ask database if user is admin */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-			/** By necessity token is verified as valid via filter by this point as long as it's going through the 
-			 * public API.  Alternatively you can store admin credentials in the token and hand that to the filter,
-			 * but then if admin access is revoked, that token still has admin access until it expires.
-			 * Therefore this is a slightly more secure flow. */
-			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id))
-					.get();
-			
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-	}
-	
 	private Long idFromToken(String token) {
 		if(token != null) {
 			/** By necessity token is verified as valid via filter by this point as long as it's
@@ -419,7 +395,7 @@ public class FulltextController {
 			// exclude specific ID
 			shouldSave = false;
 		} else {
-			Optional<ApplicationUser> maybeUser = applicationUserRepository.findById(userId);
+			Optional<ApplicationUser> maybeUser = applicationUserService.findById(userId);
 			
 			if(maybeUser.isPresent()) {
 				// TODO: Opt-in/out option?

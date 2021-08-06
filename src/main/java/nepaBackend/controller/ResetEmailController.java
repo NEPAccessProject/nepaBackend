@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
 
-import nepaBackend.ApplicationUserRepository;
+import nepaBackend.ApplicationUserService;
 import nepaBackend.EmailLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EmailLog;
@@ -49,7 +49,7 @@ public class ResetEmailController {
     private JavaMailSender sender;
 
     @Autowired
-    private ApplicationUserRepository applicationUserRepository;
+    private ApplicationUserService applicationUserService;
     @Autowired
     private EmailLogRepository emailLogRepository;
     @Autowired
@@ -72,7 +72,7 @@ public class ResetEmailController {
     ResponseEntity<String> reset(@RequestBody ResetEmail resetEmail) {
         try {
         	// Throws exception if email doesn't exist or if multiple records are found
-    		ApplicationUser resetUser = applicationUserRepository.findByEmail(resetEmail.email);
+    		ApplicationUser resetUser = applicationUserService.findByEmail(resetEmail.email);
             
     		LocalDateTime timeNow = LocalDateTime.now();
     		
@@ -92,7 +92,7 @@ public class ResetEmailController {
     		} else {
                 return new ResponseEntity<String>("Email was not sent.", HttpStatus.INTERNAL_SERVER_ERROR);
     		}
-        }catch(Exception ex) { 
+        } catch(Exception ex) { 
         	
         	try {
             	// Emails are typically created with @email.arizona.edu.  The exception could be email address not found
@@ -104,7 +104,7 @@ public class ResetEmailController {
             	emailService = emailService.substring(index);
             	if(emailService.contentEquals("@arizona.edu")) {
             		ApplicationUser resetUser = 
-            				applicationUserRepository.findByEmail(resetEmail.email.substring(0, index) + "@email.arizona.edu");
+            				applicationUserService.findByEmail(resetEmail.email.substring(0, index) + "@email.arizona.edu");
                     
             		LocalDateTime timeNow = LocalDateTime.now();
             		
@@ -165,7 +165,7 @@ public class ResetEmailController {
             
             // Save LocalDateTime in database
             resetUser.setLastReset(LocalDateTime.now());
-            applicationUserRepository.save(resetUser);
+            applicationUserService.save(resetUser);
 //            System.out.println(message.getContent().toString());
     		
     	} catch (MailAuthenticationException e) {
@@ -262,11 +262,11 @@ public class ResetEmailController {
     	        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
     	                .getId();
     	        
-    			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+    			ApplicationUser user = applicationUserService.findById(Long.valueOf(id)).get();
         		
 				// update
 				user.setPassword(bCryptPasswordEncoder.encode(resetPassword.newPassword));
-				applicationUserRepository.save(user);
+				applicationUserService.save(user);
 
         		return new ResponseEntity<Void>(HttpStatus.OK);
     	    } else {
@@ -284,7 +284,7 @@ public class ResetEmailController {
     		// need to get the user details to verify token
             String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
                     .getId();
-    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+    		ApplicationUser user = applicationUserService.findById(Long.valueOf(id)).get();
 
     	    // parse the token using assumed user's one-way encryption password hash
     	    String verified = JWT.require(Algorithm.HMAC512((SecurityConstants.SECRET + user.getPassword()).getBytes()))
@@ -341,25 +341,6 @@ public class ResetEmailController {
         sender.send(message);
     }
     
-    /** Decode trusted token and then ask database if user is admin */
-	private boolean isAdmin(String token) {
-		boolean result = false;
-		// get ID
-		if(token != null) {
-			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-
-			ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id))
-					.get();
-			
-			if(user.getRole().contentEquals("ADMIN")) {
-				result = true;
-			}
-		}
-		return result;
-
-	}
-    
     @CrossOrigin
     @GetMapping(path = "/email/logs", 
     		produces = "application/json", 
@@ -367,7 +348,7 @@ public class ResetEmailController {
     ResponseEntity<List<EmailLog>> getEmailResetLogs(@RequestHeader Map<String, String> headers) {
     	String token = headers.get("authorization");
 		
-		boolean admin = isAdmin(token);
+		boolean admin = applicationUserService.isAdmin(token);
 		
 	    if (admin) {
 	    	List<EmailLog> logs = emailLogRepository.findAll();
