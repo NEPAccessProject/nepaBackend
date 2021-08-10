@@ -938,13 +938,7 @@ public class FileController {
 			int count = 0;
 			for (UploadInputs itr : dto) {
 				
-				// Handle any leading/trailing invisible characters, double spacing
-				itr.title = Globals.normalizeSpace(itr.title);
-				// Handle any agency abbreviations
-				itr.agency = agencyAbbreviationToFull(Globals.normalizeSpace(itr.agency));
-				
-				itr.state = Globals.normalizeSpace(itr.state);
-				itr.document = Globals.normalizeSpace(itr.document);
+				itr = this.normalizeUploadInputs(itr);
 				
 			    // Choice: Need at least title, date, type for deduplication (can't verify unique item otherwise)
 			    if(isValid(itr)) {
@@ -1009,6 +1003,8 @@ public class FileController {
 							
 							if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
+					    	} else if(status.getStatusCodeValue() == 208) { // No change
+					    		results.add("Item " + count + ": No change (all fields identical): " + itr.title);
 					    	} else {
 								results.add("Item " + count + ": Updated fields (did not overwrite filename or folder if it existed already): " + itr.title);
 					    	}
@@ -1042,7 +1038,7 @@ public class FileController {
 				    	}
 					}
 			    } else {
-					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/EIS Identifier/Title");
+					results.add("Item " + count + ": Missing one or more required fields: Federal Register Date/Document/Title");
 			    }
 			    count++;
 			}
@@ -1054,7 +1050,28 @@ public class FileController {
 
 		return results;
 	}
-	
+
+	/** Handle erroneous leading/trailing invisible characters, double spacing, line returns,
+		convert nulls to "", convert agency abbreviations to full */
+	private UploadInputs normalizeUploadInputs(UploadInputs itr) {
+		// Handle any agency abbreviations
+		itr.agency = agencyAbbreviationToFull(Globals.normalizeSpace(itr.agency));
+
+		itr.cooperating_agency = Globals.normalizeSpace(itr.cooperating_agency);
+		itr.county = Globals.normalizeSpace(itr.county);
+		itr.department = Globals.normalizeSpace(itr.department);
+		itr.document = Globals.normalizeSpace(itr.document);
+		itr.link = Globals.normalizeSpace(itr.link);
+		itr.notes = Globals.normalizeSpace(itr.notes);
+		itr.state = Globals.normalizeSpace(itr.state);
+		itr.status = Globals.normalizeSpace(itr.status);
+		itr.subtype = Globals.normalizeSpace(itr.subtype);
+		itr.summary_text = Globals.normalizeSpace(itr.summary_text);
+		itr.title = Globals.normalizeSpace(itr.title);
+		
+		return itr;
+	}
+
 	/** For updating metadata states by ID, from a spreadsheet. Also updates coop. agency */	
 	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV_id_state", method = RequestMethod.POST, consumes = "multipart/form-data")
@@ -2653,15 +2670,17 @@ public class FileController {
 		}
 	}
 
-	// only updates filename or folder fields if blank
+	/** only updates filename or folder fields if blank (returns record ID and status 200), 
+	 * if all fields equal returns status 208
+	 */
 	private ResponseEntity<Long> updateDtoExceptFile(UploadInputs itr, Optional<EISDoc> existingRecord, Long userid) {
 		if(!existingRecord.isPresent()) {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
+		boolean isChanged = false;
 		EISDoc oldRecord = existingRecord.get();
 		// Save log for accountability and restore option
 		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
-		updateLogRepository.save(ul);
 
 		// "Multi" is actually counterproductive, will have to amend spec
 		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
@@ -2669,62 +2688,103 @@ public class FileController {
 		}
 		
 		if(oldRecord.getFilename() == null || oldRecord.getFilename().isBlank()) {
-			oldRecord.setFilename(itr.filename);
-		}
-		
-		if(oldRecord.getFolder() == null || oldRecord.getFolder().isBlank()) {
-			oldRecord.setFolder(itr.eis_identifier);
-		}
-
-		// at this point we've matched on title, date and document type already
-		// but the new title might have better punctuation
-		oldRecord.setTitle(Globals.normalizeSpace(itr.title));
-		
-		if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
-			// skip, leave original
-		} else {
-			oldRecord.setCommentsFilename(itr.comments_filename);
-		}
-		
-//		oldRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
-		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
-			// skip, leave original
-		} else {
-			try {
-				oldRecord.setCommentDate(parseDate(itr.epa_comment_letter_date));
-			} catch (IllegalArgumentException e) {
-				// never mind
+			if(itr.filename != null && !itr.filename.isBlank()) {
+				oldRecord.setFilename(itr.filename.strip());
+				isChanged = true;
 			}
 		}
 		
-		if(itr.state != null && !itr.state.isBlank()) {
-			oldRecord.setState(Globals.normalizeSpace(itr.state));
+		if(oldRecord.getFolder() == null || oldRecord.getFolder().isBlank()) {
+			if(itr.eis_identifier != null && !itr.eis_identifier.isBlank()) {
+				oldRecord.setFolder(itr.eis_identifier.strip());
+				isChanged = true;
+			}
 		}
-		if(itr.agency != null && !itr.agency.isBlank()) {
-			oldRecord.setAgency(Globals.normalizeSpace(itr.agency));
+
+		// at this point we've matched on title, date and document type already
+		// use whichever title is longer and therefore has more punctuation
+		if(Globals.normalizeSpace(oldRecord.getTitle()).length() < itr.title.length()) {
+			oldRecord.setTitle(itr.title);
+			isChanged = true;
 		}
-		if(itr.link != null && !itr.link.isBlank()) {
+		
+		if(itr.comments_filename == null 
+				|| itr.comments_filename.isBlank()
+				|| ( oldRecord.getCommentsFilename() != null 
+					&& itr.comments_filename.contentEquals(oldRecord.getCommentsFilename()) )
+		) {
+			// skip, leave original
+		} else {
+			oldRecord.setCommentsFilename(itr.comments_filename.strip());
+			isChanged = true;
+		}
+		
+		try {
+			if(itr.epa_comment_letter_date == null 
+					|| itr.epa_comment_letter_date.isBlank()) {
+				// skip, leave original
+			} else {
+				LocalDate commentDate = parseDate(itr.epa_comment_letter_date);
+				if(oldRecord.getCommentDate() == null 
+						|| !commentDate.isEqual(oldRecord.getCommentDate())) {
+					oldRecord.setCommentDate(commentDate);
+					isChanged = true;
+				}
+			}
+		} catch (IllegalArgumentException e) {
+			// never mind
+		}
+		
+		if(itr.state != null && itr.state.isBlank()
+				&& !itr.state.contentEquals(Globals.normalizeSpace(oldRecord.getState())) ) {
+			oldRecord.setState(itr.state);
+			isChanged = true;
+		}
+		if(itr.agency != null && !itr.agency.isBlank()
+				&& !itr.agency.contentEquals(Globals.normalizeSpace(oldRecord.getAgency())) ) {
+			oldRecord.setAgency(itr.agency);
+			isChanged = true;
+		}
+		if(itr.link != null && !itr.link.isBlank()
+				&& !itr.link.contentEquals(Globals.normalizeSpace(oldRecord.getLink())) ) {
 			oldRecord.setLink(itr.link);
+			isChanged = true;
 		}
-		if(itr.notes != null && !itr.notes.isBlank()) {
+		if(itr.notes != null && !itr.notes.isBlank()
+				&& !itr.notes.contentEquals(Globals.normalizeSpace(oldRecord.getNotes())) ) {
 			oldRecord.setNotes(itr.notes);
+			isChanged = true;
 		}
-		if(itr.process_id != null && !itr.process_id.isBlank()) {
+		if(itr.process_id != null && !itr.process_id.isBlank()
+				&& (oldRecord.getProcessId() == null 
+					|| !(Long.parseLong(itr.process_id) == oldRecord.getProcessId().longValue())) ) {
 			oldRecord.setProcessId(Long.parseLong(itr.process_id));
+			isChanged = true;
 		}
-		if(itr.county != null && !itr.county.isBlank()) {
+		if(itr.county != null && !itr.county.isBlank()
+				&& !itr.county.contentEquals(Globals.normalizeSpace(oldRecord.getCounty())) ) {
 			oldRecord.setCounty(itr.county);
+			isChanged = true;
 		}
-		if(itr.status != null && !itr.status.isBlank()) {
+		if(itr.status != null && !itr.status.isBlank()
+				&& !itr.status.contentEquals(Globals.normalizeSpace(oldRecord.getStatus())) ) {
 			oldRecord.setStatus(itr.status);
+			isChanged = true;
 		}
-		if(itr.subtype != null && !itr.subtype.isBlank()) {
+		if(itr.subtype != null && !itr.subtype.isBlank()
+				&& !itr.subtype.contentEquals(Globals.normalizeSpace(oldRecord.getSubtype())) ) {
 			oldRecord.setSubtype(itr.subtype);
+			isChanged = true;
 		}
 		
-		docRepository.save(oldRecord); // save to db, ID shouldn't change
-		
-		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
+		if(isChanged) {
+			docRepository.save(oldRecord); // save to db, ID shouldn't change
+			updateLogRepository.save(ul);
+			return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
+		} else {
+			// return something special denoting no change
+			return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.ALREADY_REPORTED);
+		}
 	}
 	/** Expects matching record and new data; updates; preserves comments/comments date, state, agency if no new values for those */
 	private ResponseEntity<Long> updateDto(UploadInputs itr, Optional<EISDoc> existingRecord, Long userid) {
@@ -2956,7 +3016,7 @@ public class FileController {
 		if(dto.federal_register_date == null || dto.title == null || dto.document == null) {
 			valid = false;
 		}
-		// Can't be empty, need title/type/date
+		// Can't be blank, need title/type/date
 		else if(dto.title.isBlank() || dto.document.isBlank() || dto.federal_register_date.isBlank()) {
 			valid = false; 
 		}
