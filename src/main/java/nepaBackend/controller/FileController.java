@@ -1181,6 +1181,8 @@ public class FileController {
 			
 			if(filename != null && filename.length() > 0 && docRepository.existsByFilename(filename)) {
 				return new ResponseEntity<Boolean>(true,HttpStatus.OK);
+			} else if(filename != null && filename.length() > 0 && docRepository.existsByCommentsFilename(filename)) {
+				return new ResponseEntity<Boolean>(true,HttpStatus.OK);
 			} else {
 				return new ResponseEntity<Boolean>(false,HttpStatus.OK);
 			}
@@ -1231,18 +1233,71 @@ public class FileController {
 			    
 			    if(folderName.length() == 0) { // If no folder name:
 			    	boolean missingZip = false;
+			    	boolean isComments = false;
 			    	
 			    	// If filename, however:
 			    	Optional<EISDoc> foundDoc = docRepository.findTopByFilename(origFilename);
 			    	if(!foundDoc.isPresent()) {
 			    		// Nothing?  Try removing .zip from filename, if it exists.
 			    		if(origFilename.length() > 4 
-			    				&& origFilename.substring(origFilename.length() - 4).equalsIgnoreCase(".zip")) {
+			    				&& origFilename
+			    					.substring(origFilename.length() - 4)
+			    					.equalsIgnoreCase(".zip")
+			    			) 
+			    		{
 				    		foundDoc = docRepository.findTopByFilename(origFilename.substring(0, origFilename.length()-4));
-				    		missingZip = true;
+				    		if(foundDoc.isPresent()) {
+				    			missingZip = true;
+				    		} else {
+				    			// No?  Is it a comments archive?
+				    			foundDoc = docRepository.findTopByCommentsFilename(origFilename);
+				    			if(foundDoc.isPresent()) {
+					    			isComments = true;
+				    			}
+				    		}
 			    		}
 			    	}
-			    	if(foundDoc.isPresent()) {
+			    	
+			    	// Just upload comments
+			    	// TODO: Check if comment archive exists already, for convenience of bulk uploads.
+			    	// However, note that if comments become their own distinct record type, all of this
+			    	// goes away and comment filenames will simply be filenames for those records.
+			    	// (Likely scenario)
+			    	if(isComments) {
+			    		// We're setting the directory to / for the archive upload.  Plan to extract later
+			    		String savePath = "/";
+			    		
+					    // Upload file
+				    	HttpEntity entity = MultipartEntityBuilder.create()
+			    					.addTextBody("filepath",
+			    							savePath) // Feed Express path to use
+				    				.addBinaryBody("file", //fieldname
+				    						files[i].getInputStream(), 
+				    						ContentType.create("application/octet-stream"), 
+				    						origFilename)
+				    				.build();
+					    HttpPost request = new HttpPost(uploadURL);
+					    if(testing) { request = new HttpPost(uploadTestURL); }
+					    request.setEntity(entity);
+			
+					    HttpClient client = HttpClientBuilder.create().build();
+					    HttpResponse response = client.execute(request);
+					    
+					    if(testing) {
+						    System.out.println(response.toString());
+					    }
+					    
+					    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
+			
+					    // If file uploaded, we're done
+					    if(uploaded) {
+					    	results[i] = "OK: " + files[i].getOriginalFilename();
+					    } else {
+					    	// ???
+					    	results[i] = "Couldn't upload: " + origFilename;
+					    }
+			    	}
+			    	else if(foundDoc.isPresent()) {
 			    		// If found we can link this to something, therefore proceed with upload
 
 			    		// We're setting the directory to / for the archive upload.  Plan to extract later

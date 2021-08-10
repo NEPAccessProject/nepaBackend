@@ -64,6 +64,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<EISDoc> findAllByTitle(String title);
 
 	Optional<EISDoc> findTopByFilename(String filename);
+	Optional<EISDoc> findTopByCommentsFilename(String commentsFilename);
 
 	Optional<EISDoc> findTopByTitleAndDocumentTypeIn(String title, String documentType);
 
@@ -268,6 +269,8 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	boolean existsByFolderAndDocumentTypeIn(String folder, String documentType);
 
 	boolean existsByFilename(String filename);
+	
+	boolean existsByCommentsFilename(String commentsFilename);
 
 	Optional<EISDoc> findByProcessId(long processId);
 	
@@ -485,5 +488,6 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			@Param("title") String title, 
 			@Param("type") String type, 
 			@Param("date") LocalDate date);
+
 
 }
