@@ -1,5 +1,4 @@
 package nepaBackend.controller;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -71,6 +70,56 @@ public class AdminController {
     public AdminController() {
     }
 
+    @PostMapping("/fix_garbage")
+    private @ResponseBody ResponseEntity<String> fixGarbage(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		
+    	if(applicationUserService.isAdmin(token)) {
+    		int count = 1;
+    		// get garbage
+	    	List<NEPAFile> garbageFiles = nepaFileRepository.getGarbage();
+	    	
+	    	String results = "";
+	    	
+	    	for(NEPAFile garb : garbageFiles) {
+	    		results += "Item " + count + " : ";
+	    		List<DocumentText> garbageTexts = textRepository.findAllByEisdocAndFilenameIn(
+	    				garb.getEisdoc(),
+	    				garb.getFilename());
+	    		
+	    		if(garbageTexts.size() == 2) {
+	    			// we have a duplicate text for this, so delete one, and delete the nepafile.
+
+	    			results += "Deleting " + garb.getRelativePath() + garb.getFilename();
+	    			
+	    			DocumentText trash = garbageTexts.get(1);
+	    			textRepository.delete(trash);
+	    			nepaFileRepository.delete(garb);
+	    			
+	    			results += "; no error\r\n";
+	    		} else if(garbageTexts.size() == 1) {
+	    			// Okay, then just delete the path
+	    			results += "Deleting " + garb.getRelativePath() + garb.getFilename()
+	    					+ "; no extra text to delete";
+	    			
+	    			nepaFileRepository.delete(garb);
+	    			
+	    			results += "; no error\r\n";
+	    		} else {
+	    			// 0 or 3+, probably impossible so let's look at it manually
+	    			results += "Skipped::Count : " + garbageTexts.size() + " name : " 
+	    					+ garb.getFilename() + " id : " + garb.getEisdoc().getId()
+	    					+ "\r\n";
+	    		}
+	    		
+	    		count++;
+	    	}
+	    	
+			return new ResponseEntity<String>(results, HttpStatus.OK);
+    	} else {
+			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+		}
+    }
 	
     @GetMapping("/findAllEmailLogs")
     private @ResponseBody ResponseEntity<List<EmailLog>> findAllEmailLogs(@RequestHeader Map<String, String> headers) {
@@ -291,11 +340,8 @@ public class AdminController {
 
     			ApplicationUser user = applicationUserService.getUserFromToken(token);
     			
-    			// Delete documenttexts, then disk and nepafiles and possibly eisdoc.filename, then clearing folder name from eisdoc, then log
+    			// Delete documenttexts and nepafiles and possibly eisdoc.filename, then clear folder name from eisdoc, then log
 
-    			// TODO: No link between nepafile-listed archives and documenttext entries for its existing files.
-    			// Can add a foreign key to nepafile from documenttext.  For now, work on deleting all Folder entries for an EISDoc.
-    			
     			Optional<EISDoc> doc = docRepository.findById(idToDelete);
     			
     			if(doc.isEmpty()) {

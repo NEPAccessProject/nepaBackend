@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.NEPAFile;
 
@@ -28,6 +30,13 @@ public interface NEPAFileRepository extends JpaRepository<NEPAFile, Long> {
 
 	boolean existsByEisdocAndFilenameIn(EISDoc eisdoc, String extractedFilename);
 
+
 //	boolean existsByEisdoc(EISDoc eis);
+
+	
+	/** likely one-time-use deduplication helper */
+	@Query(value = "select * from nepafile where LOCATE(\"/Document_collection_MASTER/\",relative_path);",
+			nativeQuery = true)
+	List<NEPAFile> getGarbage();
 	
 }

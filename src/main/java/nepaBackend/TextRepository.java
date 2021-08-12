@@ -53,4 +53,9 @@ public interface TextRepository extends JpaRepository<DocumentText, Long>, Custo
 	int findPlaintextLengthById(@Param("id") long id);
 
 	int getTotalHits(String field);
+
+	
+	
+	// probably one-time-use
+	List<DocumentText> findAllByEisdocAndFilenameIn(EISDoc eisdoc, String filename);
 }
