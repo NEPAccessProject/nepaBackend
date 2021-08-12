@@ -499,7 +499,7 @@ public class AdminController {
      * deletes the same way we can restore updates */
 	private void logDelete(EISDoc foundDoc, String message, ApplicationUser user, String filename) {
 		UpdateLog updateLog = updateLogService.newUpdateLogFromEIS(foundDoc, user.getId());
-		updateLog.setNotes("DELETED");
+		updateLog.setNotes("~DELETED~" + updateLog.getNotes());
 		
 		updateLogService.save(updateLog);
 	}
