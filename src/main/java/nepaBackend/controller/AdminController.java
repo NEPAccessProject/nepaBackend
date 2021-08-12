@@ -107,8 +107,8 @@ public class AdminController {
 	    			results += "; no error\r\n";
 	    		} else {
 	    			// 0 or 3+, probably impossible so let's look at it manually
-	    			results += "Skipped::Count : " + garbageTexts.size() + " name : " 
-	    					+ garb.getFilename() + " id : " + garb.getEisdoc().getId()
+	    			results += "Skipped::Count : " + garbageTexts.size() + " path : " 
+	    					+ garb.getRelativePath() + garb.getFilename() + " id : " + garb.getEisdoc().getId()
 	    					+ "\r\n";
 	    		}
 	    		
