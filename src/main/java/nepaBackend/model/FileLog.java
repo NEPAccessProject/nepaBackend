@@ -12,19 +12,13 @@ import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
 @Entity
-@Table(name="file_log") // Log of files extracted, converted, imported, indexed or not for housekeeping
+@Table(name="file_log") // Log of files uploaded
 public class FileLog {
 	
 	@Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
     private long id;
-
-    @Column(name = "document_id", nullable = false)
-    private long documentId;
-
-	@Column(name = "filename", length=255) // Filename according to database if we can get it
-    private String filename;
 
 	@Column(name = "extracted_filename") // Optional filename if extracted from archive
 	private String extractedFilename;
@@ -33,9 +27,6 @@ public class FileLog {
     @ManyToOne
     @JoinColumn(name="user_id")
 	private ApplicationUser user;
-    
-    @Column(name = "imported", columnDefinition="TINYINT(1) default 0") // Text imported to database (converted)
-    private boolean imported;
 
 	@Column(name = "error_type", columnDefinition = "TEXT") // Optional field to describe the nature of an error if one occurred
     private String errorType;
@@ -48,31 +39,13 @@ public class FileLog {
 		this.logTime = LocalDateTime.now();
 	}
 
-	public FileLog(long id, String filename, ApplicationUser user, boolean imported, String errorType, LocalDateTime logTime) {
+	public FileLog(long id, String extractedFilename, ApplicationUser user, String errorType) {
 		super();
 		this.id = id;
-		this.filename = filename;
-		this.imported = imported;
+		this.extractedFilename = extractedFilename;
 		this.user = user;
 		this.errorType = errorType;
 		this.logTime = LocalDateTime.now();
-	}
-
-
-    public long getDocumentId() {
-		return documentId;
-	}
-
-	public void setDocumentId(long documentId) {
-		this.documentId = documentId;
-	}
-	
-	public String getFilename() {
-		return filename;
-	}
-
-	public void setFilename(String filename) {
-		this.filename = filename;
 	}
 
 	public ApplicationUser getUser() {
@@ -91,14 +64,6 @@ public class FileLog {
 		this.extractedFilename = extractedFilename;
 	}
 
-	
-    public boolean isImported() {
-		return imported;
-	}
-
-	public void setImported(boolean imported) {
-		this.imported = imported;
-	}
 
 	public String getErrorType() {
 		return errorType;

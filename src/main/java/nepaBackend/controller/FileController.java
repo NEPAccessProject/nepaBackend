@@ -13,7 +13,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -98,8 +97,6 @@ public class FileController {
 	@Autowired
 	private TextRepository textRepository;
 	@Autowired
-	private FileLogRepository fileLogRepository;
-	@Autowired
 	private UpdateLogService updateLogService;
 	@Autowired
 	private UpdateLogRepository updateLogRepository;
@@ -109,6 +106,8 @@ public class FileController {
 	private NEPAFileRepository nepaFileRepository;
 	@Autowired
 	private ProcessRepository processRepository;
+	@Autowired
+    private FileLogRepository fileLogRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of(
 			"yyyy-MM-dd", "MM-dd-yyyy", "yyyy/MM/dd", "MM/dd/yyyy", 
@@ -176,7 +175,7 @@ public class FileController {
 			
 			return new ResponseEntity<String>("OK", HttpStatus.OK);
 		} catch (Exception e) {
-			return new ResponseEntity<String>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<String>(e.getLocalizedMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	
@@ -209,7 +208,7 @@ public class FileController {
 			
 			return new ResponseEntity<String>("OK", HttpStatus.OK);
 		} catch (Exception e) {
-			return new ResponseEntity<String>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<String>(e.getLocalizedMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -403,25 +402,6 @@ public class FileController {
 			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		} 
 	}
-	
-
-	/** Return all file logs */
-	@CrossOrigin
-	@RequestMapping(path = "/logs_all", method = RequestMethod.GET)
-	public ResponseEntity<List<FileLog>> getAllLogs(@RequestHeader Map<String, String> headers) {
-		
-		String token = headers.get("authorization");
-		if(!applicationUserService.isAdmin(token)) 
-		{
-			return new ResponseEntity<List<FileLog>>(HttpStatus.UNAUTHORIZED);
-		} 
-		else 
-		{
-			List<FileLog> fileLogList = fileLogRepository.findAll();
-			return new ResponseEntity<List<FileLog>>(fileLogList, HttpStatus.OK);
-		}
-		
-	}
 
 	/** Return all file logs for an eisdoc */
 	@CrossOrigin
@@ -553,7 +533,6 @@ public class FileController {
 	    results[0] = false;
 	    results[1] = false;
 	    results[2] = false;
-    	FileLog uploadLog = new FileLog();
 	    
 	    try {
 	    	
@@ -579,10 +558,6 @@ public class FileController {
 				}
 				return new ResponseEntity<boolean[]>(results, HttpStatus.BAD_REQUEST);
 			}
-			
-	    	// Start log
-		    uploadLog.setUser(applicationUserService.getUserFromToken(token));
-		    uploadLog.setLogTime(LocalDateTime.now());
 		    
 		    if(dto.link == null) {
 		    	dto.link = "";
@@ -598,9 +573,6 @@ public class FileController {
 	    	// saved?
 	    	results[0] = (savedDoc != null);
 	    	if(results[0]) {
-	    		uploadLog.setErrorType("Saved");
-
-			    uploadLog.setDocumentId(savedDoc.getId());
 			    
 			    HttpEntity entity = MultipartEntityBuilder.create()
 						.addTextBody("filepath",
@@ -624,14 +596,9 @@ public class FileController {
 			    if(results[1]) {
 			    	// Save NEPAFile
 			    	NEPAFile savedNepaFile = handleNEPAFileSave(origFilename, savedDoc, dto.document);
-		    		uploadLog.setErrorType("Uploaded");
-		    		uploadLog.setFilename(origFilename);
-				    
+
 			    	// Run Tika on file, record if 200 or not
 				    results[2] = (this.convertNEPAFile(savedNepaFile).getStatusCodeValue() == 200);
-				    
-			    	// converted to fulltext?  Or at least no Tika errors converting
-				    uploadLog.setImported(results[2]);
 			    }
 		    	
 		    } else {
@@ -639,11 +606,9 @@ public class FileController {
 		    }
 			
 		} catch (Exception e) {
-			uploadLog.setErrorType(e.getStackTrace().toString());
 			e.printStackTrace();
 		} finally {
 		    file.getInputStream().close();
-	    	fileLogRepository.save(uploadLog);
 		}
 
 		return new ResponseEntity<boolean[]>(results, returnStatus);
@@ -741,8 +706,6 @@ public class FileController {
 		/** Finally, upload files, save to files table and log */
 		
 		for(int i = 0; i < files.length; i++) {
-			
-	    	FileLog uploadLog = new FileLog();
 	    	
 		    try {
 
@@ -781,35 +744,19 @@ public class FileController {
 			    }
 			    
 			    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
-			    boolean converted = false;
 
 			    // If file uploaded, proceed to saving to table and logging
 			    if(uploaded) {
 			    	// Save NEPAFile
 			    	NEPAFile savedNepaFile = handleNEPAFileSave(origFilename, savedDoc, dto.document);
 			    	
-			    	// Save FileLog
-				    uploadLog.setFilename(origFilename);
-				    uploadLog.setUser(applicationUserService.getUserFromToken(token));
-				    uploadLog.setLogTime(LocalDateTime.now());
-				    uploadLog.setErrorType("Uploaded");
-				    uploadLog.setDocumentId(savedDoc.getId());
-				    
-			    	// Run Tika on file, record if 200 or not
-				    converted = (this.convertNEPAFile(savedNepaFile).getStatusCodeValue() == 200);
-			    	
-			    	if(converted) {
-					    uploadLog.setImported(true);
-			    	}
+				    this.convertNEPAFile(savedNepaFile);
 			    }
 
 			} catch (Exception e) {
 				e.printStackTrace();
 			} finally {
 			    files[i].getInputStream().close();
-			    if(uploadLog.getUser() != null) { 
-			    	fileLogRepository.save(uploadLog);
-			    }
 			}
 		}
 		
@@ -950,10 +897,10 @@ public class FileController {
 						itr.federal_register_date = parsedDate.toString();
 					} catch (IllegalArgumentException e) {
 						System.out.println("Threw IllegalArgumentException");
-						results.add("Item " + count + ": " + e.getMessage());
+						results.add("Item " + count + ": " + e.getLocalizedMessage());
 						error = true;
 					} catch (Exception e) {
-						results.add("Item " + count + ": Error " + e.getMessage());
+						results.add("Item " + count + ": Error " + e.getLocalizedMessage());
 						error = true;
 					}
 
@@ -1015,24 +962,11 @@ public class FileController {
 							if(shouldImport) {
 								status = saveDto(itr);
 							}
-					    	// TODO: What are the most helpful results to return?  Just the failures?  Duplicates also?
 					    	if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
 					    		results.add("Item " + count + ": Created: " + itr.title);
-
-					    		if(shouldImport) {
-						    		// Log successful record import (need accountability for new metadata)
-									FileLog recordLog = new FileLog();
-						    		recordLog.setDocumentId(status.getBody());
-						    		recordLog.setFilename(itr.filename);
-						    		recordLog.setImported(false);
-						    		recordLog.setLogTime(LocalDateTime.now());
-						    		recordLog.setUser(applicationUserService.getUserFromToken(token));
-						    		fileLogRepository.save(recordLog);
-					    		}
 					    	}
-//							}
 				    	} else {
 							results.add("Item " + count + ": Duplicate (no action): " + itr.title);
 				    	}
@@ -1221,15 +1155,17 @@ public class FileController {
 		
 		String[] results = new String[files.length];
 		
-		/** If valid: Upload files, save to files table, add to existing records if possible, and log */
+		String[] filenames = new String[files.length];
+		
+		/** If valid: Upload files, save to files table, add to existing records if possible */
 		
 		for(int i = 0; i < files.length; i++) {
-			
-	    	FileLog uploadLog = new FileLog();
 
 		    try {
 			    String origFilename = files[i].getOriginalFilename();
 			    String folderName = getUniqueFolderNameOrEmpty(origFilename);
+			    
+			    filenames[i] = origFilename;
 			    
 			    if(folderName.length() == 0) { // If no folder name:
 			    	boolean missingZip = false;
@@ -1352,26 +1288,6 @@ public class FileController {
 					    	boolean skipIfHasFolder = false;
 					    	results[i] += " *** Extract/convert result: " + extractOneZip(savedDoc, skipIfHasFolder, convert);
 					    	
-					    	// TODO: Logging uploads
-					    	
-//					    	if(savedNEPAFile == null) {
-//						    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
-//					    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
-//					    	} else {
-//					    		uploadLog.setFilename(savePath + origFilename); // full path
-//							    uploadLog.setUser(applicationUserService.getUserFromToken(token));
-//							    uploadLog.setLogTime(LocalDateTime.now());
-//							    uploadLog.setErrorType("Uploaded");
-//							    // Note: Should be impossible not to have a linked document if the logic got us here
-//							    uploadLog.setDocumentId(foundDoc.get().getId());
-//						    
-//						    	// Run Tika on file, record if 200 or not
-//							    boolean converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
-//							    
-//						    	if(converted) {
-//								    uploadLog.setImported(true);
-//						    	}
-//					    	}
 					    } else {
 					    	// File already exists in legacy style
 					    	results[i] = "Couldn't upload: " + origFilename;
@@ -1407,7 +1323,6 @@ public class FileController {
 				    }
 				    
 				    boolean uploaded = (response.getStatusLine().getStatusCode() == 200);
-				    boolean converted = false;
 				    client.close();
 		
 				    // If file uploaded, see if we can link it, then proceed to saving to table and logging
@@ -1429,31 +1344,15 @@ public class FileController {
 				    	// if we can't actually find a match for this foldername and document type
 				    	NEPAFile savedNEPAFile = handleNEPAFileSave(origFilename, existingDocs);
 				    	
-				    	// Save FileLog
-				    	
 				    	if(savedNEPAFile == null) {
 					    	results[i] = "Duplicate (File exists, nothing done): " + origFilename;
 				    		// Duplicate, nothing else to do.  Could log that nothing happened if we want to
 				    	} else {
-				    		uploadLog.setFilename(getPathOnly(origFilename) + getFilenameOnly(origFilename)); // full path incl. filename with agency base folder subbed in if needed
-						    uploadLog.setUser(applicationUserService.getUserFromToken(token));
-						    uploadLog.setLogTime(LocalDateTime.now());
-						    uploadLog.setErrorType("Uploaded");
 						    // Note: Should be impossible not to have a linked document if the logic got us here
 						    if(existingDocs.size() > 0) { // If we have a linked document:
-						    	// Log if size() > 1 (means we sort of have representation of a process)
-						    	// hopefully we matched to the correct record via type, but if not we'll know to check maybe
-						    	if(existingDocs.size() > 1) {
-								    uploadLog.setErrorType("Matched 2 or more documents");
-						    	}
-							    uploadLog.setDocumentId(savedNEPAFile.getEisdoc().getId());
-						    
-						    	// Run Tika on folder, record if 200 or not
-							    converted = (this.convertNEPAFile(savedNEPAFile).getStatusCodeValue() == 200);
+						    	// Run Tika on folder
+							    this.convertNEPAFile(savedNEPAFile);
 							    
-						    	if(converted) {
-								    uploadLog.setImported(true);
-						    	}
 						    }
 				    	}
 				    } else {
@@ -1470,13 +1369,22 @@ public class FileController {
 				results[i] = "Can't link (no match for folder with document type): " + files[i].getOriginalFilename();
 			} catch (Exception e) {
 				e.printStackTrace();
-		    	logger.error("Exception:: " + e.getMessage() + ": " + files[i].getOriginalFilename());
-				results[i] = "Exception:: " + e.getMessage() + ": " + files[i].getOriginalFilename();
+		    	logger.error("Exception:: " + e.getLocalizedMessage() + ": " + files[i].getOriginalFilename());
+				results[i] = "Exception:: " + e.getLocalizedMessage() + ": " + files[i].getOriginalFilename();
 			} finally {
-			    files[i].getInputStream().close();
-			    if(uploadLog.getUser() != null) { 
-			    	fileLogRepository.save(uploadLog);
+			    files[i].getInputStream().close();	
+			    
+			    // Save FileLog (just for accountability for where files are coming from)
+			    try {
+				    FileLog uploadLog = new FileLog();	
+				    uploadLog.setExtractedFilename(String.join(";", filenames));
+				    uploadLog.setUser(applicationUserService.getUserFromToken(token));
+				    uploadLog.setErrorType("Uploaded");
+					fileLogRepository.save(uploadLog);
+			    } catch(Exception e) {
+			    	logger.error("Exception :: Couldn't log upload: " + e.getLocalizedMessage());
 			    }
+			    
 			}
 		}
 		
@@ -1488,38 +1396,6 @@ public class FileController {
 		
 		return new ResponseEntity<String[]>(results, HttpStatus.OK);
 	}
-
-	
-
-
-//	/** Used for filename-only match. Returns null if duplicate */
-//	private NEPAFile handleNEPAFileSave(String origFilename, Optional<EISDoc> foundDoc) {
-//		EISDoc existingDoc = foundDoc.get();
-//		if(existingDoc == null) {
-//			// probably impossible
-//			return null;
-//		}
-//		
-//		boolean duplicate = nepaFileRepository.existsByFilenameAndEisdocIn(origFilename, existingDoc);
-//		
-//		if(duplicate) {
-//			return null;
-//		} else {
-//			NEPAFile fileToSave = new NEPAFile();
-//	    	NEPAFile savedFile = null;
-//	    	
-//	    	fileToSave.setFilename(origFilename);
-//	    	fileToSave.setFolder(origFilename);
-//	        fileToSave.setRelativePath("/" + origFilename + "/"); 
-//
-//    		fileToSave.setEisdoc(foundDoc.get());
-//	    	
-//	    	fileToSave.setDocumentType(existingDoc.getDocumentType());
-//	    	
-//	    	savedFile = nepaFileRepository.save(fileToSave);
-//			return savedFile;
-//		}
-//	}
 
 	// Must have a link available, presumably added by a CSV import. 
 	// Therefore EISDoc needs a Folder, and the connection has to be enforced after we have both.
@@ -1738,128 +1614,6 @@ public class FileController {
 		return idx >= 0 ? pathWithFilename.substring(idx + 1) : pathWithFilename;
 	}
 
-	// Never used locally and probably useless 
-	// (legacy code for converting a pdf based on an eis with a filename, before folder column)
-//	private ResponseEntity<Void> convertPDF(EISDoc eis) {// Check to make sure this record exists.
-//		if(eis == null) {
-//			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
-//		}
-//		
-//		FileLog fileLog = new FileLog();
-//		try {
-//			fileLog.setDocumentId(eis.getId());
-//		} catch(Exception e) {
-//			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
-//		}
-//		
-//		
-//		if(eis.getId() < 1) {
-//			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
-//		}
-//		
-//		// Deduplication: Ignore when document ID already exists in EISDoc table
-//		if(textRepository.existsByEisdoc(eis)) 
-//		{
-//			return new ResponseEntity<Void>(HttpStatus.FOUND);
-//		} 
-//		
-//		// Note: There can be multiple files per archive, resulting in multiple documenttext records for the same ID
-//		// but presumably different filenames with hopefully different conents
-//		final int BUFFER = 2048;
-//		
-//		try {
-//			Tika tikaParser = new Tika();
-//			tikaParser.setMaxStringLength(-1); // disable limit
-//		
-//			// Make sure there is a file (for current data, no filename means nothing to convert for this record)
-//			if(eis.getFilename() == null || eis.getFilename().length() == 0) {
-//				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
-//			}
-//			String filename = eis.getFilename();
-//			
-//			String relevantURL = dbURL;
-//			if(testing) {
-//				relevantURL = testURL;
-//			}
-//			URL fileURL = new URL(relevantURL + filename);
-//			
-//			// 1: Download the file
-//			InputStream in = new BufferedInputStream(fileURL.openStream());
-//			
-//			int count;
-//			byte[] data = new byte[BUFFER];
-//			
-//			
-//			if(textRepository.existsByEisdoc(eis)) 
-//			{
-//				in.close();
-//				return new ResponseEntity<Void>(HttpStatus.ALREADY_REPORTED);
-//			} 
-//			else 
-//			{
-//				if(testing) {
-//					System.out.println("Converting PDF");
-//				}
-//				DocumentText docText = new DocumentText();
-//				docText.setEisdoc(eis);
-//				docText.setFilename(filename);
-//				
-//				// 2: Extract data and stream to Tika
-//				try {
-//					ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//					while (( count = in.read(data)) != -1) {
-//						baos.write(data, 0, count);
-//					}
-//					
-//					// 3: Convert to text
-//					String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-//					docText.setPlaintext(textResult);
-//					
-//					// 4: Add converted text to database for document(EISDoc) ID, filename
-//					this.save(docText);
-//				} catch(Exception e) {
-//					// Log error
-//					try {
-//						if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
-//							fileLog.setImported(false);
-//						} else {
-//							fileLog.setImported(true);
-//						}
-//						
-//						fileLog.setErrorType(e.getLocalizedMessage());
-//						fileLog.setLogTime(LocalDateTime.now());
-//						fileLogRepository.save(fileLog);
-//						e.printStackTrace();
-//					} catch (Exception e2) {
-//						if(testing) {
-//							System.out.println("Error logging error...");
-//							e2.printStackTrace();
-//						}
-//					}
-//				} 
-//			}
-//
-//			// 5: Cleanup
-//			in.close();
-//
-//			return new ResponseEntity<Void>(HttpStatus.OK);
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//			try {
-//				fileLog.setImported(false);
-//				fileLog.setErrorType(e.getLocalizedMessage());
-//				fileLog.setLogTime(LocalDateTime.now());
-//				fileLogRepository.save(fileLog);
-//			} catch (Exception e2) {
-//				System.out.println("Error logging error...");
-//				e2.printStackTrace();
-//				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-//			}
-//			// could be IO exception getting the file if it doesn't exist
-//			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-//		}
-//	}
-
 	/** Null: Return 400; no filename: Return 204; no eis/folder: Return 404 */
 	private ResponseEntity<Void> convertNEPAFile(NEPAFile savedNEPAFile) {
 
@@ -1913,20 +1667,6 @@ public class FileController {
 			
 			EISDoc foundDoc = eis.get();
 			
-			
-			// Duplicate?  Theoretically can be identical filenames for a linked folder, or we'd check document_text
-			// check file_log to see if we've Imported this file before (if full path and imported)
-			// tinyInt(1) is effectively a boolean
-			
-			// Option: Move file log down to this scope, and don't save the log if we skipped due to duplicate?
-			// Or, if HttpStatus.FOUND, parent function can choose to skip logging this or not
-			if(fileLogRepository.existsByFilenameAndImported((savedNEPAFile.getRelativePath() + filename), true)) 
-			{
-				// 302 (bulk import file log will treat this as imported=0 but still log it)
-				return new ResponseEntity<Void>(HttpStatus.FOUND);
-			} 
-			
-			
 			// PDF or archive?
 			boolean fileIsArchive = true;
 			if(filename.length() > 4 && filename.substring(filename.length()-4).equalsIgnoreCase(".pdf")) 
@@ -1962,33 +1702,42 @@ public class FileController {
 		tikaParser.setMaxStringLength(-1); // disable limit
 
 		// 1: Download the file
-		InputStream in = new BufferedInputStream(fileURL.openStream());
-		
-		DocumentText docText = new DocumentText();
-		docText.setEisdoc(foundDoc);
-		docText.setFilename(filename);
-
-		int count;
-		byte[] data = new byte[BUFFER];
-		
-		// 2: Extract data and stream to Tika
 		try {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			while (( count = in.read(data)) != -1) {
-				baos.write(data, 0, count);
+			
+			InputStream in = new BufferedInputStream(fileURL.openStream());
+			
+			DocumentText docText = new DocumentText();
+			docText.setEisdoc(foundDoc);
+			docText.setFilename(filename);
+	
+			int count;
+			byte[] data = new byte[BUFFER];
+			
+			// 2: Extract data and stream to Tika
+			try {
+				ByteArrayOutputStream baos = new ByteArrayOutputStream();
+				while (( count = in.read(data)) != -1) {
+					baos.write(data, 0, count);
+				}
+				
+				// 3: Convert to text
+				String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+				docText.setPlaintext(textResult);
+				
+				// 4: Add converted text to database for document(EISDoc) ID, filename
+				this.save(docText);
+			} catch(Exception e){
+				e.printStackTrace();
 			}
 			
-			// 3: Convert to text
-			String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-			docText.setPlaintext(textResult);
+			in.close();
 			
-			// 4: Add converted text to database for document(EISDoc) ID, filename
-			this.save(docText);
-		} catch(Exception e){
-			e.printStackTrace();
+		} catch(java.net.ConnectException ce) {
+			logger.error("Exception :: Failed to upload and index because connection failed (directory hosting files likely offline); filename: " + filename);
+		} catch(Exception e) {
+			logger.error("Exception in pdfConvertImportAndIndex :: " + e.getLocalizedMessage());
 		}
 		
-		in.close();
 
 		return HttpStatus.OK;
 	}
@@ -2000,63 +1749,76 @@ public class FileController {
 		Tika tikaParser = new Tika();
 		tikaParser.setMaxStringLength(-1); // disable limit
 
-		InputStream in = new BufferedInputStream(fileURL.openStream());
-		ZipInputStream zis = new ZipInputStream(in);
-		ZipEntry ze;
-		
-		while((ze = zis.getNextEntry()) != null) {
+		try {
+			InputStream in = new BufferedInputStream(fileURL.openStream());
+			ZipInputStream zis = new ZipInputStream(in);
+			ZipEntry ze;
 			
-			int count;
-			byte[] data = new byte[BUFFER];
-			
-			String extractedFilename = ze.getName();
-			
-			// Handle directory - can ignore them if we're just converting PDFs
-			if(!ze.isDirectory()) {
-//				if(testing) {
-//					System.out.println(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename));
-//				}
+			while((ze = zis.getNextEntry()) != null) {
 				
-				// Skip if we have this text already (duplicate filenames associated with one EISDoc record are skipped)
-				if(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename)) {
-					zis.closeEntry();
-				} else {
+				int count;
+				byte[] data = new byte[BUFFER];
+				
+				String extractedFilename = ze.getName();
+				
+				// nepafiles table would know if we have this filename for this record already, 
+				// could check with size too, if we tracked that per file.
+	//			long uncompressedSize = ze.getSize();
+				
+				// Handle directory - can ignore them if we're just converting PDFs
+				if(!ze.isDirectory()) {
+	//				if(testing) {
+	//					System.out.println(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename));
+	//				}
 					
-					if(testing) {
-						System.out.println("Extracting " + ze);
-					}
-					
-					DocumentText docText = new DocumentText();
-					docText.setEisdoc(nepaDoc);
-					docText.setFilename(extractedFilename);
-					
-					// 2: Extract data and stream to Tika
-					try {
-						ByteArrayOutputStream baos = new ByteArrayOutputStream();
-						while (( count = zis.read(data)) != -1) {
-							baos.write(data, 0, count);
+					// Skip if we have this text already (duplicate filenames associated with one EISDoc record are skipped)
+					if(textRepository.existsByEisdocAndFilename(nepaDoc, extractedFilename)) {
+						zis.closeEntry();
+					} else {
+						
+						if(testing) {
+							System.out.println("Extracting " + ze);
 						}
 						
-						// 3: Convert to text
-						String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
-						docText.setPlaintext(textResult);
+						DocumentText docText = new DocumentText();
+						docText.setEisdoc(nepaDoc);
+						docText.setFilename(extractedFilename);
 						
-						// 4: Add converted text to database for document(EISDoc) ID, filename
-						this.save(docText);
-					} catch(Exception e){
-						// TODO: Report/log error specific to file within archive?
-						e.printStackTrace();
-					} finally { // while loop handles getNextEntry()
-						zis.closeEntry();
+						// 2: Extract data and stream to Tika
+						try {
+							ByteArrayOutputStream baos = new ByteArrayOutputStream();
+							while (( count = zis.read(data)) != -1) {
+								baos.write(data, 0, count);
+							}
+							
+							// 3: Convert to text
+							String textResult = tikaParser.parseToString(new ByteArrayInputStream(baos.toByteArray()));
+							docText.setPlaintext(textResult);
+							
+							// 4: Add converted text to database for document(EISDoc) ID, filename
+							this.save(docText);
+						} catch(Exception e){
+							// TODO: Report/log error specific to file within archive?
+							e.printStackTrace();
+						} finally { // while loop handles getNextEntry()
+							zis.closeEntry();
+						}
 					}
 				}
+			
 			}
-		
+			
+			// 5: Cleanup
+			in.close();
+			zis.close();
+			
+		} catch(java.net.ConnectException ce) {
+			logger.error("Exception :: Failed to upload and index because connection failed (directory hosting files likely offline); URL: " + fileURL);
+		} catch(Exception e) {
+			logger.error("Exception in archiveConvertImportAndIndex :: " + e.getLocalizedMessage());
 		}
+		
 
-		// 5: Cleanup
-		in.close();
-		zis.close();
 
 		return HttpStatus.OK;
 	}
@@ -2069,15 +1831,7 @@ public class FileController {
 		if(eis == null) {
 			return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 		}
-		
-		FileLog fileLog = new FileLog();
-		
-		try {
-			fileLog.setDocumentId(eis.getId());
-		} catch(Exception e) {
-			return new ResponseEntity<Void>(HttpStatus.I_AM_A_TEAPOT);
-		}
-		if(eis.getId() < 1) { // we don't have a zero ID record currently
+		if(eis.getId() < 0) {
 			return new ResponseEntity<Void>(HttpStatus.UNPROCESSABLE_ENTITY);
 		}
 		
@@ -2102,8 +1856,6 @@ public class FileController {
 				relevantURL = testURL;
 			}
 			URL fileURL = new URL(relevantURL + eis.getFilename());
-		
-			fileLog.setFilename(eis.getFilename());
 			
 			if(testing) {
 				System.out.println("FileURL " + fileURL.toString());
@@ -2139,8 +1891,6 @@ public class FileController {
 						docText.setEisdoc(eis);
 						docText.setFilename(filename);
 						
-						fileLog.setExtractedFilename(filename);
-						
 						// 2: Extract data and stream to Tika
 						try {
 							ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -2155,27 +1905,7 @@ public class FileController {
 							// 4: Add converted text to database for document(EISDoc) ID, filename
 							this.save(docText);
 						} catch(Exception e){
-							try {
-
-								if(docText.getPlaintext() == null || docText.getPlaintext().length() == 0) {
-									fileLog.setImported(false);
-								} else {
-									fileLog.setImported(true);
-								}
-								
-								// Note:  This step does not index; that's a separate process.  N/A, so null would be fine.
-								// But Tinyint is numeric, should default to 0.  Still better than the Boolean type in MySQL
-								
-								fileLog.setErrorType(e.getLocalizedMessage());
-								fileLog.setLogTime(LocalDateTime.now());
-								fileLogRepository.save(fileLog);
-							} catch (Exception e2) {
-								if(testing) {
-									System.out.println("Error logging error...");
-									e2.printStackTrace();
-								}
-							}
-							
+							logger.error("Exception in convertRecord in extract/stream to Tika step :: " + e.getLocalizedMessage());
 						} finally { // while loop handles getNextEntry()
 							zis.closeEntry();
 						}
@@ -2193,18 +1923,7 @@ public class FileController {
 			// We won't log missing files every time this runs, but we will return a 404
 			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 		} catch (Exception e) {
-//			e.printStackTrace();
-			try {
-				fileLog.setImported(false);
-				
-				fileLog.setErrorType(e.getLocalizedMessage());
-				fileLog.setLogTime(LocalDateTime.now());
-				fileLogRepository.save(fileLog);
-			} catch (Exception e2) {
-				System.out.println("Error logging error...");
-				e2.printStackTrace();
-				return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
-			}
+			logger.error("Exception in convertRecord :: " + e.getLocalizedMessage());
 			// could be IO exception getting the file if it doesn't exist
 			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -3376,10 +3095,10 @@ public class FileController {
 						itr.federal_register_date = parsedDate.toString();
 					} catch (IllegalArgumentException e) {
 //						System.out.println("Threw IllegalArgumentException");
-						results.add("Item " + count + ": " + e.getMessage());
+						results.add("Item " + count + ": " + e.getLocalizedMessage());
 						error = true;
 					} catch (Exception e) {
-						results.add("Item " + count + ": Register Date Format Error " + e.getMessage());
+						results.add("Item " + count + ": Register Date Format Error " + e.getLocalizedMessage());
 						error = true;
 					}
 					
@@ -3840,10 +3559,10 @@ public class FileController {
 						itr.federal_register_date = parsedDate.toString();
 					} catch (IllegalArgumentException e) {
 						System.out.println("Threw IllegalArgumentException");
-						results.add("Item " + count + ": " + e.getMessage());
+						results.add("Item " + count + ": " + e.getLocalizedMessage());
 						error = true;
 					} catch (Exception e) {
-						results.add("Item " + count + ": Error " + e.getMessage());
+						results.add("Item " + count + ": Error " + e.getLocalizedMessage());
 						error = true;
 					}
 
@@ -3874,16 +3593,6 @@ public class FileController {
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
 								results.add("Item " + count + ": Updated: " + itr.title);
-
-					    		// Log successful record update for accountability (can know last person to update an EISDoc)
-								FileLog recordLog = new FileLog();
-								recordLog.setErrorType("Updated existing record because it had no filename");
-					    		recordLog.setDocumentId(status.getBody());
-					    		recordLog.setFilename(itr.filename);
-					    		recordLog.setImported(false);
-					    		recordLog.setLogTime(LocalDateTime.now());
-					    		recordLog.setUser(applicationUserService.getUserFromToken(token));
-					    		fileLogRepository.save(recordLog);
 					    	}
 						}
 						// If file doesn't exist, then create new record
@@ -3893,15 +3602,6 @@ public class FileController {
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
 					    		results.add("Item " + count + ": Created: " + itr.title);
-
-					    		// Log successful record import (need accountability for new metadata)
-								FileLog recordLog = new FileLog();
-					    		recordLog.setDocumentId(status.getBody());
-					    		recordLog.setFilename(itr.filename);
-					    		recordLog.setImported(false);
-					    		recordLog.setLogTime(LocalDateTime.now());
-					    		recordLog.setUser(applicationUserService.getUserFromToken(token));
-					    		fileLogRepository.save(recordLog);
 					    	}
 				    	} else {
 							results.add("Item " + count + ": Duplicate, has filename already (no action): " + itr.title);
@@ -4001,7 +3701,7 @@ public class FileController {
 //		}
 //	}
 	
-	/** Helper method for extractAllZip */
+	/** Helper method for extractAllZip, also used in import process for new archives */
 	private String extractOneZip(EISDoc doc, boolean skipIfHasFolder, boolean convertAfterSave) {
 		String createdFolder = null;
 		
@@ -4053,6 +3753,9 @@ public class FileController {
 							if(convertAfterSave) {
 							    this.convertNEPAFile(x);
 							}
+						} else {
+//							System.out.println("Already have " + result.get(j) + " in " + '/'+folder+'/');
+							
 						}
 					}
 					
@@ -4063,13 +3766,6 @@ public class FileController {
 			}
 		} catch(Exception e) {
 			createdFolder = ("***EXCEPTION WITH: " + filename + "***");
-			
-			FileLog fLog = new FileLog();
-			fLog.setDocumentId(doc.getId());
-			fLog.setErrorType("extractOneZip failed: " + e.getMessage());
-			fLog.setFilename("FOLDER: "+ folder + "; FILENAME: " + filename);
-			fLog.setLogTime(LocalDateTime.now());
-			fileLogRepository.save(new FileLog());
 		}
 		
 		return createdFolder;
@@ -4237,40 +3933,5 @@ public class FileController {
 		}
 	}
 	
-	
-
-	// Probably useless
-//	private String pdfParseToXML(ByteArrayInputStream inputstream) {
-//		ContentHandler handler = new ToXMLContentHandler();
-//		Metadata metadata = new Metadata();
-//		ParseContext pcontext = new ParseContext();
-//
-//		//parsing the document using PDF parser
-//		PDFParser pdfparser = new PDFParser(); 
-//		try {
-//			pdfparser.parse(inputstream, handler, metadata,pcontext);
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (SAXException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} catch (TikaException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//		
-//		//getting the content of the document
-////		System.out.println("Contents of the PDF :" + handler.toString());
-//		return handler.toString();
-//		
-//		//getting metadata of the document
-////		System.out.println("Metadata of the PDF:");
-////		String[] metadataNames = metadata.names();
-////		
-////		for(String name : metadataNames) {
-////		 System.out.println(name+ " : " + metadata.get(name));
-////		}
-//	}
 	
 }

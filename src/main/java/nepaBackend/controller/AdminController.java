@@ -30,6 +30,7 @@ import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.UpdateLogRepository;
+import nepaBackend.UpdateLogService;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.DocumentText;
@@ -64,6 +65,8 @@ public class AdminController {
     private BCryptPasswordEncoder bCryptPasswordEncoder;
     @Autowired
     private DeleteRequestRepository deleteReqRepo;
+    @Autowired
+    private UpdateLogService updateLogService;
 
     public AdminController() {
     }
@@ -179,16 +182,6 @@ public class AdminController {
     			
     			if(nepaFile.isPresent()) {
     				NEPAFile presentFile = nepaFile.get();
-        			String fullPath = presentFile.getRelativePath() + presentFile.getFilename();
-        			
-        			// Get FileLog by filename and EISDoc and imported = true
-        			Optional<FileLog> fileLog = fileLogRepository.findByDocumentIdAndFilenameAndImportedIn(eisDoc.getId(), fullPath, true);
-        			if(fileLog.isPresent()) {
-        				FileLog presentLog = fileLog.get();
-            			// Mark as no longer Imported in the filelog by EISDoc ID and relative path + filename from NEPAFile
-            			presentLog.setImported(false);
-        				fileLogRepository.save(presentLog); // Ensure it's updated
-        			}
         			
         			// Log + Delete NEPAFile
     				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
@@ -243,18 +236,6 @@ public class AdminController {
     			
     			NEPAFile presentFile = nepaFile.get();
     			EISDoc eisDoc = presentFile.getEisdoc();
-    			
-    			String fullPath = presentFile.getRelativePath() + presentFile.getFilename();
-    			
-    			// Get FileLog by filename and EISDoc and imported = true
-    			Optional<FileLog> fileLog = fileLogRepository.findByDocumentIdAndFilenameAndImportedIn(eisDoc.getId(), fullPath, true);
-    			if(fileLog.isPresent()) {
-    				FileLog presentLog = fileLog.get();
-    				
-        			// Mark as no longer Imported in the filelog by EISDoc ID and relative path + filename from NEPAFile
-        			presentLog.setImported(false);
-    				fileLogRepository.save(presentLog); // Ensure it's updated
-    			}
     			
     			// Get DocumentText by eisdoc and filename from NEPAFile
     			Optional<DocumentText> textRecord = textRepository.findByEisdocAndFilenameIn(eisDoc, presentFile.getFilename());
@@ -331,15 +312,6 @@ public class AdminController {
     				
     				// Log 
     				logDelete(foundDoc, "Deleted: DocumentText", user, text.getFilename());
-    			}
-    			
-    			// Update logs
-    			// Because FileLog is used to verify if we have imported something or not, we can either update the log records
-    			// to show imported=0 (false), delete the logs, or we can add a new isDeleted column to exclude the logs from the verification
-    			List<FileLog> fileLogList = fileLogRepository.findAllByDocumentId(foundDoc.getId());
-    			for(FileLog log : fileLogList) {
-    				log.setImported(false);
-    				fileLogRepository.save(log);
     			}
     			
     			// Delete NEPAFiles
@@ -523,18 +495,13 @@ public class AdminController {
     	}
     }
     
-    
-
+    /** Just saves an UpdateLog with a special "Deleted" status so we can potentially restore
+     * deletes the same way we can restore updates */
 	private void logDelete(EISDoc foundDoc, String message, ApplicationUser user, String filename) {
-		FileLog log = new FileLog();
+		UpdateLog updateLog = updateLogService.newUpdateLogFromEIS(foundDoc, user.getId());
+		updateLog.setNotes("DELETED");
 		
-		log.setDocumentId(foundDoc.getId());
-		log.setErrorType(message);
-		log.setUser(user);
-		log.setFilename(filename);
-		log.setLogTime(LocalDateTime.now());
-		
-		fileLogRepository.save(log);
+		updateLogService.save(updateLog);
 	}
 	
 }
