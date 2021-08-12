@@ -97,8 +97,10 @@ public class AdminController {
 	    			nepaFileRepository.delete(garb);
 	    			
 	    			results += "; no error\r\n";
-	    		} else if(garbageTexts.size() == 1) {
-	    			// Okay, then just delete the path
+	    		} else if(garbageTexts.size() == 1 || garbageTexts.size() == 0) {
+	    			// (if 0 then Tika failed to convert it)
+	    			
+	    			// Delete the path only
 	    			results += "Deleting " + garb.getRelativePath() + garb.getFilename()
 	    					+ "; no extra text to delete";
 	    			
@@ -106,7 +108,7 @@ public class AdminController {
 	    			
 	    			results += "; no error\r\n";
 	    		} else {
-	    			// 0 or 3+, probably impossible so let's look at it manually
+	    			// 3+, probably impossible so let's look at it manually
 	    			results += "Skipped::Count : " + garbageTexts.size() + " path : " 
 	    					+ garb.getRelativePath() + garb.getFilename() + " id : " + garb.getEisdoc().getId()
 	    					+ "\r\n";
