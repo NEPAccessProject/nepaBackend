@@ -260,8 +260,6 @@ public class FileController {
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String filename) {
 		try {
-			// TODO: if not .zip try adding .pdf first?  Client will need file type and we need to capture all the files to deliver
-			// potentially in a zip
 			URL fileURL = new URL(dbURL + encodeURIComponent(filename));
 			if(testing) {
 				System.out.println("Got ask for "+ filename + ": " + encodeURIComponent(filename));
@@ -281,12 +279,7 @@ public class FileController {
 			in.close();
 			return new ResponseEntity<Void>(HttpStatus.ACCEPTED);
 		} catch (Exception e) {
-		// TODO: Log missing file errors in db file log?  Verify file doesn't exist and then remove filename from record?
-//			StringWriter sw = new StringWriter();
-//			PrintWriter pw = new PrintWriter(sw);
-//			e.printStackTrace(pw);
-//			e.printStackTrace();
-//			String sStackTrace = sw.toString();
+			logger.error("Download failed :: " + filename);
 			return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
 		}
 	}
@@ -470,31 +463,6 @@ public class FileController {
 		
 	}
 
-	// TODO:
-	// put in appropriate folder
-	// add all to db, incl. filename (and folder??? or just leave that logic to download/conversion?),
-	// - 
-	// I think just filename is good.  Should add a standardized, standalone method that returns a list of possible
-	// file locations which can be used by both downloads and Tika conversion.  Although to do conversion, it would be
-	// very nice to simply receive the full path in response from the Express.js server, and hand that directly to Tika
-	// -
-	// Another issue: Adding files to existing records with existing file(s).  No multi-file handling yet.  
-	// Lazy solution: Could separate by illegal filename characters.
-	// Could redesign DB with a new table just with foreign keys and filenames.
-	// This would also mean re-figuring out downloads.  Probably have to archive all the files together.
-	// However, could get up to multiple gigabytes.  Maybe better to pop out list of files for download?
-	// -
-	// link together, 
-	// convert to text (whether PDF or archive...), 
-	// ensure indexing worked automatically as it should
-	/** TODO: Multi-record/file upload:  Should require CSV.  Either start to handle loose files, or require uploads are named in CSV.
-	 * Loose files: Add empty records for them just with filename.  Curators could fill in details.
-	 * Should add a UI to see all records missing basic things like title. 
-	 */
-	// TODO: test remote deployed with different server URL obviously, finalize
-	/**
-	 * not sure I have permission to put new items onto that disk in that location
-	 * Will need to make sure it is secured also (test in browser?) */
 	/** Upload single file and/or metadata which is then imported to database, then converted to text and added to db (if applicable)
 	 * and then indexed by Lucene.  Re-POSTS the incoming file to the DBFS via an Express.js server on there so that the
 	 * original file can be downloaded (also needs to be in place for the Tika processing)
@@ -504,6 +472,7 @@ public class FileController {
 	 * @throws IOException
 	 */
 	@CrossOrigin
+	@Deprecated
 	@RequestMapping(path = "/uploadFile", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<boolean[]> importDocument(@RequestPart(name="file") MultipartFile file, 
 								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
@@ -512,8 +481,6 @@ public class FileController {
 //			System.out.println(doc);
 //			return new ResponseEntity<boolean[]>(HttpStatus.OK);
 //		}
-
-		// TODO: Should we save a NepaFile record for single file imports?
 
 	    HttpStatus returnStatus = HttpStatus.OK;
 		
@@ -616,35 +583,13 @@ public class FileController {
 	
 	
 	
-
-	/** TODO: 
-	 * - express service given path, ensure exists, creates dir if not, then puts file in the deepest folder
-	 * 
-	 * - handle disparate directories case: in order to associate files properly, will probably need a Docs table
-	 * containing Type, foreign key to EISDoc, filename, and relative path
-	 * 
-	 * - express server needs to return path where everything was saved
-	 * 
-	 * - need to handle no relative path case (no folder)
-	 * - if no folder, express will have to make the path based on the new ID from saving the metadata doc, 
-	 * type, and agency, so will need to send those values also...  but it also has to ensure no collisions,
-	 * so it needs to actually make sure the identifying directory does NOT exist already and iterate until it finds
-	 * one that doesn't exist, then express has to return the unique name it came up with, then this controller has to
-	 * save that folder name to the record
-	 * 
-	 * - next, download logic needs to change to expect structure of agency/doc.folder name/type, and multiple files
-	 * - Finally, for bulk upload with or without CSV, can use same dropzone, same path as filename logic, different route
-	 */
-	
-	
-	
-	
 	/** 
 	 * Upload a record with more than one file or directory associated with it
 	 * For each file, assumes a base folder that ends in a number (identifying folder)
 	 * If that doesn't exist, NEPAFile folder field instead uses the new ID from saving the metadata EISDoc
 	 * */
 	@CrossOrigin
+	@Deprecated
 	@RequestMapping(path = "/uploadFiles", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<String> importDocuments(@RequestPart(name="files") MultipartFile[] files, 
 								@RequestPart(name="doc") String doc, @RequestHeader Map<String, String> headers) 
@@ -763,13 +708,10 @@ public class FileController {
 		return new ResponseEntity<String>("OK", HttpStatus.OK);
 		
 		
-		// TODO: Can save CSV data before NEPAFiles, and vice versa.  Therefore EISDoc needs a Folder, and 
-		// NEPAFiles might have null for the foreign key.  The connection has to be enforced after we have both.
-		
 		// Choice so far: Overwrite everything that already exists when uploading, separate update function should be
 		// the way to add/remove files with an existing record with existing files
 		
-		/** TODO: Same logic as uploadFile except: 
+		/** Same logic as uploadFile except: 
 		 * - multiple Files
 		 * - each File's .getOriginalFilename() should include a relative path thanks to the frontend javascript logic
 		 * 
@@ -872,9 +814,8 @@ public class FileController {
 		
 	    // Expect some or all of these headers:
 	    // Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, 
-		// EIS Identifier, Filename, Link, Notes, Force Update
-	    // TODO: Translate these into a standard before proceeding? Such as both Type or Document Type 
-		// instead of necessarily Document (this would require editing the first line of the csv String?)
+		// EIS Identifier, Filename, Link, Notes, Force Update, Status, Subtype, County, Cooperating Agency
+	    // Translations must be handled by frontend or client to match UploadInputs.class
 		
 	    try {
 	    	
@@ -960,7 +901,8 @@ public class FileController {
 						else if(!recordThatMayExist.isPresent()) { 
 							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
 							if(shouldImport) {
-								status = saveDto(itr);
+								long userId = applicationUserService.getUserFromToken(token).getId();
+								status = saveDto(itr, userId);
 							}
 					    	if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
@@ -1194,11 +1136,12 @@ public class FileController {
 			    		}
 			    	}
 			    	
+			    	/** TODO: Check if comment archive exists already, for convenience of bulk uploads.
+			    	/* However, note that if comments become their own distinct record type, all of this
+			    	/* goes away and comment filenames will simply be filenames for those records.
+			    	/* (Likely scenario) */
+			    	
 			    	// Just upload comments
-			    	// TODO: Check if comment archive exists already, for convenience of bulk uploads.
-			    	// However, note that if comments become their own distinct record type, all of this
-			    	// goes away and comment filenames will simply be filenames for those records.
-			    	// (Likely scenario)
 			    	if(isComments) {
 			    		// We're setting the directory to / for the archive upload.  Plan to extract later
 			    		String savePath = "/";
@@ -1474,7 +1417,6 @@ public class FileController {
 				}
 				if(Globals.TESTING) {System.out.println("Size of "+pathURL+": "+sizeResponse);}
 			} catch (UnsupportedEncodingException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			
@@ -1798,8 +1740,7 @@ public class FileController {
 							// 4: Add converted text to database for document(EISDoc) ID, filename
 							this.save(docText);
 						} catch(Exception e){
-							// TODO: Report/log error specific to file within archive?
-							e.printStackTrace();
+							logger.error("Exception in archiveConvertImportAndIndex :: filename: " + extractedFilename + " error: " + e.getLocalizedMessage());
 						} finally { // while loop handles getNextEntry()
 							zis.closeEntry();
 						}
@@ -1843,9 +1784,7 @@ public class FileController {
 			Tika tikaParser = new Tika();
 			tikaParser.setMaxStringLength(-1); // disable limit
 		
-			// TODO: Make sure there is a file (for current data, no filename means nothing to convert for this record)
-			// TODO: Handle folders/multiple files for future (currently only archives)
-			// TODO: Records with folders are deliberately skipped for now.
+			// Make sure there is a file (for this function, no filename means nothing to convert for this record)
 			if(eis.getFilename() == null || eis.getFilename().length() == 0 
 					|| (eis.getFolder() != null && eis.getFolder().length() > 0)) { 
 				return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
@@ -1931,7 +1870,6 @@ public class FileController {
 
 	/** Return whether metadata exists for a given EIS Identifier (folder) */
 	private boolean metadataExists(String folderName) {
-		// TODO Auto-generated method stub
 		long numRecords = docRepository.countByFolder(folderName);
 		boolean exists = numRecords > 0;
 		return exists;
@@ -2152,7 +2090,6 @@ public class FileController {
 		return updateExistingProcessIgnoreBlank(prout, itr);
 	}
 	
-	// the only question here is if we should overwrite existing process IDs in EISDocs with this data
 	/** Update existing NEPAProcess with non-empty ProcessInputs, and update indicated existing EISDocs 
 	 * with process ID */
 	private ResponseEntity<List<Long>> updateExistingProcessIgnoreBlank(NEPAProcess prout, ProcessInputs itr) {
@@ -2165,6 +2102,7 @@ public class FileController {
 			
 			itr = this.normalizeProcessInputs(itr);
 			
+			// Cases where it tried to give a process ID to an EIS that doesn't exist.
 			List<Long> badResults = new ArrayList<Long>();
 			
 			if(itr.draft_id.isEmpty()) {
@@ -2177,8 +2115,6 @@ public class FileController {
 					found.setProcessId(prout.getProcessId());
 				} else {
 					// skip, but this is a bad sign.  We'll want to track these.
-					// 		 Maybe a list of "not found" EIS IDs and a special response status.
-					//		 Starting with the process ID as usual, still.
 					badResults.add(Long.valueOf(itr.draft_id));
 				}
 			}
@@ -2369,10 +2305,14 @@ public class FileController {
 		
 		if(savedRecord != null) {
 			results.add(savedRecord.getId());
+
+			// Could return special case to indicate we have bad results appended.
+			// Callers would have to deal with the status and results.
 //			results.addAll(badResults);
-			if(results.size() > 1) {
-				// TODO
-			} // else
+//			if(results.size() > 1) {
+//				return new ResponseEntity<List<Long>>(results, HttpStatus.ACCEPTED);
+//			} 
+			
 			return new ResponseEntity<List<Long>>(results, HttpStatus.OK);
 		} else {
 			return new ResponseEntity<List<Long>>(HttpStatus.INTERNAL_SERVER_ERROR);
@@ -2403,7 +2343,7 @@ public class FileController {
 	}
 
 	/** Turns UploadInputs into valid EISDoc and saves to database, returns new ID and 200 (OK) or null and 500 (error) */
-	private ResponseEntity<Long> saveDto(UploadInputs itr) {
+	private ResponseEntity<Long> saveDto(UploadInputs itr, long userId) {
 		
 		// "Multi" is actually counterproductive, will have to amend spec
 		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
@@ -2436,6 +2376,9 @@ public class FileController {
 		newRecord.setSubtype(itr.subtype);
 		
 		EISDoc savedRecord = docRepository.save(newRecord); // save to db
+
+		UpdateLog doc = updateLogService.newUpdateLogFromEIS(savedRecord,userId);
+		updateLogRepository.save(doc);
 		
 		if(savedRecord != null) {
 			return new ResponseEntity<Long>(savedRecord.getId(), HttpStatus.OK);
@@ -2893,7 +2836,7 @@ public class FileController {
 		return new ResponseEntity<String>(result, HttpStatus.OK);
 	}
 
-	/** 
+	/** Special, possible one-use route. 
 	 * Admin-only. 
 	 * Takes .csv file with required headers and imports each valid record.  Updates existing records
 	 * 
@@ -3145,7 +3088,7 @@ public class FileController {
 	}
 
 
-	/** 
+	/** Special, possible one-use route. 
 	 * Takes .csv file with required headers and imports:
 	 * New records with types like ROD/NOI/...
 	 * Amended: Also imports new with these types (hopefully curated):
@@ -3230,15 +3173,14 @@ public class FileController {
 									results.add("Item " + count + ": Updated EIS identifier (folder name): " + itr.title);
 						    	}
 							} else {
-								// TODO: When we have a strategy for replacement, we can add folder information.
-								// Until then, skip:
 								results.add("Item " + count + ": Skipped due to existing filename: " + itr.title);
 							}
 						}
 						// If file doesn't exist, then create new record - even if it matches the draft or final types
 						else if(recordsThatMayExist.isEmpty()) { 
 							if(isDraftOrFinalEIS(itr.document)) {
-							    ResponseEntity<Long> status = saveDto(itr); // save record to database
+								long userId = applicationUserService.getUserFromToken(token).getId();
+							    ResponseEntity<Long> status = saveDto(itr, userId); // save record to database
 						    	if(status.getStatusCodeValue() == 500) { // Error
 									results.add("Item " + count + ": Error creating draft or final: " + itr.title);
 						    	} else {
@@ -3249,7 +3191,8 @@ public class FileController {
 						    				+ " #FOLDER: " + itr.eis_identifier);
 						    	}
 							} else {
-							    ResponseEntity<Long> status = saveDto(itr); // save record to database
+								long userId = applicationUserService.getUserFromToken(token).getId();
+							    ResponseEntity<Long> status = saveDto(itr, userId); // save record to database
 						    	if(status.getStatusCodeValue() == 500) { // Error
 									results.add("Item " + count + ": Error creating: " + itr.title);
 						    	} else {
@@ -3597,7 +3540,8 @@ public class FileController {
 						}
 						// If file doesn't exist, then create new record
 						else if(!recordThatMayExist.isPresent()) { 
-						    ResponseEntity<Long> status = saveDto(itr); // save record to database
+							long userId = applicationUserService.getUserFromToken(token).getId();
+						    ResponseEntity<Long> status = saveDto(itr, userId); // save record to database
 					    	if(status.getStatusCodeValue() == 500) { // Error
 								results.add("Item " + count + ": Error saving: " + itr.title);
 					    	} else {
@@ -3621,10 +3565,9 @@ public class FileController {
 	}
 
 
-	// TODO: Ideally this whole route becomes useless as we integrate extractOneZip into the importing
-	// processes.  So far it's now built into the bulk file importer but not the existing-archive processor
-	// for .zips that were MANUALLY uploaded.
 	/** Extracts every relevant .zip file being served into a self-named folder sans .zip extension;
+	 * Processes .zips that were MANUALLY uploaded to turn them into folders 
+	 * and updates the appropriate EISDoc while skipping eisdocs that already have folders
 	 * @returns list of all files extracted successfully
 	 * */
 	@CrossOrigin
