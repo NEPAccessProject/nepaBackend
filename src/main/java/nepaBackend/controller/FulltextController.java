@@ -363,6 +363,37 @@ public class FulltextController {
 		return textRepository.findIdsByPlaintextLength(getLengthOfDocumentText(id));
 	}
 
+	@RequestMapping(path = "/milli_test", method = RequestMethod.GET)
+	public List<Long> searchTest() {
+		
+		SearchInputs searchInputs = new SearchInputs();
+		searchInputs.title = "project";
+		
+		long start1 = System.currentTimeMillis();
+		try {
+			textRepository.CombinedSearchNoLuceneIDs(searchInputs, SearchType.ALL);
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		long stop1 = System.currentTimeMillis();
+		long elapsed1 = stop1 - start1;
+
+		long start2 = System.currentTimeMillis();
+		try {
+			textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL);
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		long stop2 = System.currentTimeMillis();
+		long elapsed2 = stop2 - start2;
+
+		List<Long> results = new ArrayList<Long>();
+		results.add(elapsed1);
+		results.add(elapsed2);
+		
+		return results;
+	}
+
 	private int getTotalHits(String field) {
 		try {
 			return textRepository.getTotalHits(field);

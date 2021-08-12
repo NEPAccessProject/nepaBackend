@@ -25,4 +25,6 @@ public interface CustomizedTextRepository {
 	int getTotalHits(String field) throws Exception;
 
 	String testTerms(String terms);
+	List<MetadataWithContext3> CombinedSearchNoLuceneIDs(SearchInputs searchInputs, SearchType searchType)
+			throws ParseException;
 }
