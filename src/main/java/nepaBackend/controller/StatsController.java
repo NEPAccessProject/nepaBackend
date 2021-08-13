@@ -90,7 +90,6 @@ public class StatsController {
 		}
 	}
 
-	// Counts still restricted to final or draft but not grouped by type
 	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable", 
 	produces = "application/json", 
@@ -99,10 +98,18 @@ public class StatsController {
 		try {
 			return new ResponseEntity<List<Object>>(docRepository.getDownloadableCountByYear(), HttpStatus.OK);
 		} catch (Exception e) {
-			//	if (log.isDebugEnabled()) {
-			//		log.debug(e);
-			//	}
-//			e.printStackTrace();
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
+	@GetMapping(path = "/count_year_downloadable_rod", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getRODDownloadableCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getRODDownloadableCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
@@ -251,6 +258,18 @@ public class StatsController {
 			return new ResponseEntity<Integer>(formattedResult, HttpStatus.OK);
 		} catch (Exception e) {
 			return new ResponseEntity<Integer>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	@CrossOrigin
+	@GetMapping(path = "/eis_count", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Long> getDownloadableEISCount() {
+		try {
+			Long result = docRepository.getDownloadableEISCount();
+			return new ResponseEntity<Long>(result, HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	

@@ -146,26 +146,56 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "DESC;",
 			nativeQuery = true)
 	public List<Object> getMetadataCountByYear();
-	/** Return downloadable counts by year according to filename existing */
-//	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-//			+ "FROM test.eisdoc "
-//			+ "WHERE (document_type='Final' OR document_type='Draft') "
-//			+ "AND LENGTH(filename)>0 "
-//			+ "GROUP BY YEAR(register_date) "
-//			+ "ORDER BY YEAR(register_date) "
-//			+ "DESC;",
-//			nativeQuery = true)
-//	public List<Object> getDownloadableCountByYear();
-	/** Return downloadable counts by year according to file size */
+	
+	@Query(value = "SELECT COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE (document_type='Final'"
+			+ " OR document_type='Draft'"
+		    + " OR document_type = 'Second Draft'"
+		    + " OR document_type = 'Second Final'"
+		    + " OR document_type = 'Revised Draft'"
+		    + " OR document_type = 'Revised Final'"
+		    + " OR document_type = 'Draft Supplement'"
+		    + " OR document_type = 'Final Supplement'"
+		    + " OR document_type = 'Second Draft Supplemental'"
+		    + " OR document_type = 'Second Final Supplemental'"
+		    + " OR document_type = 'Third Draft Supplemental'"
+		    + " OR document_type = 'Third Final Supplemental') "
+			+ "AND size>200;",
+			nativeQuery = true)
+	public Long getDownloadableEISCount();
+	
+	/** Return downloadable EIS counts by year according to file size */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
 			+ "FROM test.eisdoc "
-			+ "WHERE (document_type='Final' OR document_type='Draft') "
+			+ "WHERE (document_type='Final'"
+			+ " OR document_type='Draft'"
+		    + " OR document_type = 'Second Draft'"
+		    + " OR document_type = 'Second Final'"
+		    + " OR document_type = 'Revised Draft'"
+		    + " OR document_type = 'Revised Final'"
+		    + " OR document_type = 'Draft Supplement'"
+		    + " OR document_type = 'Final Supplement'"
+		    + " OR document_type = 'Second Draft Supplemental'"
+		    + " OR document_type = 'Second Final Supplemental'"
+		    + " OR document_type = 'Third Draft Supplemental'"
+		    + " OR document_type = 'Third Final Supplemental') "
 			+ "AND size>200 "
 			+ "GROUP BY YEAR(register_date) "
 			+ "ORDER BY YEAR(register_date) "
 			+ "DESC;",
 			nativeQuery = true)
 	public List<Object> getDownloadableCountByYear();
+	/** Return downloadable ROD counts by year according to file size */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE (document_type='ROD') "
+			+ "AND size>200 "
+			+ "GROUP BY YEAR(register_date) "
+			+ "ORDER BY YEAR(register_date) "
+			+ "DESC;",
+			nativeQuery = true)
+	public List<Object> getRODDownloadableCountByYear();
 
 	/** Return counts of drafts and finals by state */
 	@Query(value = "SELECT document_type, state, COUNT(*) "
