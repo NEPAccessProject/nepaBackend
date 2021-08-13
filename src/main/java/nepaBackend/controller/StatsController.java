@@ -114,7 +114,6 @@ public class StatsController {
 		}
 	}
 
-	// Counts still restricted to final or draft but not grouped by type
 	@CrossOrigin
 	@GetMapping(path = "/count_year", 
 	produces = "application/json", 
@@ -123,13 +122,21 @@ public class StatsController {
 		try {
 			return new ResponseEntity<List<Object>>(docRepository.getMetadataCountByYear(), HttpStatus.OK);
 		} catch (Exception e) {
-			//	if (log.isDebugEnabled()) {
-			//		log.debug(e);
-			//	}
-//			e.printStackTrace();
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_rod", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getRODCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getRODCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
 
 	@CrossOrigin
 	@GetMapping(path = "/draft_final_count_year", 
