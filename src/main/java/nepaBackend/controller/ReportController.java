@@ -2,11 +2,14 @@ package nepaBackend.controller;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -15,8 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 import nepaBackend.ApplicationUserService;
 import nepaBackend.DeleteRequestRepository;
 import nepaBackend.DocRepository;
+import nepaBackend.ExcelRepository;
 import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.EISDoc;
+import nepaBackend.model.Excel;
 
 @RestController
 @RequestMapping("/reports")
@@ -30,6 +35,8 @@ public class ReportController {
 	private DocRepository docRepository;
 	@Autowired
 	private DeleteRequestRepository drr;
+	@Autowired
+	private ExcelRepository excelRepo;
 	
 	public ReportController() {
 	}
@@ -84,6 +91,24 @@ public class ReportController {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
+	
+
+	@GetMapping(path = "/excel_get")
+	public @ResponseBody ResponseEntity<Excel> excelGet(@RequestHeader Map<String, String> headers) {
+		return new ResponseEntity<Excel>(excelRepo.findMostRecent().get(), HttpStatus.OK);
+	}
+	@PostMapping(path = "/excel_post")
+	public @ResponseBody ResponseEntity<Void> excelPost(@RequestHeader Map<String, String> headers,
+			@RequestBody String json) {
+		String token = headers.get("authorization");
+		if(applicationUserService.approverOrHigher(token)) {
+			excelRepo.save(new Excel(json));
+			return new ResponseEntity<Void>(HttpStatus.OK);
+		} else {
+			return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	
 	
 	// TODO: Get proposed filenames to be deleted and the record ID each belongs to
 	// (requires some custom sql, joins)
