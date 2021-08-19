@@ -101,7 +101,7 @@ public class ReportController {
 	public @ResponseBody ResponseEntity<Void> excelPost(@RequestHeader Map<String, String> headers,
 			@RequestBody String json) {
 		String token = headers.get("authorization");
-		if(applicationUserService.approverOrHigher(token)) {
+		if(applicationUserService.curatorOrHigher(token)) {
 			excelRepo.save(new Excel(json));
 			return new ResponseEntity<Void>(HttpStatus.OK);
 		} else {
