@@ -16,10 +16,14 @@ public class Survey {
 	public Survey() {
 		this.timestamp = LocalDateTime.now();
 	}
-    public Survey(ApplicationUser user, String result) {
+    public Survey(ApplicationUser user, String result, String searchTerms) {
 		super();
 		this.user = user;
 		this.result = result;
+		if(searchTerms == null) {
+			searchTerms = "";
+		}
+		this.searchTerms = searchTerms.substring(0, Math.min(searchTerms.length(), 255));
 		this.timestamp = LocalDateTime.now();
 	}
 
@@ -37,8 +41,17 @@ public class Survey {
     
     @Column(name = "time")
     private LocalDateTime timestamp;
+    
+    @Column(name = "search_terms", columnDefinition="VARCHAR(255)")
+    private String searchTerms;
 
-    public String getResult() {
+    public String getSearchTerms() {
+		return searchTerms;
+	}
+	public void setSearchTerms(String searchTerms) {
+		this.searchTerms = searchTerms;
+	}
+	public String getResult() {
 		return result;
 	}
 

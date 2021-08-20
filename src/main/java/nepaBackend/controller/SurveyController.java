@@ -33,13 +33,14 @@ public class SurveyController {
 	@CrossOrigin
 	@RequestMapping(path = "/save", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<Boolean> save(@RequestPart(name="surveyResult") String surveyResult, 
+				@RequestPart(name="searchTerms", required = false) String searchTerms, 
 				@RequestHeader Map<String, String> headers) {
 		try {
 			String token = headers.get("authorization");
 			ApplicationUser user = applicationUserService.getUserFromToken(token);
 			
 			if(user != null) {
-				Survey survey = new Survey(user, surveyResult);
+				Survey survey = new Survey(user, surveyResult, searchTerms);
 				surveyRepo.save(survey);
 				
 				return new ResponseEntity<Boolean>(true,HttpStatus.OK);
@@ -47,6 +48,7 @@ public class SurveyController {
 				return new ResponseEntity<Boolean>(false,HttpStatus.OK);
 			}
 		} catch(Exception e) {
+			e.printStackTrace();
 			logger.debug("Couldn't save survey",e);
 			return new ResponseEntity<Boolean>(false,HttpStatus.INTERNAL_SERVER_ERROR);
 		}
