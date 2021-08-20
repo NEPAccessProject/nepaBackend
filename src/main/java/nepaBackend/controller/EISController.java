@@ -111,6 +111,17 @@ public class EISController {
 			return new ResponseEntity<List<EISDoc>>(new ArrayList<EISDoc>(), HttpStatus.UNAUTHORIZED);
 		}
     }
+    
+    /** To help importer decide what to upload in some cases */
+    @GetMapping("/findMissingFilenames")
+    public @ResponseBody ResponseEntity<List<String>> findMissingFilenames(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+    	if(applicationUserService.curatorOrHigher(token)) {
+    		return new ResponseEntity<List<String>>(docService.findMissingFilenames(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		}
+    }
 
 	@CrossOrigin
 	@PostMapping(path = "/match", 

@@ -89,4 +89,8 @@ public class DocService {
 		return docRepository.findAllFinalsWithFirstRodDates();
 	}
 
+	public List<String> findMissingFilenames() {
+		return docRepository.findMissingFilenames();
+	}
+
 }
