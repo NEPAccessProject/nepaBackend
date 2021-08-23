@@ -158,7 +158,7 @@ public class FileController {
 				String folder = doc.getFolder();
 				String filename = doc.getFilename();
 				if(folder != null && folder.strip().length() > 0) {
-					addUpFolderSize(doc);
+					addUpAndSaveFolderSize(doc);
 				}
 				else if(filename != null && filename.strip().length() > 0) {
 					Long response = (getFileSizeFromFilename(doc.getFilename()).getBody());
@@ -191,7 +191,7 @@ public class FileController {
 				String folder = doc.getFolder();
 				String filename = doc.getFilename();
 				if(folder != null && folder.strip().length() > 0) {
-					addUpFolderSize(doc);
+					addUpAndSaveFolderSize(doc);
 				}
 				else if(filename != null && filename.strip().length() > 0) {
 					Long response = (getFileSizeFromFilename(doc.getFilename()).getBody());
@@ -255,6 +255,7 @@ public class FileController {
 		}
 	}
 
+	// as of August '21 this probably only operates on epa comment letters?
 	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
@@ -292,11 +293,13 @@ public class FileController {
 		ZipOutputStream zip = null;
 
 		try {
+			// Get nepafiles that need to be zipped
+			EISDoc doc = docRepository.findById(Long.parseLong(id)).get();
+			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(doc);
 
-			// Get full folder path from nepafile for eis (or path would work) and then zip that folder's contents
-			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
-//			System.out.println(nepaFiles.size());
 			if(nepaFiles.size() == 0) {
+				// this only happens if it never existed or if the archive failed to extract
+				// (i.e. corrupt/invalid/empty)
 				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 			}
 			String downloadFilename = nepaFiles.get(0).getFolder() + "_" + nepaFiles.get(0).getDocumentType();
@@ -1216,12 +1219,6 @@ public class FileController {
 					    		existingDoc.setFilename(origFilename);
 					    	}
 					    	
-					    	// Find out file size
-							Long sizeResponse = (getFileSizeFromFilename(origFilename).getBody());
-							if(sizeResponse != null) {
-								existingDoc.setSize(sizeResponse);
-							}
-					    	
 							// Update
 					    	EISDoc savedDoc = docRepository.save(existingDoc);
 					    	
@@ -1390,7 +1387,7 @@ public class FileController {
 		    	}
 		    	
 		    	savedFile = nepaFileRepository.save(fileToSave);
-		    	addUpFolderSize(docToUse);
+		    	addUpAndSaveFolderSize(docToUse);
 			}
 			return savedFile;
 		}
@@ -1399,7 +1396,7 @@ public class FileController {
 
 
 	// Add up filesize.  Note: Spaces must be URI'd
-	private boolean addUpFolderSize(EISDoc eisDoc) {
+	private boolean addUpAndSaveFolderSize(EISDoc eisDoc) {
 		// 1: Get all existing NEPAFiles by folder.
 		List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(eisDoc);
 		Long total = 0L;
@@ -3671,9 +3668,8 @@ public class FileController {
 				// result should be a list of filenames, or null if it failed
 				List<String> result = unzipper.unzip(filename);
 				
-				if(result != null) { // save folder and add to results
+				if(result != null) { // save folder, add up size and add to results
 					doc.setFolder(folder);
-					docRepository.save(doc);
 					
 					// need to make a nepafile entry for every extracted file to support downloads
 					for(int j = 0; j < result.size(); j++) {
@@ -3697,10 +3693,13 @@ public class FileController {
 							    this.convertNEPAFile(x);
 							}
 						} else {
-//							System.out.println("Already have " + result.get(j) + " in " + '/'+folder+'/');
+							System.out.println("Already have " + result.get(j) + " in " + '/'+folder+'/');
 							
 						}
 					}
+
+					// Has to be done AFTER nepafiles exist
+					addUpAndSaveFolderSize(doc);
 					
 					createdFolder = (folder);
 				} else {
