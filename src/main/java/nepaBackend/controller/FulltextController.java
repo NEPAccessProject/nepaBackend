@@ -105,25 +105,74 @@ public class FulltextController {
 		}
 	}
 
+
+	// Only get the top 100 results to get something back to the user much faster
+	// TODO?: Could just be the top ~10 metadata results and the top text highlight for each.
+	// Or later the top 10 processes, etc.
+	@CrossOrigin
+	@PostMapping(path = "/search_top")
+	public ResponseEntity<List<MetadataWithContext3>> searchTop(@RequestBody SearchInputs searchInputs,
+			@RequestHeader Map<String, String> headers)
+	{
+		String token = headers.get("authorization");
+		Long userId = idFromToken(token);
+		saveSearchLog(searchInputs, "all", userId);
+		HttpStatus returnStatus = HttpStatus.OK;
+
+		try { 
+			
+			List<MetadataWithContext3> metaAndFilenames = 
+					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, 100);
+			
+			int hits = getTotalHits(searchInputs.title);
+			if(hits < 100) {
+				// Return special status if results don't reach limit to indicate that user 
+				// won't need to launch /search_no_context because they already have the full results.
+				returnStatus = HttpStatus.ACCEPTED;
+			}
+			
+			return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, returnStatus);
+		} catch(ParseException pe) {
+			searchInputs.title = MultiFieldQueryParser.escape(searchInputs.title);
+			try {
+				List<MetadataWithContext3> metaAndFilenames = 
+						textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, 100);
+
+				int hits = getTotalHits(searchInputs.title);
+				if(hits < 100) {
+					// Return special status if results don't reach limit to indicate that user 
+					// won't need to launch /search_no_context because they already have the full results.
+					returnStatus = HttpStatus.ACCEPTED;
+				}
+				
+				return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, returnStatus);
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
 	// Metadata without context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
 	@PostMapping(path = "/search_no_context")
 	public ResponseEntity<List<MetadataWithContext3>> searchNoContext(@RequestBody SearchInputs searchInputs,
 			@RequestHeader Map<String, String> headers)
 	{
-		String token = headers.get("authorization");
-		Long userId = idFromToken(token);
-		saveSearchLog(searchInputs, "all", userId);
+//		String token = headers.get("authorization");
 
 		try { 
 			List<MetadataWithContext3> metaAndFilenames = 
-					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL);
+					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
 			return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
 		} catch(ParseException pe) {
 			searchInputs.title = MultiFieldQueryParser.escape(searchInputs.title);
 			try {
 				List<MetadataWithContext3> metaAndFilenames = 
-						textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL);
+						textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
 				return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
 			} catch(Exception e) {
 				e.printStackTrace();
@@ -369,18 +418,18 @@ public class FulltextController {
 		SearchInputs searchInputs = new SearchInputs();
 		searchInputs.title = "project";
 		
-		long start1 = System.currentTimeMillis();
-		try {
-			textRepository.CombinedSearchNoLuceneIDs(searchInputs, SearchType.ALL);
-		} catch (ParseException e) {
-			e.printStackTrace();
-		}
-		long stop1 = System.currentTimeMillis();
-		long elapsed1 = stop1 - start1;
+//		long start1 = System.currentTimeMillis();
+//		try {
+//			textRepository.CombinedSearchNoLuceneIDs(searchInputs, SearchType.ALL);
+//		} catch (ParseException e) {
+//			e.printStackTrace();
+//		}
+//		long stop1 = System.currentTimeMillis();
+//		long elapsed1 = stop1 - start1;
 
 		long start2 = System.currentTimeMillis();
 		try {
-			textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL);
+			textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
 		} catch (ParseException e) {
 			e.printStackTrace();
 		}
@@ -388,7 +437,7 @@ public class FulltextController {
 		long elapsed2 = stop2 - start2;
 
 		List<Long> results = new ArrayList<Long>();
-		results.add(elapsed1);
+//		results.add(elapsed1);
 		results.add(elapsed2);
 		
 		return results;

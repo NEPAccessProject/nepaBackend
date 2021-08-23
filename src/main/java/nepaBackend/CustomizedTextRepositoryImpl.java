@@ -235,7 +235,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				 * @throws ParseException
 				 * */
 	@Override
-	public List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType) throws ParseException {
+	public List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType, int limit) throws ParseException {
 		try {
 			
 
@@ -285,7 +285,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				}
 
 //				startTime = System.currentTimeMillis();
-				List<MetadataWithContext3> results = getScoredWithLuceneId(title);
+				List<MetadataWithContext3> results = getScoredWithLuceneId(title, limit);
 //				stopTime = System.currentTimeMillis();
 //				elapsedTime = stopTime - startTime;
 //				System.out.println("Score time: " + elapsedTime + "ms");
@@ -332,7 +332,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	
 
 	/** Search both fields at once and return in combined scored order with lucene IDs */
-	private List<MetadataWithContext3> getScoredWithLuceneId(String terms) throws Exception, ParseException {
+	private List<MetadataWithContext3> getScoredWithLuceneId(String terms, int limit) throws Exception, ParseException {
 		long startTime = System.currentTimeMillis();
 		
 		String formattedTerms = mutateTermModifiers(terms);
@@ -386,7 +386,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 	    System.out.println("Parsed query: " + query.toString());
 	    
-		ScoreDoc scoreDocs[] = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs;
+		ScoreDoc scoreDocs[] = indexSearcher.search(query, limit).scoreDocs;
 
 		System.out.println("Search count " + scoreDocs.length);
 
@@ -781,7 +781,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	}
 
 	
-	// Not actually used anywhere yet, but this seems to be how to just get a total hit count
+	// this seems to be how to just get a total hit count
 	@Override
 	public int getTotalHits(String field) throws Exception {
 		MultiSearcher indexSearcher = new MultiSearcher();
@@ -977,227 +977,5 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				)
 			);
 	}
-
-
-	/** Combination title/fulltext query; returns metadata plus filename 
-					 * using Lucene's internal default scoring algorithm
-					 * @throws ParseException
-					 * */
-		@Override
-		public List<MetadataWithContext3> CombinedSearchNoLuceneIDs(SearchInputs searchInputs, SearchType searchType) throws ParseException {
-			try {
-				long initTime = System.currentTimeMillis();
-
-				searchInputs.title = mutateTermModifiers(searchInputs.title);
-				
-				// Run Lucene query on title if we have one, join with JDBC results, return final results
-				if(!searchInputs.title.isBlank()) {
-					String title = searchInputs.title;
-	
-					long startTime = System.currentTimeMillis();
-					List<MetadataWithContext3> results = getScoredWithoutLuceneId(title);
-					long stopTime = System.currentTimeMillis();
-					long elapsedTime = stopTime - startTime;
-					System.out.println("Score time: " + elapsedTime + "ms");
-					
-					if(Globals.TESTING) {
-						System.out.println("Meta record count: " + results.size());
-						System.out.println("Records 2 (final result set of combined metadata and filenames) " + results.size());
-						stopTime = System.currentTimeMillis();
-						elapsedTime = stopTime - initTime;
-						System.out.println("Total (Filtering, lucene search, results combining and ordering time): " + elapsedTime + "ms");
-					}
-					
-					return results;
-				} else { // no title: simply return JDBC results...  however they have to be translated
-					List<MetadataWithContext3> finalResults = new ArrayList<MetadataWithContext3>();
-
-					// get filtered records
-					List<EISDoc> records = doQuery(searchInputs, 1000000);
-					for(EISDoc record : records) {
-						finalResults.add(new MetadataWithContext3(new ArrayList<Integer>(), record, new ArrayList<String>(), "", 0));
-					}
-					return finalResults;
-				}
-			} catch(ParseException pe) {
-				throw pe;
-			} catch(Exception e) {
-				e.printStackTrace();
-				String problem = e.getLocalizedMessage();
-				MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
-				List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
-				results.add(result);
-				return results;
-			}
-		}
-
-
-	/** Search both fields at once and return in combined scored order with lucene IDs */
-		private List<MetadataWithContext3> getScoredWithoutLuceneId(String terms) throws Exception, ParseException {
-			long startTime = System.currentTimeMillis();
-			
-			String formattedTerms = mutateTermModifiers(terms);
-		
-			System.out.println("Formatted terms: " + formattedTerms);
-			 
-		    // 1. Search; instantiate highlighter
-	
-			MultiSearcher indexSearcher = new MultiSearcher();
-			
-			MultiFieldQueryParser mfqp = new MultiFieldQueryParser(
-					new String[] {"title", "plaintext"},
-					analyzer);
-			mfqp.setDefaultOperator(Operator.AND);
-			Query query = mfqp.parse(formattedTerms);
-			
-		    System.out.println("Parsed query: " + query.toString());
-		    
-			ScoreDoc scoreDocs[] = indexSearcher.search(query, Integer.MAX_VALUE).scoreDocs;
-	
-			System.out.println("Search count " + scoreDocs.length);
-	
-			List<ScoredResult> converted = new ArrayList<ScoredResult>(scoreDocs.length);
-			Set<Long> metaIds = new HashSet<Long>();
-			Set<Long> textIds = new HashSet<Long>();
-			int i = 0;
-	
-	    	// To try to ensure no plaintext overhead, specifically just load the IDs.
-			// Seems to cut the getDocument process time in half.
-			HashSet<String> fieldsToLoad = new HashSet<String>();
-			fieldsToLoad.add("text_id");
-			fieldsToLoad.add("document_id");
-	        for (ScoreDoc scoreDoc : scoreDocs) {
-	        	Document document = indexSearcher.getIndexReader().document(scoreDoc.doc, fieldsToLoad);
-				ScoredResult convert = new ScoredResult();
-				convert.idx = i;
-				String textId = document.get("text_id");
-				String metaId = document.get("document_id");
-	        	if(textId == null) {
-	        		// Handle meta ID
-	        		Long id = Long.parseLong(metaId);
-	        		metaIds.add(id);
-	    			convert.id = id;
-	    			convert.entityName = EntityType.META;
-	        	} else {
-	        		// Handle text ID
-	        		Long id = Long.parseLong(textId);
-	        		textIds.add(id);
-	    			convert.id = id;
-	    			convert.entityName = EntityType.TEXT;
-	        	}
-				converted.add(convert);
-				i++;
-	        }
-	        
-			// 1: Get EISDocs by IDs.
-	        
-	        List<EISDoc> docs = em
-	        		.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
-	        		.setParameter("ids", metaIds)
-	        		.getResultList();
-		
-			if(Globals.TESTING){System.out.println("Docs results size: " + docs.size());}
-			
-			HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
-			for(EISDoc doc : docs) {
-				hashDocs.put(doc.getId(), doc);
-			}
-		
-			// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
-		
-			List<Object[]> textIdMetaAndFilenames = em
-	        		.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
-					.setParameter("ids", textIds)
-					.getResultList();
-			
-			if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
-			
-			HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
-			for(Object[] obj : textIdMetaAndFilenames) {
-				hashTexts.put(
-						(Long) obj[0], 
-						new ReducedText(
-							(Long) obj[0],
-							(EISDoc) obj[1],
-							(String) obj[2]
-						));
-			}
-			
-			List <MetadataWithContext3> combinedResults = new ArrayList<MetadataWithContext3>();
-		
-			// 3: Join (combine) results from the two tables
-			// 3.1: Condense (add filenames to existing records rather than adding new records)
-			// 3.2: keep original order
-			
-			HashMap<Long, Integer> added = new HashMap<Long, Integer>();
-			int position = 0;
-			
-			for(ScoredResult ordered : converted) {
-				if(ordered.entityName.equals(EntityType.META)) {
-					if(!added.containsKey(ordered.id)) {
-						// Add EISDoc into logical position
-						MetadataWithContext3 combinedResult = new MetadataWithContext3(
-								new ArrayList<Integer>(),
-								hashDocs.get(ordered.id),
-								new ArrayList<String>(),
-								"",
-								0);
-						
-						combinedResults.add(combinedResult);
-						
-						added.put(ordered.id, position);
-						position++;
-					}
-					// If we already have one, do nothing - (title result: no filenames to add.)
-				} else {
-					ReducedText rd = hashTexts.get(ordered.id);
-					EISDoc eisFromDoc = rd.eisdoc;
-					if(!added.containsKey(eisFromDoc.getId())) {
-						// Add DocumentText into logical position plus lucene ID, filename
-						MetadataWithContext3 combinedResult = new MetadataWithContext3(
-								new ArrayList<Integer>(),
-								eisFromDoc,
-								new ArrayList<String>(),
-								hashTexts.get(ordered.id).filename,
-								0);
-						combinedResult.addId(ordered.luceneId);
-						
-						combinedResults.add(combinedResult);
-						added.put(eisFromDoc.getId(), position);
-						position++;
-					} else {
-						// Add this combinedResult's filename to filename list
-						// Add the lucene ID to this combinedResult's ID list
-						String currentFilename = combinedResults.get(added.get(eisFromDoc.getId()))
-								.getFilenames();
-						// > is not a valid directory/filename char, so should work as delimiter
-						// If currentFilename is blank (title match came first), no need to concat.  Just set.
-						if(currentFilename.isBlank()) {
-							combinedResults.get(added.get(eisFromDoc.getId()))
-							.setFilenames(
-								hashTexts.get(ordered.id).filename
-							);
-						} else {
-							combinedResults.get(added.get(eisFromDoc.getId()))
-							.setFilenames(
-								currentFilename.concat(">" + hashTexts.get(ordered.id).filename)
-							);
-						}
-					}
-				
-				}
-			}
-			
-			if(Globals.TESTING) {
-				System.out.println("Results # (individual title and text record hits): " + converted.size());
-				System.out.println("Results # Combined by metadata: " + combinedResults.size());
-				
-				long stopTime = System.currentTimeMillis();
-				long elapsedTime = stopTime - startTime;
-				System.out.println("Total score time: " + elapsedTime + "ms");
-			}
-			
-			return combinedResults;
-		}
 	
 }
