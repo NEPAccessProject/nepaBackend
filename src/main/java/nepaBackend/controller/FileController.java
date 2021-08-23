@@ -3703,6 +3703,16 @@ public class FileController {
 					
 					createdFolder = (folder);
 				} else {
+					/** So at this point we have an archive that may actually have partially
+					 * extracted, but none of it is converted and indexed and no nepafiles 
+					 * were created.  This is a rare data corruption case and we'll want to fix 
+					 * the source archive manually, so let's log a special case for it */
+					FileLog fl = new FileLog();
+					fl.setErrorType("Unzip failed");
+					fl.setExtractedFilename(filename);
+					fl.setUser(null);
+					fileLogRepository.save(fl);
+					
 					createdFolder = ("**PROBLEM WITH: " + filename + "**");
 				}
 			}
