@@ -17,7 +17,7 @@ public interface CustomizedTextRepository {
 
 	boolean sync();
 	
-	List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType) throws ParseException;
+	List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType, int limit) throws ParseException;
 	
 	ArrayList<ArrayList<String>> getHighlightsFVH(UnhighlightedDTO unhighlighted) throws Exception;
 	ArrayList<ArrayList<String>> getHighlightsFVHNoMarkup(UnhighlightedDTO unhighlighted) throws Exception;
@@ -25,6 +25,4 @@ public interface CustomizedTextRepository {
 	int getTotalHits(String field) throws Exception;
 
 	String testTerms(String terms);
-	List<MetadataWithContext3> CombinedSearchNoLuceneIDs(SearchInputs searchInputs, SearchType searchType)
-			throws ParseException;
 }
