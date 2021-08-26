@@ -14,7 +14,7 @@ public interface InteractionLogRepository extends JpaRepository<InteractionLog, 
 	List<InteractionLog> findAllByUserId(Long id);
 
 	@Query(value = 
-			"SELECT * FROM test.update_log where document_id = :id order by saved_time desc limit 1;",
+			"SELECT * FROM test.interaction_log where document_id = :id order by saved_time desc limit 1;",
 			nativeQuery = true)
 	Optional<UpdateLog> getMostRecentByDocumentId(@Param("id") Long id);
 
