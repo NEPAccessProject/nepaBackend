@@ -30,6 +30,7 @@ import nepaBackend.NEPAFileRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.UpdateLogRepository;
 import nepaBackend.UpdateLogService;
+import nepaBackend.UserStatusLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.DocumentText;
@@ -39,6 +40,7 @@ import nepaBackend.model.EmailLog;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.UpdateLog;
+import nepaBackend.model.UserStatusLog;
 
 @RestController
 @RequestMapping("/admin")
@@ -66,6 +68,8 @@ public class AdminController {
     private DeleteRequestRepository deleteReqRepo;
     @Autowired
     private UpdateLogService updateLogService;
+    @Autowired
+    private UserStatusLogRepository userStatusLogRepository;
 
     public AdminController() {
     }
@@ -155,6 +159,18 @@ public class AdminController {
 			return new ResponseEntity<List<UpdateLog>>(new ArrayList<UpdateLog>(), HttpStatus.UNAUTHORIZED);
 		}
     }
+	
+    @GetMapping("/findAllUserStatusLogs")
+    private @ResponseBody ResponseEntity<List<UserStatusLog>> findAllUserStatusLogs(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		
+    	if(applicationUserService.isAdmin(token)) {
+    		return new ResponseEntity<List<UserStatusLog>>(userStatusLogRepository.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<UserStatusLog>>(HttpStatus.UNAUTHORIZED);
+		}
+    }
+    
 
     @CrossOrigin
     @RequestMapping(path = "/exec_delete_requests", method = RequestMethod.POST)
