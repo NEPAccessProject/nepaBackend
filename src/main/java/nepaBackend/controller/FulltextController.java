@@ -140,8 +140,6 @@ public class FulltextController {
 
 				int hits = getTotalHits(searchInputs.title);
 				if(hits < 100) {
-					// Return special status if results don't reach limit to indicate that user 
-					// won't need to launch /search_no_context because they already have the full results.
 					returnStatus = HttpStatus.ACCEPTED;
 				}
 				
