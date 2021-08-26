@@ -51,10 +51,12 @@ import nepaBackend.ContactRepository;
 import nepaBackend.EmailLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.OptedOutRepository;
+import nepaBackend.UserStatusLogRepository;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.Contact;
 import nepaBackend.model.EmailLog;
 import nepaBackend.model.OptedOut;
+import nepaBackend.model.UserStatusLog;
 import nepaBackend.pojo.ContactForm;
 import nepaBackend.pojo.Generate;
 import nepaBackend.pojo.PasswordChange;
@@ -81,6 +83,8 @@ public class UserController {
     private OptedOutRepository optedOutRepository;
     @Autowired
     private EmailLogRepository emailLogRepository;
+    @Autowired
+    private UserStatusLogRepository userStatusLogRepo;
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
@@ -124,7 +128,14 @@ public class UserController {
 		}
     }
     
-    @PostMapping("/setUserApproved")
+    /** Simply logs whether user is enabled after a status change and who made the change */
+    private void logUserStatusChange(String adminToken, ApplicationUser changedUser) {
+		ApplicationUser adminUser = applicationUserService.getUserFromToken(adminToken);
+		userStatusLogRepo.save(new UserStatusLog(adminUser,changedUser,changedUser.isAccountEnabled()));
+		
+	}
+
+	@PostMapping("/setUserApproved")
     private @ResponseBody ResponseEntity<Boolean> approveUser(@RequestParam Long userId, 
     			@RequestParam boolean approved, 
     			@RequestHeader Map<String, String> headers) {
@@ -144,7 +155,8 @@ public class UserController {
 	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     		} else {
         		user.setActive(approved);
-        		applicationUserRepository.save(user);
+        		user = applicationUserRepository.save(user);
+    			this.logUserStatusChange(token, user);
 
         		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
     		}
@@ -170,7 +182,8 @@ public class UserController {
 	    		return new ResponseEntity<Boolean>(false, HttpStatus.UNAUTHORIZED);
     		} else {
 	    		user.setVerified(approved);
-	    		applicationUserRepository.save(user);
+        		user = applicationUserRepository.save(user);
+    			this.logUserStatusChange(token, user);
 	
 	    		return new ResponseEntity<Boolean>(true, HttpStatus.OK);
     		}
@@ -1238,6 +1251,7 @@ public class UserController {
     	}
 	}
     
+    /** TODO:? Incomplete/disbled; Sends email to people who have opted out */
     @PostMapping(path = "/opted_out_email_sender", 
     		consumes = "application/json", 
     		produces = "application/json", 
