@@ -861,32 +861,8 @@ public class FileController {
 						
 						Optional<EISDoc> recordThatMayExist = getEISDocByTitleTypeDate(itr.title, itr.document, itr.federal_register_date);
 						
-						
-						// If record exists but has no filename and no folder, then update it.
-						// Or if the user insists (force update header exists, and value of "Yes" for it) we will update it anyway,
-						// potentially replacing the filename/folder values
-						if(recordThatMayExist.isPresent() && 
-								( 
-									(
-										(recordThatMayExist.get().getFilename() == null || recordThatMayExist.get().getFilename().isBlank()) 
-										&& (recordThatMayExist.get().getFolder() == null || recordThatMayExist.get().getFolder().isBlank())
-									) 
-										|| (itr.force_update != null && itr.force_update.equalsIgnoreCase("yes")) 
-								)
-						) {
-							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
-							if(shouldImport) {
-								status = updateDto(itr, recordThatMayExist, applicationUserService.getUserFromToken(token).getId());
-							}
-							
-							if(status.getStatusCodeValue() == 500) { // Error
-								results.add("Item " + count + ": Error saving: " + itr.title);
-					    	} else {
-								results.add("Item " + count + ": Updated: " + itr.title);
-					    	}
-						}
-						// Otherwise update the non-file fields only if present
-						else if(recordThatMayExist.isPresent()) {
+						// Update
+						if(recordThatMayExist.isPresent()) {
 							ResponseEntity<Long> status = new ResponseEntity<Long>(HttpStatus.OK);
 							if(shouldImport) {
 								status = updateDtoExceptFile(itr, recordThatMayExist, applicationUserService.getUserFromToken(token).getId());
@@ -897,7 +873,7 @@ public class FileController {
 					    	} else if(status.getStatusCodeValue() == 208) { // No change
 					    		results.add("Item " + count + ": No change (all fields identical): " + itr.title);
 					    	} else {
-								results.add("Item " + count + ": Updated fields (did not overwrite filename or folder if it existed already): " + itr.title);
+								results.add("Item " + count + ": Updated: " + itr.title);
 					    	}
 						}
 						// If file doesn't exist, then create new record
@@ -2384,10 +2360,13 @@ public class FileController {
 		}
 	}
 
-	/** only updates filename or folder fields if blank (returns record ID and status 200), 
+	/** updates fields if existing fields blank (returns record ID and status 200), 
+	 * or updates filename or folder fields if incoming is non-blank and different than existing,
 	 * if all fields equal returns status 208
 	 */
-	private ResponseEntity<Long> updateDtoExceptFile(UploadInputs itr, Optional<EISDoc> existingRecord, Long userid) {
+	private ResponseEntity<Long> updateDtoExceptFile(UploadInputs itr, 
+			Optional<EISDoc> existingRecord, 
+			Long userid) {
 		if(!existingRecord.isPresent()) {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
@@ -2401,22 +2380,37 @@ public class FileController {
 			itr.filename = "";
 		}
 		
-		if(oldRecord.getFilename() == null || oldRecord.getFilename().isBlank()) {
-			if(itr.filename != null && !itr.filename.isBlank()) {
-				oldRecord.setFilename(itr.filename.strip());
-				isChanged = true;
-			}
+		// update filename if it doesn't have one yet and a new one is actually incoming,
+		// OR update if there's a new, non-blank, different one than existing, and force_update
+		if( (oldRecord.getFilename() == null || oldRecord.getFilename().isBlank())
+				&& itr.filename != null 
+				&& !itr.filename.isBlank() ) {
+			oldRecord.setFilename(itr.filename.strip());
+			isChanged = true;
+		} else if ( itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")
+				&& itr.filename != null && !itr.filename.isBlank()
+				&& oldRecord.getFilename() != null
+				&& !oldRecord.getFilename().contentEquals(itr.filename)) {
+			oldRecord.setFilename(itr.filename.strip());
+			isChanged = true;
 		}
-		
-		if(oldRecord.getFolder() == null || oldRecord.getFolder().isBlank()) {
-			if(itr.eis_identifier != null && !itr.eis_identifier.isBlank()) {
-				oldRecord.setFolder(itr.eis_identifier.strip());
-				isChanged = true;
-			}
+		// update folder if it doesn't have one yet and a new one is actually incoming,
+		// OR update if there's a new, non-blank, different one than existing, and force_update
+		if( (oldRecord.getFolder() == null || oldRecord.getFolder().isBlank())
+				&& itr.eis_identifier != null 
+				&& !itr.eis_identifier.isBlank() ) {
+			oldRecord.setFolder(itr.eis_identifier.strip());
+			isChanged = true;
+		} else if ( itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")
+				&& itr.eis_identifier != null && !itr.eis_identifier.isBlank()
+				&& oldRecord.getFolder() != null
+				&& !oldRecord.getFolder().contentEquals(itr.eis_identifier)) {
+			oldRecord.setFolder(itr.eis_identifier.strip());
+			isChanged = true;
 		}
 
-		// at this point we've matched on title, date and document type already
-		// use whichever title is longer and therefore has more punctuation
+		// at this point we've matched on title, date and document type already;
+		// use whichever title is longer and therefore probably has more intact punctuation
 		if(Globals.normalizeSpace(oldRecord.getTitle()).length() < itr.title.length()) {
 			oldRecord.setTitle(itr.title);
 			isChanged = true;
@@ -2459,6 +2453,11 @@ public class FileController {
 			oldRecord.setAgency(itr.agency);
 			isChanged = true;
 		}
+		if(itr.cooperating_agency != null && !itr.cooperating_agency.isBlank()
+				&& !itr.cooperating_agency.contentEquals(Globals.normalizeSpace(oldRecord.getCooperatingAgency())) ) {
+			oldRecord.setCooperatingAgency(itr.cooperating_agency);
+			isChanged = true;
+		}
 		if(itr.link != null && !itr.link.isBlank()
 				&& !itr.link.contentEquals(Globals.normalizeSpace(oldRecord.getLink())) ) {
 			oldRecord.setLink(itr.link);
@@ -2499,95 +2498,6 @@ public class FileController {
 			// return something special denoting no change
 			return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.ALREADY_REPORTED);
 		}
-	}
-	/** Expects matching record and new data; updates; preserves comments/comments date, state, agency if no new values for those */
-	private ResponseEntity<Long> updateDto(UploadInputs itr, Optional<EISDoc> existingRecord, Long userid) {
-
-		if(!existingRecord.isPresent()) {
-			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-		EISDoc oldRecord = existingRecord.get();
-		
-		// Save log for accountability and restore option
-		UpdateLog ul = updateLogService.newUpdateLogFromEIS(oldRecord, userid);
-		updateLogRepository.save(ul);
-
-		// "Multi" is actually counterproductive, will have to amend spec
-		if(itr.filename != null && itr.filename.equalsIgnoreCase("multi")) {
-			itr.filename = "";
-		}
-
-		// at this point we've matched on title, date and document type already but because of how we match on title
-		// it can actually be slightly different and hopefully more accurate
-		oldRecord.setTitle(Globals.normalizeSpace(itr.title));
-		
-		// this is redundant because the outer logic doesn't set the filename when one exists without force_update
-		if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
-			/** 
-			 * update even if new filename is blank/null, allowing user to potentially ungracefully unlink existing
-			 *  files from metadata.  Also allows bulk fixing of past mistakes if they previously added a bunch of
-			 *  invalid filenames.  So this can both break and fix the database depending on user, 
-			 *  which is true of the import in general
-			 */
-			oldRecord.setFilename(itr.filename);
-		} else if(itr.filename == null || itr.filename.isBlank()) {
-			// skip, leave original
-		} else {
-			oldRecord.setFilename(itr.filename);
-		}
-		
-		if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
-			// skip, leave original
-		} else {
-			oldRecord.setCommentsFilename(itr.comments_filename);
-		}
-		
-//		oldRecord.setRegisterDate(LocalDate.parse(itr.federal_register_date));
-		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
-			// skip, leave original
-		} else {
-			try {
-				oldRecord.setCommentDate(parseDate(itr.epa_comment_letter_date));
-			} catch (IllegalArgumentException e) {
-				// never mind
-			}
-		}
-		
-		if(itr.state != null && !itr.state.isBlank()) {
-			oldRecord.setState(Globals.normalizeSpace(itr.state));
-		}
-		if(itr.agency != null && !itr.agency.isBlank()) {
-			oldRecord.setAgency(Globals.normalizeSpace(itr.agency));
-		}
-		if(itr.eis_identifier != null && !itr.eis_identifier.isBlank()) {
-			oldRecord.setFolder(itr.eis_identifier);
-		}
-		if(itr.link != null && !itr.link.isBlank()) {
-			oldRecord.setLink(itr.link);
-		}
-		if(itr.notes != null && !itr.notes.isBlank()) {
-			oldRecord.setNotes(itr.notes);
-		}
-		if(itr.process_id != null && !itr.process_id.isBlank()) {
-			try {
-				oldRecord.setProcessId(Long.parseLong(itr.process_id));
-			} catch(Exception e) {
-				e.printStackTrace();
-			}
-		}
-		if(itr.county != null && !itr.county.isBlank()) {
-			oldRecord.setCounty(itr.county);
-		}
-		if(itr.status != null && !itr.status.isBlank()) {
-			oldRecord.setStatus(itr.status);
-		}
-		if(itr.subtype != null && !itr.subtype.isBlank()) {
-			oldRecord.setSubtype(itr.subtype);
-		}
-		
-		docRepository.save(oldRecord); // save to db, ID shouldn't change
-		
-		return new ResponseEntity<Long>(oldRecord.getId(), HttpStatus.OK);
 	}
 
 	/** Updates but doesn't overwrite anything with a blank value */
