@@ -170,6 +170,17 @@ public class AdminController {
 			return new ResponseEntity<List<UserStatusLog>>(HttpStatus.UNAUTHORIZED);
 		}
     }
+	
+    @GetMapping("/findAllDeleteRequests")
+    private @ResponseBody ResponseEntity<List<DeleteRequest>> findAllDeleteRequests(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		
+    	if(applicationUserService.isAdmin(token)) {
+    		return new ResponseEntity<List<DeleteRequest>>(deleteReqRepo.findAll(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<DeleteRequest>>(HttpStatus.UNAUTHORIZED);
+		}
+    }
     
 
     @CrossOrigin
