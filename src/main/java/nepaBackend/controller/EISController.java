@@ -36,13 +36,16 @@ import nepaBackend.ApplicationUserService;
 import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.Globals;
+import nepaBackend.NEPAFileRepository;
 import nepaBackend.ProcessRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.UpdateLogService;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.EISMatch;
+import nepaBackend.model.NEPAFile;
 import nepaBackend.model.SearchLog;
 import nepaBackend.model.UpdateLog;
+import nepaBackend.pojo.DocWithFilenames;
 import nepaBackend.pojo.MatchParams;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
@@ -61,6 +64,8 @@ public class EISController {
 	private UpdateLogService updateLogService;
 	@Autowired
 	private ProcessRepository processRepository;
+	@Autowired
+	private NEPAFileRepository nepaFileRepo;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of("yyyy-MM-dd", "MM-dd-yyyy", 
 			"yyyy/MM/dd", "MM/dd/yyyy", 
@@ -456,6 +461,27 @@ public class EISController {
 		}
 	}
 
+
+	@RequestMapping(path = "/get_process_full", method = RequestMethod.GET)
+	public ResponseEntity<List<DocWithFilenames>> getProcessFull(@RequestParam(name="processId") Long processId,
+			@RequestHeader Map<String, String> headers) {
+		List<EISDoc> docs = docService.findAllByProcessId(processId);
+		List<DocWithFilenames> results = new ArrayList<DocWithFilenames>();
+		
+		for(EISDoc doc: docs) {
+			List<NEPAFile> files = nepaFileRepo.findAllByEisdoc(doc);
+			List<String> filenames = new ArrayList<String>();
+			
+			for(NEPAFile file: files) {
+				filenames.add(file.getFilename());
+			}
+			
+			results.add(new DocWithFilenames(doc,filenames));
+		}
+		
+		return new ResponseEntity<List<DocWithFilenames>>(results, HttpStatus.OK);
+	}
+	
 	@RequestMapping(path = "/get_process", method = RequestMethod.GET)
 	public ResponseEntity<List<EISDoc>> getProcess(@RequestParam(name="processId") Long processId,
 			@RequestHeader Map<String, String> headers) {
