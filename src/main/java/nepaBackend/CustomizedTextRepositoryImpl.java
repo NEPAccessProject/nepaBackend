@@ -936,6 +936,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		// Finalize query
 		
+		if(searchInputs.title == null || searchInputs.title.length() == 0) {
+			sQuery += " ORDER BY REGISTER_DATE DESC";
+		}
+		
 		sQuery += " LIMIT " + String.valueOf(queryLimit);
 		
 
