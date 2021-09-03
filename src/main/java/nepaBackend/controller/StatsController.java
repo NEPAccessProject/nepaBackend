@@ -279,6 +279,18 @@ public class StatsController {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	@CrossOrigin
+	@GetMapping(path = "/total_count", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<Long> getDownloadableCount() {
+		try {
+			Long result = docRepository.getDownloadableCount();
+			return new ResponseEntity<Long>(result, HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 	
 	/** dynamically pull and include a number for “draft records” (i.e., say “x”) and for the 
 	 * corresponding searchable / downloadable draft PDF (say x1) files. Add those numbers

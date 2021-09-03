@@ -280,6 +280,10 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "WHERE document_type='Draft';",
 			nativeQuery = true)
 	long getDraftCount();
+
+	@Query(value = "SELECT COUNT(*) FROM test.eisdoc WHERE size > 178;",
+			nativeQuery = true)
+	Long getDownloadableCount();
 	
 	List<EISDoc> findAllByAgency(String agency);
 
