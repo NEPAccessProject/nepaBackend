@@ -2506,8 +2506,12 @@ public class FileController {
 		// Save log for accountability and restore option
 		UpdateLog ul = updateLogService.newUpdateLogFromEIS(existingRecord, userid);
 		updateLogRepository.save(ul);
-		
-		existingRecord.setTitle(Globals.normalizeSpace(itr.title));
+
+		// at this point we've matched on title, date and document type already;
+		// use whichever title is longer and therefore probably has more intact punctuation
+		if(Globals.normalizeSpace(existingRecord.getTitle()).length() < itr.title.length()) {
+			existingRecord.setTitle(Globals.normalizeSpace(itr.title));
+		}
 		
 		if(itr.agency == null || itr.agency.isBlank()) {
 			// skip, leave original
