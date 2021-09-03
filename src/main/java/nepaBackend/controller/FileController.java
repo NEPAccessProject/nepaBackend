@@ -2443,7 +2443,7 @@ public class FileController {
 			// never mind
 		}
 		
-		if(itr.state != null && itr.state.isBlank()
+		if(itr.state != null && !itr.state.isBlank()
 				&& !itr.state.contentEquals(Globals.normalizeSpace(oldRecord.getState())) ) {
 			oldRecord.setState(itr.state);
 			isChanged = true;
