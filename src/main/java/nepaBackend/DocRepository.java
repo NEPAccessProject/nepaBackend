@@ -369,12 +369,12 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	@Query(value = 
 			"		select t.* " + 
 			"		from eisdoc t join " + 
-			"		(select document_type, title, register_date, count(*) as NumDuplicates " + 
+			"		(select document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', '') as title, register_date, count(*) as NumDuplicates " + 
 			"		  from eisdoc " + 
-			"		  group by document_type, title, register_date " + 
+			"		  group by document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', ''), register_date " + 
 			"		  having NumDuplicates > 1 " + 
 			"		) tsum " + 
-			"		on t.document_type = tsum.document_type and t.title = tsum.title " +
+			"		on t.document_type = tsum.document_type and (REGEXP_REPLACE(t.title, '[^0-9a-zA-Z]', '')) = tsum.title " +
 			"       and ABS(DATEDIFF(t.register_date,tsum.register_date)) <= 31" + 
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllDuplicatesCloseDates();
@@ -382,12 +382,12 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	@Query(value = 
 			"		select t.* " + 
 			"		from eisdoc t join " + 
-			"		(select document_type, title, count(*) as NumDuplicates " + 
+			"		(select document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', '') as title, count(*) as NumDuplicates " + 
 			"		  from eisdoc " + 
-			"		  group by document_type, title " + 
+			"		  group by document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', '') " + 
 			"		  having NumDuplicates > 1 " + 
 			"		) tsum " + 
-			"		on t.document_type = tsum.document_type and t.title = tsum.title " +
+			"		on t.document_type = tsum.document_type and (REGEXP_REPLACE(t.title, '[^0-9a-zA-Z]', '')) = tsum.title " +
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllSameTitleType();
 	// if we have duplicates with the same files and the same exact byte size it can show very clear
