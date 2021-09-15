@@ -550,6 +550,19 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			@Param("title") String title, 
 			@Param("type") String type, 
 			@Param("date") LocalDate date);
+	
+	@Query(value = 	
+			"		select t.* \r\n" + 
+			"		from eisdoc t join \r\n" + 
+			"		(select document_type, folder, count(*) as NumDuplicates \r\n" + 
+			"		  from eisdoc \r\n" + 
+			"         where folder is not null and LENGTH(folder)>0 \r\n" +
+			"		  group by document_type, folder \r\n" + 
+			"		  having NumDuplicates > 1\r\n" + 
+			"		) tsum \r\n" + 
+			"		on t.document_type = tsum.document_type and t.folder = tsum.folder" + 
+			"		ORDER BY folder", nativeQuery = true)
+	List<EISDoc> findNonUniqueTypeFolderPairs();
 
 
 }

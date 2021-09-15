@@ -91,6 +91,17 @@ public class ReportController {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
+	// Since files are added by folder name and document type, we want that to be a unique pair.
+	// We could add a constraint to the database but that's a lot of overhead
+	@GetMapping(path = "/duplicates_type_folder")
+	public @ResponseBody ResponseEntity<List<EISDoc>> findNonUniqueTypeFolderPair(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(applicationUserService.isAdmin(token)) {
+			return new ResponseEntity<List<EISDoc>>(docRepository.findNonUniqueTypeFolderPairs(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
 	
 
 	@GetMapping(path = "/excel_get")
