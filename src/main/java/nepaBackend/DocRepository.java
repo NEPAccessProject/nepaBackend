@@ -288,7 +288,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	/** Return downloadable draft counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
 			+ " FROM test.eisdoc"
-			+ " WHERE (document_type='Draft')"
+			+ " WHERE (document_type='Final')"
 			+ " AND size>200"
 			+ " GROUP BY YEAR(register_date)"
 			+ " ORDER BY YEAR(register_date)"
