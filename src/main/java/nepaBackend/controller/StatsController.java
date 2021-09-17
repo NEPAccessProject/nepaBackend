@@ -89,7 +89,11 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	
+	
+	/** Stats for Paul */
 
+	
 	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable", 
 	produces = "application/json", 
@@ -101,7 +105,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-
 	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable_rod", 
 	produces = "application/json", 
@@ -113,7 +116,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-
 	@CrossOrigin
 	@GetMapping(path = "/count_year", 
 	produces = "application/json", 
@@ -136,8 +138,77 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_draft", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getDraftCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getDraftCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_downloadable_draft", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getDownloadableDraftCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getDownloadableDraftCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_final", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getFinalCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getFinalCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_downloadable_final", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getDownloadableFinalCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getDownloadableFinalCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_supplement", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getSupplementCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getSupplementCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_downloadable_supplement", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getDownloadableSupplementCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getDownloadableSupplementCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 
+	
+	/**  */
 
+	
 	@CrossOrigin
 	@GetMapping(path = "/draft_final_count_year", 
 	produces = "application/json", 

@@ -136,7 +136,6 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	public List<Object> getDraftFinalCountByYear();
 
-
 	/** Return EIS metadata counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
 			+ "FROM test.eisdoc "
@@ -216,6 +215,86 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "DESC;",
 			nativeQuery = true)
 	public List<Object> getRODCountByYear();
+
+	/** Return supplement metadata counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE (document_type='Final Revised'"
+			+ " OR document_type='Draft Revised'"
+		    + " OR document_type = 'Second Draft'"
+		    + " OR document_type = 'Second Final'"
+		    + " OR document_type = 'Revised Draft'"
+		    + " OR document_type = 'Revised Final'"
+		    + " OR document_type = 'Draft Supplement'"
+		    + " OR document_type = 'Final Supplement'"
+		    + " OR document_type = 'Second Draft Supplemental'"
+		    + " OR document_type = 'Second Final Supplemental'"
+		    + " OR document_type = 'Third Draft Supplemental'"
+		    + " OR document_type = 'Third Final Supplemental') "
+			+ "GROUP BY YEAR(register_date) "
+			+ "ORDER BY YEAR(register_date) "
+			+ "DESC;",
+			nativeQuery = true)
+	public List<Object> getSupplementCountByYear();
+	/** Return downloadable supplement counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
+			+ " FROM test.eisdoc"
+			+ " WHERE (document_type='Final Revised'"
+			+ " OR document_type='Draft Revised'"
+		    + " OR document_type = 'Second Draft'"
+		    + " OR document_type = 'Second Final'"
+		    + " OR document_type = 'Revised Draft'"
+		    + " OR document_type = 'Revised Final'"
+		    + " OR document_type = 'Draft Supplement'"
+		    + " OR document_type = 'Final Supplement'"
+		    + " OR document_type = 'Second Draft Supplemental'"
+		    + " OR document_type = 'Second Final Supplemental'"
+		    + " OR document_type = 'Third Draft Supplemental'"
+		    + " OR document_type = 'Third Final Supplemental')"
+			+ " AND size>200"
+			+ " GROUP BY YEAR(register_date)"
+			+ " ORDER BY YEAR(register_date)"
+			+ " DESC;",
+			nativeQuery = true)
+	public List<Object> getDownloadableSupplementCountByYear();
+	/** Return draft metadata counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE (document_type='Draft') "
+			+ "GROUP BY YEAR(register_date) "
+			+ "ORDER BY YEAR(register_date) "
+			+ "DESC;",
+			nativeQuery = true)
+	public List<Object> getDraftCountByYear();
+	/** Return downloadable draft counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
+			+ " FROM test.eisdoc"
+			+ " WHERE (document_type='Draft')"
+			+ " AND size>200"
+			+ " GROUP BY YEAR(register_date)"
+			+ " ORDER BY YEAR(register_date)"
+			+ " DESC;",
+			nativeQuery = true)
+	public List<Object> getDownloadableDraftCountByYear();
+	/** Return draft metadata counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
+			+ "FROM test.eisdoc "
+			+ "WHERE (document_type='Final') "
+			+ "GROUP BY YEAR(register_date) "
+			+ "ORDER BY YEAR(register_date) "
+			+ "DESC;",
+			nativeQuery = true)
+	public List<Object> getFinalCountByYear();
+	/** Return downloadable draft counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
+			+ " FROM test.eisdoc"
+			+ " WHERE (document_type='Draft')"
+			+ " AND size>200"
+			+ " GROUP BY YEAR(register_date)"
+			+ " ORDER BY YEAR(register_date)"
+			+ " DESC;",
+			nativeQuery = true)
+	public List<Object> getDownloadableFinalCountByYear();
 
 
 	/** Return counts of drafts and finals by state */
@@ -556,7 +635,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"		from eisdoc t join \r\n" + 
 			"		(select document_type, folder, count(*) as NumDuplicates \r\n" + 
 			"		  from eisdoc \r\n" + 
-			"         where folder is not null and LENGTH(folder)>0 \r\n" +
+			"		  where folder is not null and LENGTH(folder)>0 \r\n" +
 			"		  group by document_type, folder \r\n" + 
 			"		  having NumDuplicates > 1\r\n" + 
 			"		) tsum \r\n" + 
