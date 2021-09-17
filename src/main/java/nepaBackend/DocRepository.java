@@ -276,7 +276,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ " DESC;",
 			nativeQuery = true)
 	public List<Object> getDownloadableDraftCountByYear();
-	/** Return draft metadata counts by year */
+	/** Return final metadata counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
 			+ "FROM test.eisdoc "
 			+ "WHERE (document_type='Final') "
@@ -285,7 +285,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ "DESC;",
 			nativeQuery = true)
 	public List<Object> getFinalCountByYear();
-	/** Return downloadable draft counts by year */
+	/** Return downloadable final counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
 			+ " FROM test.eisdoc"
 			+ " WHERE (document_type='Final')"
@@ -295,6 +295,31 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			+ " DESC;",
 			nativeQuery = true)
 	public List<Object> getDownloadableFinalCountByYear();
+	/** Return downloadable "other" counts by year aka non-final/draft/rod/ea */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
+			+ " FROM test.eisdoc"
+			+ " WHERE (document_type!='Final'"
+			+ " AND document_type!='Draft'"
+			+ " AND document_type!='ROD'"
+			+ " AND document_type!='EA')"
+			+ " AND size>200"
+			+ " GROUP BY YEAR(register_date)"
+			+ " ORDER BY YEAR(register_date)"
+			+ " DESC;",
+			nativeQuery = true)
+	public List<Object> getDownloadableOtherCountByYear();
+	/** Return all "other" counts by year */
+	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
+			+ " FROM test.eisdoc"
+			+ " WHERE (document_type!='Final'"
+			+ " AND document_type!='Draft'"
+			+ " AND document_type!='ROD'"
+			+ " AND document_type!='EA')"
+			+ " GROUP BY YEAR(register_date)"
+			+ " ORDER BY YEAR(register_date)"
+			+ " DESC;",
+			nativeQuery = true)
+	public List<Object> getOtherCountByYear();
 
 
 	/** Return counts of drafts and finals by state */

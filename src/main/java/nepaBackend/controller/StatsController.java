@@ -204,6 +204,29 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	@CrossOrigin
+	@GetMapping(path = "/count_year_other", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getOtherCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getOtherCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	@CrossOrigin
+	@GetMapping(path = "/count_year_downloadable_other", 
+	produces = "application/json", 
+	headers = "Accept=application/json")
+	public @ResponseBody ResponseEntity<List<Object>> getDownloadableOtherCountByYear() {
+		try {
+			return new ResponseEntity<List<Object>>(docRepository.getDownloadableOtherCountByYear(), HttpStatus.OK);
+		} catch (Exception e) {
+			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 
 	
 	/**  */
