@@ -1,17 +1,31 @@
 package nepaBackend.controller;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailException;
+import org.springframework.mail.MailSendException;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,6 +33,7 @@ import nepaBackend.ApplicationUserService;
 import nepaBackend.DeleteRequestRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.ExcelRepository;
+import nepaBackend.Globals;
 import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.Excel;
@@ -27,8 +42,11 @@ import nepaBackend.model.Excel;
 @RequestMapping("/reports")
 public class ReportController {
 	
-//	private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
-	
+	private static final Logger logger = LoggerFactory.getLogger(ReportController.class);
+
+    @Autowired
+    private JavaMailSender sender;
+    
 	@Autowired
 	private ApplicationUserService applicationUserService;
 	@Autowired
@@ -40,6 +58,43 @@ public class ReportController {
 	
 	public ReportController() {
 	}
+
+	/** If report is missing, Spring returns a 400 error automatically */
+	@RequestMapping(path = "/report_data_issue", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<Void> save(
+				@RequestPart(name="report") String reportText, 
+				@RequestPart(name="processId", required = false) String processId,
+				@RequestHeader Map<String, String> headers) {
+		
+		
+		String token = headers.get("authorization");
+		String userEmail = "";
+		try {
+			userEmail = applicationUserService.getUserFromToken(token).getEmail();
+		} catch(Exception e) {
+			userEmail = "";
+		}
+		
+		try {
+            MimeMessage message = sender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message);
+             
+            helper.setTo("abinfordwalsh@email.arizona.edu>");
+            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            helper.setSubject("NEPAccess Data Issue Report");
+            helper.setText("From user: " + userEmail
+            		+ "\nFor process ID: " + processId
+            		+ "\nReport follows:\n" + reportText);
+             
+            sender.send(message);
+		} catch(Exception e) {
+			logger.error("Couldn't send email report from " + userEmail + ": " + reportText);
+			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+		
+		return new ResponseEntity<Void>(HttpStatus.OK);
+	}
+	
 
 	@GetMapping(path = "/report_agency")
 	public @ResponseBody ResponseEntity<List<Object[]>> reportAgencyCombined(@RequestHeader Map<String, String> headers) {
