@@ -82,9 +82,9 @@ public class ReportController {
             helper.setTo("abinfordwalsh@email.arizona.edu>");
             message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             helper.setSubject("NEPAccess Data Issue Report");
-            helper.setText("From user: " + userEmail
+            helper.setText("Reported by: " + userEmail
             		+ "\nFor process ID: " + processId
-            		+ "\nReport follows:\n" + reportText);
+            		+ "\n\nReport follows: \n\n" + reportText);
              
             sender.send(message);
 		} catch(Exception e) {
