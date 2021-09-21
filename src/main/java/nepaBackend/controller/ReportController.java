@@ -83,7 +83,7 @@ public class ReportController {
             message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             helper.setSubject("NEPAccess Data Issue Report");
             helper.setText("Reported by: " + userEmail
-            		+ "\nFor process ID: " + processId
+            		+ "\nFor process ID "+processId+": https://www.nepaccess.org/process-details?id=" + processId
             		+ "\n\nReport follows: \n\n" + reportText);
              
             sender.send(message);
