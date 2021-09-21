@@ -297,6 +297,7 @@ public class UserController {
                     }
         		} catch(Exception e) {
         			e.printStackTrace();
+        			logger.error("Couldn't register :: "+e.getLocalizedMessage());
             		return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR); // 500 if failed register
         		}
         		
