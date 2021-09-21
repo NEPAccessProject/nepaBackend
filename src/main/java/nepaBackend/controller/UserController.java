@@ -22,6 +22,8 @@ import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -66,6 +68,8 @@ import nepaBackend.security.SecurityConstants;
 @RestController
 @RequestMapping("/user")
 public class UserController {
+	
+	private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
 	@Autowired
 	JdbcTemplate jdbcTemplate;
@@ -230,7 +234,7 @@ public class UserController {
                 user.setLastName(Globals.normalizeSpace(user.getLastName()));
                 user.setEmailAddress(Globals.normalizeSpace(user.getEmail()));
                 user.setVerified(false);
-                user.setActive(false);
+                user.setActive(true);
                 user.setRole("USER");
                 if(isValidUser(user)) { 
                     if(!Globals.TESTING) {applicationUserRepository.save(user);}
@@ -244,7 +248,7 @@ public class UserController {
     		// email user verification link
 			boolean emailed = sendVerificationEmail(user);
 			if(emailed) {
-				sendApprovalEmail(user);
+//				sendApprovalEmail(user);
 	    		return new ResponseEntity<Void>(HttpStatus.OK);
 			} else {
         		return new ResponseEntity<Void>(HttpStatus.SERVICE_UNAVAILABLE); // 503 if failed email
