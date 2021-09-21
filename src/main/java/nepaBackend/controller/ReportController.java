@@ -61,7 +61,7 @@ public class ReportController {
 
 	/** If report is missing, Spring returns a 400 error automatically */
 	@RequestMapping(path = "/report_data_issue", method = RequestMethod.POST, consumes = "multipart/form-data")
-	private ResponseEntity<Void> save(
+	private ResponseEntity<Void> reportDataIssue(
 				@RequestPart(name="report") String reportText, 
 				@RequestPart(name="processId", required = false) String processId,
 				@RequestHeader Map<String, String> headers) {
@@ -79,7 +79,7 @@ public class ReportController {
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
-            helper.setTo("abinfordwalsh@email.arizona.edu>");
+            helper.setTo("<abinfordwalsh@email.arizona.edu>");
             message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             helper.setSubject("NEPAccess Data Issue Report");
             helper.setText("Reported by: " + userEmail
@@ -88,7 +88,8 @@ public class ReportController {
              
             sender.send(message);
 		} catch(Exception e) {
-			logger.error("Couldn't send email report from " + userEmail + ": " + reportText);
+			e.printStackTrace();
+			logger.error("Couldn't send email report from " + userEmail + ": " + reportText + " :: "+e.getLocalizedMessage());
 			return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 		
