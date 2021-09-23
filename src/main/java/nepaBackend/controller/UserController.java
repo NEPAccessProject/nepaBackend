@@ -704,19 +704,19 @@ public class UserController {
             helper.setTo(user.getEmail());
             message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             helper.setSubject("NEPAccess Registration Request");
-            helper.setText("This is an automatically generated email in response to"
-            		+ " a request to register an account linked to this email address."
-            		+ "\n\nYour username is: " + user.getUsername()
-            		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
-            		+ "\nThe link will remain valid for ten days."
-            		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
-            		+ "as your account is approved.");
 //            helper.setText("This is an automatically generated email in response to"
 //            		+ " a request to register an account linked to this email address."
 //            		+ "\n\nYour username is: " + user.getUsername()
 //            		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
 //            		+ "\nThe link will remain valid for ten days."
-//            		+ "\n\nAfter verifying your email, you will be able to use the system when logged in.");
+//            		+ "\n\nAfter verifying your email, you will be able to use the system as soon "
+//            		+ "as your account is approved.");
+            helper.setText("This is an automatically generated email in response to"
+            		+ " a request to register an account linked to this email address."
+            		+ "\n\nYour username is: " + user.getUsername()
+            		+ "\n\nClick this link to verify your email: " + getVerificationLink(user)
+            		+ "\nThe link will remain valid for ten days."
+            		+ "\n\nAfter verifying your email, you will be able to use the system when logged in.");
              
             sender.send(message);
     		
