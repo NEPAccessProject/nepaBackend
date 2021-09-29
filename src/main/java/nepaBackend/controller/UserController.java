@@ -194,6 +194,22 @@ public class UserController {
     	}
     }
     
+    @PostMapping("/get_role")
+    private @ResponseBody ResponseEntity<String> getRole(@RequestHeader Map<String, String> headers) {
+    	
+    	String token = headers.get("authorization");
+    	
+    	if(applicationUserService.isAdmin(token)) {
+    		return new ResponseEntity<String>("admin", HttpStatus.OK);
+    	} else if(applicationUserService.isCurator(token)) {
+    		return new ResponseEntity<String>("curator", HttpStatus.OK);
+    	} else if(applicationUserService.approverOrHigher(token)) {
+    		return new ResponseEntity<String>("approver", HttpStatus.OK);
+    	} else {
+    		return new ResponseEntity<String>("user", HttpStatus.OK);
+    	}
+    }
+    
     @PostMapping("/setUserRole")
     private @ResponseBody ResponseEntity<Boolean> setUserRole(@RequestParam Long userId, 
     			@RequestParam String role, 
