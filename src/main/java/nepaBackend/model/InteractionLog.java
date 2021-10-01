@@ -12,6 +12,9 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
+
 import nepaBackend.enums.ActionSource;
 import nepaBackend.enums.ActionType;
 
@@ -27,11 +30,13 @@ public class InteractionLog {
 	// Optional Foreign key: User ID
     @ManyToOne(optional=true) 
     @JoinColumn(name="user_id", nullable=true)
+    @NotFound(action=NotFoundAction.IGNORE)
 	private ApplicationUser user;
     
 	// Optional Foreign key: EISDoc ID related to interaction
     @ManyToOne(optional=true) 
     @JoinColumn(name="doc_id", nullable=true)
+    @NotFound(action=NotFoundAction.IGNORE) // Having to do this implies we should just delete associated interaction logs when deleting a record
 	private EISDoc doc;
     
     // e.g. results page or details page

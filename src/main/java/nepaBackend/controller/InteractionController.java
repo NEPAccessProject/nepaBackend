@@ -122,7 +122,7 @@ public class InteractionController {
 									log.getLogTime()
 							));
 						} else {
-							// Note: we've since deleted the record so the log might not be useful any more
+							// Note: we've since deleted the record but not this, causing data corruption
 //							interactionRepo.delete(log);
 						}
 					}
