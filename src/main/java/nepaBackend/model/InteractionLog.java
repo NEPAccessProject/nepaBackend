@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -24,12 +25,12 @@ public class InteractionLog {
     private long id;
 	
 	// Optional Foreign key: User ID
-    @ManyToOne
+    @ManyToOne(fetch=FetchType.LAZY)
     @JoinColumn(name="user_id")
 	private ApplicationUser user;
     
 	// Optional Foreign key: EISDoc ID related to interaction
-    @ManyToOne
+    @ManyToOne(fetch=FetchType.LAZY)
     @JoinColumn(name="doc_id")
 	private EISDoc doc;
     
