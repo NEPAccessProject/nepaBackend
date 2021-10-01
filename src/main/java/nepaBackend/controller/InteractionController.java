@@ -26,6 +26,7 @@ import nepaBackend.SearchLogRepository;
 import nepaBackend.enums.ActionSource;
 import nepaBackend.enums.ActionType;
 import nepaBackend.model.ApplicationUser;
+import nepaBackend.model.EISDoc;
 import nepaBackend.model.InteractionLog;
 import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.InteractionSearchLog;
@@ -114,16 +115,19 @@ public class InteractionController {
 				for(InteractionLog log : interactionLogs) {
 					ApplicationUser logUser = log.getUser();
 					if(logUser.getRole().contentEquals("USER")) {
-						if(log.getDoc() != null) {
+						try {
+							EISDoc logDoc = log.getDoc();
+							
 							combinedLogs.add(new InteractionSearchLog(
 									log.getUser().getUsername(),
-									log.getDoc(),
+									logDoc,
 									log.getActionType().toString(),
 									log.getLogTime()
 							));
-						} else {
-							// Note: we've since deleted the record but not this, causing data corruption
+						} catch(Exception e) {
+							// Note: we've since deleted the record but not this, causing data corruption?
 //							interactionRepo.delete(log);
+							logger.error(e.getLocalizedMessage(),e);
 						}
 					}
 					
