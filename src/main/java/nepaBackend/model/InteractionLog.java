@@ -30,8 +30,8 @@ public class InteractionLog {
 	private ApplicationUser user;
     
 	// Optional Foreign key: EISDoc ID related to interaction
-    @ManyToOne(fetch=FetchType.LAZY)
-    @JoinColumn(name="doc_id")
+    @ManyToOne(fetch=FetchType.LAZY) // 
+    @JoinColumn(name="doc_id", nullable=true)
 	private EISDoc doc;
     
     // e.g. results page or details page

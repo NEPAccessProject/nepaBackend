@@ -122,8 +122,8 @@ public class InteractionController {
 									log.getLogTime()
 							));
 						} else {
-							// we've since deleted the record and we should probably delete
-							// the associated interaction log
+							// Note: we've since deleted the record so the log might not be useful any more
+//							interactionRepo.delete(log);
 						}
 					}
 					
