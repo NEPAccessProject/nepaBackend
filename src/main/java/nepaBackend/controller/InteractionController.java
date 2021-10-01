@@ -114,12 +114,17 @@ public class InteractionController {
 				for(InteractionLog log : interactionLogs) {
 					ApplicationUser logUser = log.getUser();
 					if(logUser.getRole().contentEquals("USER")) {
-						combinedLogs.add(new InteractionSearchLog(
-								log.getUser().getUsername(),
-								log.getDoc(),
-								log.getActionType().toString(),
-								log.getLogTime()
-						));
+						if(log.getDoc() != null) {
+							combinedLogs.add(new InteractionSearchLog(
+									log.getUser().getUsername(),
+									log.getDoc(),
+									log.getActionType().toString(),
+									log.getLogTime()
+							));
+						} else {
+							// we've since deleted the record and we should probably delete
+							// the associated interaction log
+						}
 					}
 					
 					logUser = null; // help garbage collection
