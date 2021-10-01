@@ -25,12 +25,12 @@ public class InteractionLog {
     private long id;
 	
 	// Optional Foreign key: User ID
-    @ManyToOne(fetch=FetchType.LAZY)
-    @JoinColumn(name="user_id")
+    @ManyToOne(optional=true) 
+    @JoinColumn(name="user_id", nullable=true)
 	private ApplicationUser user;
     
 	// Optional Foreign key: EISDoc ID related to interaction
-    @ManyToOne(fetch=FetchType.LAZY) // 
+    @ManyToOne(optional=true) 
     @JoinColumn(name="doc_id", nullable=true)
 	private EISDoc doc;
     
