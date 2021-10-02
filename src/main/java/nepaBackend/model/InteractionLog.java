@@ -29,13 +29,14 @@ public class InteractionLog {
 	
 	// Optional Foreign key: User ID
     @ManyToOne(optional=true) 
-    @JoinColumn(name="user_id", nullable=false)
+    @JoinColumn(name="user_id", nullable=true)
     @NotFound(action=NotFoundAction.IGNORE)
 	private ApplicationUser user;
     
 	// Optional Foreign key: EISDoc ID related to interaction
     @ManyToOne(optional=true) 
-    @JoinColumn(name="doc_id", nullable=false)
+    @JoinColumn(name="doc_id", nullable=true)
+    @NotFound(action=NotFoundAction.IGNORE)
 	private EISDoc doc;
     
     // e.g. results page or details page

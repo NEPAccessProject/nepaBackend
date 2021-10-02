@@ -41,5 +41,10 @@ public interface SearchLogRepository extends JpaRepository<SearchLog, Long> {
 					+ "AND user_id != 30 AND search_time > '2021-05-01' ORDER BY search_time DESC;",
 			nativeQuery=true)
 	List<Object> findAllWithUsername();
+
+	@Query(
+			value = "SELECT * FROM test.search_log WHERE user_id IS NOT NULL;",
+			nativeQuery=true)
+	List<SearchLog> findAllWithUser();
 	
 }

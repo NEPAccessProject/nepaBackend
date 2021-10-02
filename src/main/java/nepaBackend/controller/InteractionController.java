@@ -107,14 +107,21 @@ public class InteractionController {
 			
 			if(applicationUserService.approverOrHigher(user)) {
 				List<InteractionLog> interactionLogs = interactionRepo.findAll();
-				List<SearchLog> searchLogs = searchLogRepo.findAll();
+				List<SearchLog> searchLogs = searchLogRepo.findAllWithUser();
 				
 				List<InteractionSearchLog> combinedLogs = 
 						new ArrayList<InteractionSearchLog>(interactionLogs.size() + searchLogs.size());
 				
 				for(InteractionLog log : interactionLogs) {
 					ApplicationUser logUser = log.getUser();
-					if(logUser.getRole().contentEquals("USER")) {
+					if(logUser == null) {
+						combinedLogs.add(new InteractionSearchLog(
+								"(anonymous)",
+								log.getDoc(),
+								log.getActionType().toString(),
+								log.getLogTime()
+						));
+					} else if(logUser.getRole().contentEquals("USER")) {
 						combinedLogs.add(new InteractionSearchLog(
 								log.getUser().getUsername(),
 								log.getDoc(),
