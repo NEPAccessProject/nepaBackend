@@ -30,6 +30,7 @@ public class InteractionLog {
 	// Optional Foreign key: User ID
     @ManyToOne(optional=true) 
     @JoinColumn(name="user_id", nullable=false)
+    @NotFound(action=NotFoundAction.IGNORE)
 	private ApplicationUser user;
     
 	// Optional Foreign key: EISDoc ID related to interaction

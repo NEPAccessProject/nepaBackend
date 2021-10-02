@@ -115,11 +115,9 @@ public class InteractionController {
 				for(InteractionLog log : interactionLogs) {
 					ApplicationUser logUser = log.getUser();
 					if(logUser.getRole().contentEquals("USER")) {
-						EISDoc logDoc = log.getDoc();
-						
 						combinedLogs.add(new InteractionSearchLog(
 								log.getUser().getUsername(),
-								logDoc,
+								log.getDoc(),
 								log.getActionType().toString(),
 								log.getLogTime()
 						));
@@ -129,9 +127,17 @@ public class InteractionController {
 				}
 				for(SearchLog log : searchLogs) {
 					Optional<ApplicationUser> logUser = applicationUserService.findById(log.getUserId());
-					if(logUser.isPresent() && logUser.get().getRole().contentEquals("USER")) {
+					if(!logUser.isPresent()) {
 						combinedLogs.add(new InteractionSearchLog(
-								applicationUserService.findById(log.getUserId()).get().getUsername(),
+								"(anonymous or old data)",
+								null,
+								"SEARCH: " + log.getTerms(),
+								log.getSearchTime()
+						));
+					}
+					else if(logUser.isPresent() && logUser.get().getRole().contentEquals("USER")) {
+						combinedLogs.add(new InteractionSearchLog(
+								logUser.get().getUsername(),
 								null,
 								"SEARCH: " + log.getTerms(),
 								log.getSearchTime()
