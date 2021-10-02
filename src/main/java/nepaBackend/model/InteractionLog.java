@@ -28,17 +28,13 @@ public class InteractionLog {
     private long id;
 	
 	// Optional Foreign key: User ID
-    @ManyToOne(optional=true, fetch=FetchType.LAZY) 
-    @JoinColumn(name="user_id", nullable=true)
-    @NotFound(action=NotFoundAction.IGNORE)
+    @ManyToOne(optional=true) 
+    @JoinColumn(name="user_id", nullable=false)
 	private ApplicationUser user;
     
 	// Optional Foreign key: EISDoc ID related to interaction
-    @ManyToOne(optional=true, fetch=FetchType.LAZY) 
-    @JoinColumn(name="doc_id", nullable=true)
-    // Having to do this implies we should just delete associated interaction logs when deleting a record
-    // Also maybe we should convert to InnoDB and then see if there's a better solution
-    @NotFound(action=NotFoundAction.IGNORE) 
+    @ManyToOne(optional=true) 
+    @JoinColumn(name="doc_id", nullable=false)
 	private EISDoc doc;
     
     // e.g. results page or details page
