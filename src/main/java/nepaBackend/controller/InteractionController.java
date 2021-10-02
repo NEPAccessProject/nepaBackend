@@ -115,20 +115,14 @@ public class InteractionController {
 				for(InteractionLog log : interactionLogs) {
 					ApplicationUser logUser = log.getUser();
 					if(logUser.getRole().contentEquals("USER")) {
-						try {
-							EISDoc logDoc = log.getDoc();
-							
-							combinedLogs.add(new InteractionSearchLog(
-									log.getUser().getUsername(),
-									logDoc,
-									log.getActionType().toString(),
-									log.getLogTime()
-							));
-						} catch(Exception e) {
-							// Note: we've since deleted the record but not this, causing data corruption?
-//							interactionRepo.delete(log);
-							logger.error(e.getLocalizedMessage(),e);
-						}
+						EISDoc logDoc = log.getDoc();
+						
+						combinedLogs.add(new InteractionSearchLog(
+								log.getUser().getUsername(),
+								logDoc,
+								log.getActionType().toString(),
+								log.getLogTime()
+						));
 					}
 					
 					logUser = null; // help garbage collection
