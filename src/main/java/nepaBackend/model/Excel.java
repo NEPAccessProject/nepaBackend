@@ -33,6 +33,10 @@ public class Excel {
 		this.json = json;
 	}
 
+	public LocalDateTime getSavedTime() {
+		return savedTime;
+	}
+
 	public Excel(String json) {
 		this.json = json;
 		this.savedTime = LocalDateTime.now();
