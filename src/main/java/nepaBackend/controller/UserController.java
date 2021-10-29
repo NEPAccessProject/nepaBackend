@@ -59,6 +59,7 @@ import nepaBackend.model.Contact;
 import nepaBackend.model.EmailLog;
 import nepaBackend.model.OptedOut;
 import nepaBackend.model.UserStatusLog;
+import nepaBackend.pojo.AppUserDetails;
 import nepaBackend.pojo.ContactForm;
 import nepaBackend.pojo.Generate;
 import nepaBackend.pojo.PasswordChange;
@@ -807,6 +808,60 @@ public class UserController {
 
 		// if it doesn't match, Unauthorized
 		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
+	}
+	
+	@GetMapping(path = "/details/get_details")
+	public ResponseEntity<AppUserDetails> getDetails(@RequestHeader Map<String, String> headers) {
+		// get user token, which has already been verified through security filters
+		String token = headers.get("authorization");
+        // get user from ID, translate out relevant details
+        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                .getId();
+		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		
+		AppUserDetails userDetails = new AppUserDetails(user);
+
+		// return details
+		return new ResponseEntity<AppUserDetails>(userDetails, HttpStatus.OK);
+	}
+	
+	// org, job title, first, last name.  Others?
+	@PostMapping(path = "/details/change_details")
+	public ResponseEntity<Void> changeDetails(@RequestParam String jsonDetails,
+			@RequestHeader Map<String, String> headers) {
+		
+
+		System.out.println(jsonDetails);
+		
+    	Gson gson=new Gson();
+    	AppUserDetails userDetails = gson.fromJson(jsonDetails,AppUserDetails.class);
+
+		// TODO: Come up with or ask for special rules for sanity checking?
+
+		// get user token, which has already been verified through security filters
+		String token = headers.get("authorization");
+        // get user from ID
+        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                .getId();
+		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+		
+		System.out.println(userDetails.getFirstName());
+		System.out.println(userDetails.getUsername());
+
+		// update, ensuring required fields are okay and optional fields are properly loaded
+		if(userDetails.getFirstName() != null && !userDetails.getFirstName().isBlank()) {
+			user.setFirstName(userDetails.getFirstName());
+		}
+		if(userDetails.getLastName() != null && !userDetails.getLastName().isBlank()) {
+			user.setLastName(userDetails.getLastName());
+		}
+		user.setOrganization(userDetails.getOrganization());
+		user.setJobTitle(userDetails.getJobTitle());
+
+		applicationUserRepository.save(user);
+
+		return new ResponseEntity<Void>(HttpStatus.OK);
+		
 	}
 
     @CrossOrigin
