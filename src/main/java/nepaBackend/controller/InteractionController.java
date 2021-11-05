@@ -56,19 +56,19 @@ public class InteractionController {
 			String token = headers.get("authorization");
 			ApplicationUser user = applicationUserService.getUserFromToken(token);
 			
-			if(user != null) {
-				InteractionLog log = new InteractionLog(
-						user, 
-						Enum.valueOf(ActionSource.class, source), 
-						Enum.valueOf(ActionType.class, type),
-						docService.findById(Long.parseLong(docId)).get());
-				interactionRepo.save(log);
-				
-				return new ResponseEntity<Boolean>(true,HttpStatus.OK);
-			} else {
-				// TODO?: Log anonymous interaction
-				return new ResponseEntity<Boolean>(false,HttpStatus.OK);
-			}
+			// It's okay if user is null
+			
+			InteractionLog log = new InteractionLog(
+					user, 
+					Enum.valueOf(ActionSource.class, source), 
+					Enum.valueOf(ActionType.class, type),
+					docService.findById(Long.parseLong(docId)).get());
+			interactionRepo.save(log);
+			
+			return new ResponseEntity<Boolean>(true,HttpStatus.OK);
+//			else {
+//				return new ResponseEntity<Boolean>(false,HttpStatus.OK);
+//			}
 		} catch(Exception e) {
 			logger.error("Couldn't save log",e);
 			return new ResponseEntity<Boolean>(false,HttpStatus.INTERNAL_SERVER_ERROR);
@@ -121,14 +121,15 @@ public class InteractionController {
 								log.getActionType().toString(),
 								log.getLogTime()
 						));
-					} else if(logUser.getRole().contentEquals("USER")) {
+					} else if(!logUser.getRole().contentEquals("ADMIN")) {
+						// Get any interaction below admin role
 						combinedLogs.add(new InteractionSearchLog(
 								log.getUser().getUsername(),
 								log.getDoc(),
 								log.getActionType().toString(),
 								log.getLogTime()
 						));
-					}
+					} 
 					
 					logUser = null; // help garbage collection
 				}
