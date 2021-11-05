@@ -68,6 +68,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .antMatchers(HttpMethod.GET, "/test/get_process_full").permitAll()
          .antMatchers(HttpMethod.GET, "/test/get_by_id").permitAll()
          .antMatchers(HttpMethod.GET, "/file/nepafiles").permitAll()
+         .antMatchers(HttpMethod.GET, "/file/filenames").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/check").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/**").permitAll()
