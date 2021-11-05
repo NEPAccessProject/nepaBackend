@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.JWT;
+import com.auth0.jwt.exceptions.JWTDecodeException;
 
 import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
@@ -453,10 +454,15 @@ public class FulltextController {
 		if(token != null) {
 			/** By necessity token is verified as valid via filter by this point as long as it's
 			 *  going through the public API. */
-			String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
-					.getId();
-			
-			return Long.parseLong(id);
+			try {
+				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+						.getId();
+				
+				return Long.parseLong(id);
+			} catch(JWTDecodeException e) {
+				// User isn't logged in
+				return null;
+			}
 		} else {
 			return null;
 		}
