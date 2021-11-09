@@ -1,5 +1,6 @@
 package nepaBackend.controller;
 
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -31,6 +32,27 @@ public class SurveyController {
 	ApplicationUserService applicationUserService;
 	
 	@CrossOrigin
+	@RequestMapping(path = "/get_all", method = RequestMethod.GET)
+	private ResponseEntity<List<Survey>> getAll(@RequestHeader Map<String, String> headers) {
+		try {
+			String token = headers.get("authorization");
+			ApplicationUser user = applicationUserService.getUserFromToken(token);
+			
+			if(applicationUserService.approverOrHigher(user)) {
+				List<Survey> surveys = surveyRepo.findAll();
+				
+				return new ResponseEntity<List<Survey>>(surveys,HttpStatus.OK);
+			} else {
+				return new ResponseEntity<List<Survey>>(HttpStatus.UNAUTHORIZED);
+			}
+		} catch(Exception e) {
+			e.printStackTrace();
+			logger.debug("Couldn't get surveys",e);
+			return new ResponseEntity<List<Survey>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	
+	@CrossOrigin
 	@RequestMapping(path = "/save", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<Boolean> save(@RequestPart(name="surveyResult") String surveyResult, 
 				@RequestPart(name="searchTerms", required = false) String searchTerms, 
@@ -39,14 +61,10 @@ public class SurveyController {
 			String token = headers.get("authorization");
 			ApplicationUser user = applicationUserService.getUserFromToken(token);
 			
-			if(user != null) {
-				Survey survey = new Survey(user, surveyResult, searchTerms);
-				surveyRepo.save(survey);
-				
-				return new ResponseEntity<Boolean>(true,HttpStatus.OK);
-			} else {
-				return new ResponseEntity<Boolean>(false,HttpStatus.OK);
-			}
+			Survey survey = new Survey(user, surveyResult, searchTerms);
+			surveyRepo.save(survey);
+			
+			return new ResponseEntity<Boolean>(true,HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
 			logger.debug("Couldn't save survey",e);

@@ -9,6 +9,9 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 
+import org.hibernate.annotations.NotFound;
+import org.hibernate.annotations.NotFoundAction;
+
 // Note: user is a sql keyword, so obviously never try to define that yourself.
 
 @Entity
@@ -32,8 +35,10 @@ public class Survey {
     @Column(name = "id", nullable = false)
     private long id;
 
-    @ManyToOne
-    @JoinColumn(name="user_id")
+	// Optional Foreign key: User ID
+    @ManyToOne(optional=true) 
+    @JoinColumn(name="user_id", nullable=true)
+    @NotFound(action=NotFoundAction.IGNORE)
 	private ApplicationUser user;
     
     @Column(name = "result")
