@@ -7,12 +7,15 @@ import java.util.List;
 public class Globals {
 
     public static final boolean TESTING = false;
-
-    private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
-//    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
     private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\DocumentText";
     private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
     private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\EISDoc";
+
+//    private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
+    private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
+    
+//    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\DocumentText";
+//    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\EISDoc";
   	
     public static final Path getIndexPath() {
     	if(TESTING) {
@@ -97,14 +100,17 @@ public class Globals {
 		}
 		return false;
 	}
-	/** if null return ""; else return ( str.replace('�', ' ').replaceAll("\\s", " ") ).strip(); */
+	/** if null return ""; else remove all newlines, tabs and extra spaces return ( str.replace('�', ' ').replaceAll("\\s", " ") ).strip(); */
 	public static String normalizeSpace(String str) {
 		if(str == null) {
 			return "";
 		}
 		// At some point, NBSP from importing through webapp is interpreted as �, so replace with a regular space, then normalize other whitespace.
 		// Need the + to remove double spaces (or more), or else each individual space is replaced with a space, which doesn't help
-		return ( str.replace('�', ' ').replaceAll("\\s+", " ") ).strip();
+		return ( str.replace('�', ' ')
+				.replace('\t', ' ') // Replace all tabs with spaces
+				.replaceAll("\\R","") // Remove all newlines
+				.replaceAll("\\s+", " ") ).strip(); // Reduce all spaces to one space and then trim
 	}
 	
 	public static Boolean validPassword(String pass) {
