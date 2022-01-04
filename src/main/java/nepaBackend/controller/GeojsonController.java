@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import nepaBackend.DocRepository;
-import nepaBackend.GeojsonLookupRepository;
 import nepaBackend.GeojsonLookupService;
 import nepaBackend.model.GeojsonLookup;
 
@@ -26,8 +25,6 @@ public class GeojsonController {
 
 	private static final Logger logger = LoggerFactory.getLogger(GeojsonController.class);
 	
-	@Autowired
-	GeojsonLookupRepository geoRepo;
 	@Autowired
 	GeojsonLookupService geoService;
 	@Autowired
@@ -40,7 +37,7 @@ public class GeojsonController {
 	@RequestMapping(path = "/get_all", method = RequestMethod.GET)
 	private ResponseEntity<List<GeojsonLookup>> getAll(@RequestHeader Map<String, String> headers) {
 		try {
-			List<GeojsonLookup> data = geoRepo.findAll();
+			List<GeojsonLookup> data = geoService.findAll();
 			
 			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
 		} catch(Exception e) {
@@ -50,14 +47,13 @@ public class GeojsonController {
 		}
 	}
 
-	/** Returns lookup table for a specific document (at this point we could probably just return 
-	 * the geojson and not include the eisdoc metadata, since the caller presumably knows that already */
+	/** Returns lookup table for a specific document */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_for_eisdoc", method = RequestMethod.GET)
 	private ResponseEntity<List<GeojsonLookup>> getAllForEisdoc(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
 		try {
-			List<GeojsonLookup> data = geoRepo.findAllByEisdoc(docRepo.findById(Long.parseLong(id)).get());
+			List<GeojsonLookup> data = geoService.findAllByEisdoc(id);
 			
 			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
 		} catch(Exception e) {
@@ -66,24 +62,55 @@ public class GeojsonController {
 		}
 	}
 
-	/** Returns lookup table for a specific document (at this point we could probably just return 
-	 * the geojson and not include the eisdoc metadata, since the caller presumably knows that already */
+	/** Returns geojson strings for a specific document */
+	@CrossOrigin
+	@RequestMapping(path = "/get_all_geojson_for_eisdoc", method = RequestMethod.GET)
+	private ResponseEntity<List<String>> getAllGeojsonForEisdoc(@RequestHeader Map<String, String> headers,
+				@RequestParam String id) {
+		try {
+			List<String> geoData = geoService.findAllGeojsonByEisdoc(id);
+			
+			System.out.println("Got geojson data for eisdoc, size of list: " + geoData.size());
+			
+			return new ResponseEntity<List<String>>(geoData,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/** Returns lookup table for a specific process */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_for_process", method = RequestMethod.GET)
 	private ResponseEntity<List<GeojsonLookup>> getAllForProcess(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
 		try {
-//			List<EISDoc> docs = docRepo.findAllByProcessId(Long.parseLong(id));
-//			List<Long> idList = new ArrayList<Long>();
-//			for(EISDoc doc : docs) {
-//				idList.add(doc.getId());
-//			}
-			List<GeojsonLookup> data = geoRepo.findAllByEisdocIn(docRepo.findAllByProcessId(Long.parseLong(id)));
-			System.out.println("Got geojson data, size of list: " + data.size());
+			List<GeojsonLookup> data = geoService.findAllByEisdocIn(id);
+			
+			System.out.println("Got data, size of list: " + data.size());
+			
 			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<List<GeojsonLookup>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+
+	/** Returns geojson for a specific process */
+	@CrossOrigin
+	@RequestMapping(path = "/get_all_geojson_for_process", method = RequestMethod.GET)
+	private ResponseEntity<List<String>> getAllGeojsonForProcess(@RequestHeader Map<String, String> headers,
+				@RequestParam String id) {
+		try {
+			List<String> results = geoService.findAllGeojsonByEisdocIn(id);
+
+			System.out.println("Got geojson data, size of list: " + results.size());
+			
+			return new ResponseEntity<List<String>>(results,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
@@ -93,7 +120,7 @@ public class GeojsonController {
 	private ResponseEntity<Boolean> existsForEisdoc(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
 		try {
-			boolean result = geoRepo.existsByEisdoc(docRepo.findById(Long.parseLong(id)).get());
+			boolean result = geoService.existsByEisdoc(id);
 			
 			return new ResponseEntity<Boolean>(result,HttpStatus.OK);
 		} catch(Exception e) {
