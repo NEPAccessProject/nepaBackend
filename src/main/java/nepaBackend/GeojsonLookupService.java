@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import nepaBackend.model.EISDoc;
+import nepaBackend.model.Geojson;
 import nepaBackend.model.GeojsonLookup;
 
 @Service
@@ -73,6 +74,12 @@ public class GeojsonLookupService {
 
 	public List<GeojsonLookup> findAll() {
 		return geoRepo.findAll();
+	}
+	public void save(GeojsonLookup geoLookupForImport) {
+		geoRepo.save(geoLookupForImport);
+	}
+	public boolean existsByGeojsonAndEisdoc(Geojson geojson, EISDoc eisdoc) {
+		return geoRepo.existsByGeojsonAndEisdoc(geojson, eisdoc);
 	}
 	
 }

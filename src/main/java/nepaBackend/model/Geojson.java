@@ -21,22 +21,34 @@ public class Geojson {
 	
     @Column(name="geojson",columnDefinition="text")
     private String geojson;
+
+    @Column(name="name",columnDefinition="text")
+    private String name;
+
+    @Column(name="geo_id")
+    private Long geoId;
 	
     
-    public Geojson() {
+
+	public Geojson() {
+		super();
     }
 
-	public Geojson(String geojson) {
+	public Geojson(String geojson, Long geoId) {
+		super();
 		this.geojson = geojson;
+		this.geoId = geoId;
+	}
+	
+	public Geojson(String geojson, String name, Long geoId) {
+		super();
+		this.geojson = geojson;
+		this.name = name;
+		this.geoId = geoId;
 	}
 
-	
 	public Long getId() {
 		return id;
-	}
-	
-	public void setId(Long id) {
-		this.id = id;
 	}
 	
 	public String getGeojson() {
@@ -47,13 +59,20 @@ public class Geojson {
 		this.geojson = geojson;
 	}
 
-	// could store additional data we want for the tooltip or other that we expect to come in and want the database to care about?
-//	public String getName() {
-//		return name;
-//	}
-//
-//	public void setName(String name) {
-//		this.name = name;
-//	}
+    public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public Long getGeoId() {
+		return geoId;
+	}
+
+	public void setGeoId(Long geoId) {
+		this.geoId = geoId;
+	}
 
 }
