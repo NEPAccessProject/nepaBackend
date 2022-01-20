@@ -255,7 +255,7 @@ public class GeojsonController {
 			// if the polygon exists for a different geo ID already, or if it exists for the same geo ID and name.
 			// They would be expected to fix their data and reimport, or leave it skipped.
 			for(UploadInputsGeoLinks itr : dto) {
-				if(itr.geo_id.strip().isBlank()) {
+				if(itr.geo_id == null || itr.geo_id.isBlank()) {
 					results.add("Item " + i + ": " + "Error:: No GeoID");
 				} else {
 					String[] geoIds = itr.geo_id.split(";");
@@ -271,12 +271,12 @@ public class GeojsonController {
 								// Skip
 								results.add("Item " + i 
 										+ ": " + "Skipping (exists):: " + itr.meta_id 
-										+ "; geo_id: " + itr.geo_id);
+										+ "; geo_id: " + geoIds[j]);
 							} else { 
 								// Add new
 								results.add("Item " + i 
 										+ ": " + "Adding new connection for:: " + itr.meta_id 
-										+ "; geo_id: " + itr.geo_id);
+										+ "; geo_id: " + geoIds[j]);
 		
 								GeojsonLookup geoLookupForImport = new GeojsonLookup( geo.get(),doc.get() );
 								geoLookupService.save(geoLookupForImport);
