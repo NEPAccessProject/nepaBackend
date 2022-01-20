@@ -191,7 +191,7 @@ public class GeojsonController {
 			// if the polygon exists for a different geo ID already, or if it exists for the same geo ID and name.
 			// They would be expected to fix their data and reimport, or leave it skipped.
 			for(UploadInputsGeo itr : dto) {
-				Geojson geoForImport = new Geojson(itr.feature,itr.name,Long.parseLong(itr.geo_id));
+				Geojson geoForImport = new Geojson(itr.feature,itr.name.strip(),Long.parseLong(itr.geo_id));
 				
 				// Update or add new?
 				if(geoRepo.existsByGeoId(geoForImport.getGeoId())) {
@@ -255,30 +255,40 @@ public class GeojsonController {
 			// if the polygon exists for a different geo ID already, or if it exists for the same geo ID and name.
 			// They would be expected to fix their data and reimport, or leave it skipped.
 			for(UploadInputsGeoLinks itr : dto) {
-				Optional<Geojson> geo = geoRepo.findByGeoId(Long.parseLong(itr.geo_id));
-				Optional<EISDoc> doc = docRepo.findById(Long.parseLong(itr.meta_id));
-				if(geo.isPresent() && doc.isPresent()) {
-					
-					// Skip or add new?
-					if( geoLookupService.existsByGeojsonAndEisdoc(geo.get(), doc.get()) ) {
-						// Skip
-						results.add("Item " + i 
-								+ ": " + "Skipping (exists):: " + itr.meta_id 
-								+ "; geo_id: " + itr.geo_id);
-					} else { 
-						// Add new
-						results.add("Item " + i 
-								+ ": " + "Adding new connection for:: " + itr.meta_id 
-								+ "; geo_id: " + itr.geo_id);
-
-						GeojsonLookup geoLookupForImport = new GeojsonLookup( geo.get(),doc.get() );
-						geoLookupService.save(geoLookupForImport);
-					}
+				if(itr.geo_id.strip().isBlank()) {
+					results.add("Item " + i + ": " + "Error:: No GeoID");
 				} else {
-					results.add("Item " + i 
-							+ ": " + "Missing:: doc " + itr.meta_id + ", present? " + doc.isPresent()
-							+ "; geo " + itr.geo_id + ", present? " + geo.isPresent());
+					String[] geoIds = itr.geo_id.split(";");
+					Optional<EISDoc> doc = docRepo.findById(Long.parseLong(itr.meta_id));
+					
+					for(int j = 0; j < geoIds.length; j++) {
+						Optional<Geojson> geo = geoRepo.findByGeoId(Long.parseLong(geoIds[j].strip()));
+						
+						if(geo.isPresent() && doc.isPresent()) {
+							
+							// Skip or add new?
+							if( geoLookupService.existsByGeojsonAndEisdoc(geo.get(), doc.get()) ) {
+								// Skip
+								results.add("Item " + i 
+										+ ": " + "Skipping (exists):: " + itr.meta_id 
+										+ "; geo_id: " + itr.geo_id);
+							} else { 
+								// Add new
+								results.add("Item " + i 
+										+ ": " + "Adding new connection for:: " + itr.meta_id 
+										+ "; geo_id: " + itr.geo_id);
+		
+								GeojsonLookup geoLookupForImport = new GeojsonLookup( geo.get(),doc.get() );
+								geoLookupService.save(geoLookupForImport);
+							}
+						} else {
+							results.add("Item " + i 
+									+ ": " + "Missing:: doc " + itr.meta_id + ", present? " + doc.isPresent()
+									+ "; geo " + itr.geo_id + ", present? " + geo.isPresent());
+						}
+					}
 				}
+				
 				
 				i++;
 			}
