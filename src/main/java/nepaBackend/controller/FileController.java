@@ -2523,6 +2523,11 @@ public class FileController {
 		} else {
 			existingRecord.setState(Globals.normalizeSpace(itr.state));
 		}
+		if(itr.county == null || !itr.county.isBlank()) {
+			// skip
+		} else {
+			existingRecord.setCounty(Globals.normalizeSpace(itr.county));
+		}
 		
 		if(itr.department == null || itr.department.isBlank()) {
 			// skip, leave original
