@@ -1,11 +1,13 @@
 package nepaBackend.controller;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -26,14 +29,16 @@ import nepaBackend.SearchLogRepository;
 import nepaBackend.enums.ActionSource;
 import nepaBackend.enums.ActionType;
 import nepaBackend.model.ApplicationUser;
-import nepaBackend.model.EISDoc;
 import nepaBackend.model.InteractionLog;
 import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.InteractionSearchLog;
 
+
 @RestController
 @RequestMapping("/interaction")
 public class InteractionController {
+	/** List of usernames we don't need to examine */
+	private static final List<String> exclusionUsernames = Arrays.asList("saigethompson","carlywinnebald","kbcurry","ellakaufman","cnherr","astava","paul@paulmirocha.com","paulmirocha@arizona.edu","teenstreettucson@gmail.com","currim","emcgove","alien","abinfordwalsh","derbridge","jvinal3","laparra","alien","bethard","smccasland");
 
 	private static final Logger logger = LoggerFactory.getLogger(InteractionController.class);
 
@@ -96,14 +101,24 @@ public class InteractionController {
 		}
 	}
 
+	/** Helper method for interactionGetCombined removes irrelevant data */
+	private boolean hasTeamMember(String username) {
+		return exclusionUsernames.contains(username);
+	}
 	/** Get search logs also */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_combined", method = RequestMethod.GET)
 	private ResponseEntity<List<InteractionSearchLog>> interactionGetCombined(
-				@RequestHeader Map<String, String> headers) {
+				@RequestHeader Map<String, String> headers, 
+				@RequestParam(name="exclude",required=false) Boolean exclude) {
 		try {
 			String token = headers.get("authorization");
 			ApplicationUser user = applicationUserService.getUserFromToken(token);
+
+			// default to false if optional param missing
+			if(exclude == null) {
+				exclude = false;
+			}
 			
 			if(applicationUserService.approverOrHigher(user)) {
 				List<InteractionLog> interactionLogs = interactionRepo.findAll();
@@ -155,6 +170,13 @@ public class InteractionController {
 					logUser = null;
 				}
 				
+				// exclude team members from results?
+				if(exclude) {
+					combinedLogs = combinedLogs.stream()
+							.filter(item -> !hasTeamMember(item.getUsername()))
+							.collect(Collectors.toList());
+				}
+				
 				// Sort all by timestamp (oldest first)
 				Comparator<InteractionSearchLog> comp = (c1, c2) -> { 
 			        return c1.getLogTime().compareTo(c2.getLogTime()); 
@@ -173,4 +195,5 @@ public class InteractionController {
 			return new ResponseEntity<List<InteractionSearchLog>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	
 }
