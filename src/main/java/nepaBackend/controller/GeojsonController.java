@@ -261,31 +261,33 @@ public class GeojsonController {
 					String[] geoIds = itr.geo_id.split(";");
 					Optional<EISDoc> doc = docRepo.findById(Long.parseLong(itr.meta_id));
 					
-					for(int j = 0; j < geoIds.length; j++) {
-						Optional<Geojson> geo = geoRepo.findByGeoId(Long.parseLong(geoIds[j].strip()));
-						
-						if(geo.isPresent() && doc.isPresent()) {
+					if(doc.isPresent()) {
+						for(int j = 0; j < geoIds.length; j++) {
+							Optional<Geojson> geo = geoRepo.findByGeoId(Long.parseLong(geoIds[j].strip()));
 							
-							// Skip or add new?
-							if( geoLookupService.existsByGeojsonAndEisdoc(geo.get(), doc.get()) ) {
-								// Skip
-								results.add("Item " + i 
-										+ ": " + "Skipping (exists):: " + itr.meta_id 
-										+ "; geo_id: " + geoIds[j]);
-							} else { 
-								// Add new
-								results.add("Item " + i 
-										+ ": " + "Adding new connection for:: " + itr.meta_id 
-										+ "; geo_id: " + geoIds[j]);
-		
-								GeojsonLookup geoLookupForImport = new GeojsonLookup( geo.get(),doc.get() );
-								geoLookupService.save(geoLookupForImport);
+							if(geo.isPresent()) {
+								
+								// Skip or add new?
+								if( geoLookupService.existsByGeojsonAndEisdoc(geo.get(), doc.get()) ) {
+									// Skip
+									results.add("Item " + i 
+											+ ": " + "Skipping (exists):: " + itr.meta_id 
+											+ "; geo_id: " + geoIds[j]);
+								} else { 
+									// Add new
+									results.add("Item " + i 
+											+ ": " + "Adding new connection for:: " + itr.meta_id 
+											+ "; geo_id: " + geoIds[j]);
+			
+									GeojsonLookup geoLookupForImport = new GeojsonLookup( geo.get(),doc.get() );
+									geoLookupService.save(geoLookupForImport);
+								}
+							} else {
+								results.add("Item " + i + ": " + "Missing:: geo " + itr.geo_id);
 							}
-						} else {
-							results.add("Item " + i 
-									+ ": " + "Missing:: doc " + itr.meta_id + ", present? " + doc.isPresent()
-									+ "; geo " + itr.geo_id + ", present? " + geo.isPresent());
 						}
+					} else {
+						results.add("Item " + i + ": Missing:: doc " + itr.meta_id);
 					}
 				}
 				
