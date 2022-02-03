@@ -157,11 +157,9 @@ public class GeojsonController {
 		}
 	}
 	
-	/** Logic for creating/updating/skipping metadata records.
+	/** Logic for creating/updating/skipping geojson records.
 	 * 
-	 * No match: Create new if valid. 
-	 * Match: Update if no existing filename && folder, else skip
-	 * @return list of results (dummy results if shouldImport == false)
+	 * @return list of results 
 	 * */
 
 	@CrossOrigin
@@ -223,6 +221,64 @@ public class GeojsonController {
 		}
 
 		results.add("Completed import.");
+
+		return new ResponseEntity<List<String>>(results,HttpStatus.OK);
+	}
+	
+	
+	/** Logic for creating/updating/skipping geojson records.
+	 * 
+	 * @return result
+	 * */
+
+	@CrossOrigin
+	@RequestMapping(path = "/import_geo_one", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importGeoOne(
+				@RequestPart(name="geo") String geo, 
+				@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+
+		if( !applicationUserService.curatorOrHigher(token) ) {
+			return new ResponseEntity<List<String>>(HttpStatus.FORBIDDEN);
+		} 
+		
+
+		List<String> results = new ArrayList<String>();
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputsGeo itr = mapper.readValue(geo, UploadInputsGeo.class);
+			
+			// Add/update.  Here's where we could also handle any extra deduplication efforts
+			// which would be easy enough if we also got the polygon(s).  Then we could inform user
+			// if the polygon exists for a different geo ID already, or if it exists for the same geo ID and name.
+			// They would be expected to fix their data and reimport, or leave it skipped.
+			Geojson geoForImport = new Geojson(itr.feature,itr.name.strip(),Long.parseLong(itr.geo_id));
+			
+			// Update or add new?
+			if(geoRepo.existsByGeoId(geoForImport.getGeoId())) {
+				// Update
+				results.add("Replacing existing feature:: " + itr.name 
+						+ "; geo_id: " + itr.geo_id);
+				
+				Geojson oldGeoJson = geoRepo.findByGeoId(geoForImport.getGeoId()).get();
+				oldGeoJson.setGeojson(geoForImport.getGeojson());
+				oldGeoJson.setName(geoForImport.getName());
+				
+				geoRepo.save(oldGeoJson);
+			} else { 
+				// Add new
+				results.add("Adding new feature for:: " + itr.name 
+						+ "; geo_id: " + itr.geo_id);
+				
+				geoRepo.save(geoForImport);
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			results.add(e.getLocalizedMessage());
+		}
 
 		return new ResponseEntity<List<String>>(results,HttpStatus.OK);
 	}
