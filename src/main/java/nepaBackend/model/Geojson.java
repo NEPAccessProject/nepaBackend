@@ -19,7 +19,7 @@ public class Geojson {
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     private Long id; 
 	
-    @Column(name="geojson",columnDefinition="text")
+    @Column(name="geojson",columnDefinition="longtext")
     private String geojson;
 
     @Column(name="name",columnDefinition="text")
