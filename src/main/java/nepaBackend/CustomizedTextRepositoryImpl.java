@@ -948,7 +948,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			System.out.println(sQuery); 
 		}
 		
-		
+		// This simply uses the EISDoc(...) constructor in EISDoc.java, so they should line up in the same order
+		// or it could get confused.
 		return jdbcTemplate.query
 			(
 				sQuery, 
@@ -968,15 +969,15 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					rs.getString("comments_filename"),
 					rs.getString("folder"),
 					rs.getLong("size"),
-					rs.getString("web_link"),
 					rs.getString("notes"),
+					rs.getString("web_link"),
 					rs.getObject("noi_date", LocalDate.class), 
 					rs.getObject("draft_noa", LocalDate.class), 
 					rs.getObject("final_noa", LocalDate.class), 
 					rs.getObject("first_rod_date", LocalDate.class),
 					rs.getLong("process_id"),
-					rs.getString("status"),
 					rs.getString("county"), 
+					rs.getString("status"),
 					rs.getString("subtype")
 				)
 			);
