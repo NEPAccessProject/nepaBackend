@@ -1,7 +1,7 @@
 package nepaBackend.controller;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.openjson.JSONException;
+import com.github.openjson.JSONObject;
 
 import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
@@ -28,9 +30,9 @@ import nepaBackend.GeojsonRepository;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.Geojson;
 import nepaBackend.model.GeojsonLookup;
-import nepaBackend.pojo.UploadInputs;
 import nepaBackend.pojo.UploadInputsGeo;
 import nepaBackend.pojo.UploadInputsGeoLinks;
+
 
 @RestController
 @RequestMapping("/geojson")
@@ -85,7 +87,7 @@ public class GeojsonController {
 		try {
 			List<String> geoData = geoLookupService.findAllGeojsonByEisdoc(id);
 			
-			System.out.println("Got geojson data for eisdoc, size of list: " + geoData.size());
+//			System.out.println("Got geojson data for eisdoc, size of list: " + geoData.size());
 			
 			return new ResponseEntity<List<String>>(geoData,HttpStatus.OK);
 		} catch(Exception e) {
@@ -102,7 +104,7 @@ public class GeojsonController {
 		try {
 			List<GeojsonLookup> data = geoLookupService.findAllByEisdocIn(id);
 			
-			System.out.println("Got data, size of list: " + data.size());
+//			System.out.println("Got data, size of list: " + data.size());
 			
 			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
 		} catch(Exception e) {
@@ -120,7 +122,7 @@ public class GeojsonController {
 		try {
 			List<String> results = geoLookupService.findAllGeojsonByEisdocIn(id);
 
-			System.out.println("Got geojson data, size of list: " + results.size());
+//			System.out.println("Got geojson data, size of list: " + results.size());
 			
 			return new ResponseEntity<List<String>>(results,HttpStatus.OK);
 		} catch(Exception e) {
@@ -359,6 +361,156 @@ public class GeojsonController {
 		results.add("Completed import.");
 
 		return new ResponseEntity<List<String>>(results,HttpStatus.OK);
+	}
+
+
+	// run-once county name replacer for all records with county names
+	@CrossOrigin
+	@RequestMapping(path = "/replace_county_names", method = RequestMethod.POST)
+	private ResponseEntity<String> replace_county_names(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(!applicationUserService.isAdmin(token)) {
+			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+		}
+		
+		List<EISDoc> docs = docRepo.findAll();
+		
+		String result = "";
+		for(EISDoc doc : docs) {
+			String county = doc.getCounty();
+			if(county != null && county.length() > 0) {
+				result += replace_county_name(doc.getId().toString(),headers).getBody();
+			}
+		}
+
+		return new ResponseEntity<String>(result, HttpStatus.OK);
+		
+	}
+	
+	@CrossOrigin
+	@RequestMapping(path = "/replace_county_name", method = RequestMethod.POST)
+	private ResponseEntity<String> replace_county_name(
+				@RequestPart(name="id") String id, 
+				@RequestHeader Map<String, String> headers) {
+		
+		String token = headers.get("authorization");
+		if(!applicationUserService.isAdmin(token)) {
+			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+		}
+
+		// Get old county value and set. Return if no doc
+		String result = "";
+		Optional<EISDoc> doc = docRepo.findById(Long.parseLong(id));
+		if(doc.isEmpty()) {
+			return new ResponseEntity<String>("No doc: "+id, HttpStatus.NOT_FOUND);
+		}
+		
+		EISDoc docToChange = doc.get();
+		result = "Old: " + docToChange.getCounty() + "\n";
+		
+
+		HashMap<Long,String> states = new HashMap<Long,String>();
+		states.put((long) 1,"AL");
+		states.put((long) 2,"AK");
+		states.put((long) 4,"AZ");
+		states.put((long) 5,"AR");
+		states.put((long) 6,"CA");
+		states.put((long) 8,"CO");
+		states.put((long) 9,"CT");
+		states.put((long) 10,"DE");
+		states.put((long) 11,"DC");
+		states.put((long) 12,"FL");
+		states.put((long) 13,"GA");
+		states.put((long) 15,"HI");
+		states.put((long) 16,"ID");
+		states.put((long) 17,"IL");
+		states.put((long) 18,"IN");
+		states.put((long) 19,"IA");
+		states.put((long) 20,"KS");
+		states.put((long) 21,"KY");
+		states.put((long) 22,"LA");
+		states.put((long) 23,"ME");
+		states.put((long) 24,"MD");
+		states.put((long) 25,"MA");
+		states.put((long) 26,"MI");
+		states.put((long) 27,"MN");
+		states.put((long) 28,"MS");
+		states.put((long) 29,"MO");
+		states.put((long) 30,"MT");
+		states.put((long) 31,"NE");
+		states.put((long) 32,"NV");
+		states.put((long) 33,"NH");
+		states.put((long) 34,"NJ");
+		states.put((long) 35,"NM");
+		states.put((long) 36,"NY");
+		states.put((long) 37,"NC");
+		states.put((long) 38,"ND");
+		states.put((long) 39,"OH");
+		states.put((long) 40,"OK");
+		states.put((long) 41,"OR");
+		states.put((long) 42,"PA");
+		states.put((long) 44,"RI");
+		states.put((long) 45,"SC");
+		states.put((long) 46,"SD");
+		states.put((long) 47,"TN");
+		states.put((long) 48,"TX");
+		states.put((long) 49,"UT");
+		states.put((long) 50,"VT");
+		states.put((long) 51,"VA");
+		states.put((long) 53,"WA");
+		states.put((long) 54,"WV");
+		states.put((long) 55,"WI");
+		states.put((long) 56,"WY");
+		states.put((long) 72,"PR");
+		
+		
+		List<String> data = this.getAllGeojsonForEisdoc(headers, id).getBody();
+		if(data.size() == 0) {
+			return new ResponseEntity<String>("No geojson: "+id, HttpStatus.NOT_FOUND);
+		}
+		
+		// e.g. data[0] = { "type":"Feature","properties":{"STATEFP":"04","STATENS":null,
+		// "AFFGEOID":"0500000US04019","GEOID":"04019","STUSPS":null,"NAME":"Pima","LSAD":"06",
+		// "ALAND":23794796847,"AWATER":5251370,"COUNTYFP":"019","COUNTYNS":"00025446"},
+		// "geometry":{ "type":"Polygon","coordinates":[[[-113.333897,32.504938],...]] } }
+
+		result += "New: ";
+		List<String> names = new ArrayList<String>();
+		for(String datum : data) {
+			JSONObject newDatum = new JSONObject(datum);
+			JSONObject properties = newDatum.getJSONObject("properties");
+			long geoid = properties.getLong("GEOID");
+			
+			if(geoid > 72 && geoid < 5000000) { // county, not state or other
+				String name = "";
+				// STATEFP is the same as the relevant state's GEOID, so we can match it with states hashmap
+				String statefp = properties.getString("STATEFP");
+				try {
+					name = properties.getString("NAME");
+				} catch(JSONException e) {
+//					System.out.println("Property case sensitivity issue?");
+					name = properties.getString("name");
+				} finally {
+					names.add(states.get(Long.parseLong(statefp)) + ": " + name);
+				}
+			} 
+		}
+		
+		
+		// Convert list to single string with ; delimiter
+		String newCounty = String.join(";",names);
+		
+
+		// Set new county name
+		docToChange.setCounty(newCounty);
+		docRepo.save(docToChange);
+		
+		result += newCounty + "\n";
+		
+		
+
+		return new ResponseEntity<String>(result, HttpStatus.OK);
+		
 	}
 
 //	@CrossOrigin
