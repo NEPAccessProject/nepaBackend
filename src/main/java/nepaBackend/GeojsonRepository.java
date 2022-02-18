@@ -11,11 +11,10 @@ import nepaBackend.model.Geojson;
 @Repository
 public interface GeojsonRepository extends JpaRepository<Geojson, Long> {
 
-	List<Geojson> findAllByGeoId(Long geo_id);
 	List<Geojson> findAllByName(String name);
 
 	Optional<Geojson> findByGeoId(Long geo_id);
 	
-	boolean existsById(Long id);
+//	boolean existsById(Long id);
 	boolean existsByGeoId(Long geoId);
 }

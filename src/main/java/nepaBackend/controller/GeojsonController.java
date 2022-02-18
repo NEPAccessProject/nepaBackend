@@ -1,6 +1,7 @@
 package nepaBackend.controller;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.openjson.JSONArray;
 import com.github.openjson.JSONException;
 import com.github.openjson.JSONObject;
 
@@ -64,28 +67,36 @@ public class GeojsonController {
 		}
 	}
 
-	/** Returns lookup table for a specific document */
+	/** Returns state and county geojson data for all documents listed 
+	 * Need to use POST because the payload is somewhat large (~100kb+) */
 	@CrossOrigin
-	@RequestMapping(path = "/get_all_for_eisdoc", method = RequestMethod.GET)
-	private ResponseEntity<List<GeojsonLookup>> getAllForEisdoc(@RequestHeader Map<String, String> headers,
-				@RequestParam String id) {
+	@RequestMapping(path = "/get_all_state_county_for_eisdocs", method = RequestMethod.POST)
+	private ResponseEntity<List<String>> findAllGeojsonStateCountyByDocList(@RequestHeader Map<String, String> headers,
+				@RequestBody String ids) {
+		
 		try {
-			List<GeojsonLookup> data = geoLookupService.findAllByEisdoc(id);
+			JSONObject jso = new JSONObject(ids);
+			JSONArray jsa = jso.getJSONArray("ids");
+			List<Long> lids = new ArrayList<Long>();
+			for(int i = 0; i < jsa.length(); i++) {
+				lids.add(jsa.getLong(i));
+			}
+
+			List<String> data = geoLookupService.findAllStateCountyGeojsonByDocList(lids);
 			
-			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
+			return new ResponseEntity<List<String>>(data,HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<GeojsonLookup>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-
 	/** Returns geojson strings for a specific document */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_geojson_for_eisdoc", method = RequestMethod.GET)
 	private ResponseEntity<List<String>> getAllGeojsonForEisdoc(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
 		try {
-			List<String> geoData = geoLookupService.findAllGeojsonByEisdoc(id);
+			List<String> geoData = geoLookupService.findAllGeojsonByEisdocId(id);
 			
 //			System.out.println("Got geojson data for eisdoc, size of list: " + geoData.size());
 			
@@ -96,31 +107,13 @@ public class GeojsonController {
 		}
 	}
 
-	/** Returns lookup table for a specific process */
-	@CrossOrigin
-	@RequestMapping(path = "/get_all_for_process", method = RequestMethod.GET)
-	private ResponseEntity<List<GeojsonLookup>> getAllForProcess(@RequestHeader Map<String, String> headers,
-				@RequestParam String id) {
-		try {
-			List<GeojsonLookup> data = geoLookupService.findAllByEisdocIn(id);
-			
-//			System.out.println("Got data, size of list: " + data.size());
-			
-			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
-		} catch(Exception e) {
-			e.printStackTrace();
-			return new ResponseEntity<List<GeojsonLookup>>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
-	}
-
-
-	/** Returns geojson for a specific process */
+	/** Returns geojson strings for a specific process */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_geojson_for_process", method = RequestMethod.GET)
 	private ResponseEntity<List<String>> getAllGeojsonForProcess(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
 		try {
-			List<String> results = geoLookupService.findAllGeojsonByEisdocIn(id);
+			List<String> results = geoLookupService.findAllGeojsonByProcessId(id);
 
 //			System.out.println("Got geojson data, size of list: " + results.size());
 			
@@ -387,6 +380,8 @@ public class GeojsonController {
 		
 	}
 	
+	/** For individually setting the county names based on linked geodata. Replaces any existing county names
+	 * for the eisdoc for the id provided */
 	@CrossOrigin
 	@RequestMapping(path = "/replace_county_name", method = RequestMethod.POST)
 	private ResponseEntity<String> replace_county_name(
@@ -512,6 +507,41 @@ public class GeojsonController {
 		return new ResponseEntity<String>(result, HttpStatus.OK);
 		
 	}
+
+
+
+	/** UNUSED Returns lookup table for a specific document */
+	@CrossOrigin
+	@RequestMapping(path = "/get_all_for_eisdoc", method = RequestMethod.GET)
+	private ResponseEntity<List<GeojsonLookup>> getAllForEisdoc(@RequestHeader Map<String, String> headers,
+				@RequestParam String id) {
+		try {
+			List<GeojsonLookup> data = geoLookupService.findAllByEisdoc(id);
+			
+			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<GeojsonLookup>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
+	/** UNUSED Returns lookup table for a specific process */
+	@CrossOrigin
+	@RequestMapping(path = "/get_all_for_process", method = RequestMethod.GET)
+	private ResponseEntity<List<GeojsonLookup>> getAllForProcess(@RequestHeader Map<String, String> headers,
+				@RequestParam String id) {
+		try {
+			List<GeojsonLookup> data = geoLookupService.findAllByEisdocIn(id);
+			
+//			System.out.println("Got data, size of list: " + data.size());
+			
+			return new ResponseEntity<List<GeojsonLookup>>(data,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<GeojsonLookup>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
 
 //	@CrossOrigin
 //	@RequestMapping(path = "/get_all_geojson", method = RequestMethod.GET)

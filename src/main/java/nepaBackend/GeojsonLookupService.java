@@ -12,14 +12,28 @@ import nepaBackend.model.GeojsonLookup;
 @Service
 public class GeojsonLookupService {
 	@Autowired
-	private GeojsonLookupRepository geoRepo;
+	private GeojsonLookupRepository geoLookupRepo;
 	@Autowired
 	private DocRepository docRepository;
 
 
-	public List<String> findAllGeojsonByEisdoc(String id) {
-		List<GeojsonLookup> allData = geoRepo.findAllByEisdoc(
-				docRepository.findById(Long.parseLong(id)).get()
+	// TODO: Get a List<Object[]> or something and include the counts.
+	// Best approach is probably a custom join query with a subselect/group for counts
+	public List<String> findAllStateCountyGeojsonByDocList(List<Long> lids) {
+		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
+		
+		List<String> geoData = new ArrayList<String>();
+		for(GeojsonLookup datum : allData) {
+			if(datum.getGeojson().getGeoId() < 5000000) { // geoid for "other" type is >= 5000000: non-county/state
+				geoData.add(datum.getGeojson().getGeojson());
+			}
+		}
+		
+		return geoData;
+	}
+	public List<String> findAllGeojsonByEisdocId(String id) {
+		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocId(
+				Long.parseLong(id)
 		);
 		
 		List<String> geoData = new ArrayList<String>();
@@ -30,8 +44,8 @@ public class GeojsonLookupService {
 		return geoData;
 	}
 	/** Given a process id, check geojson data for match on eisdoc ids from that process */
-	public List<String> findAllGeojsonByEisdocIn(String id) {
-		List<GeojsonLookup> data = geoRepo.findAllByEisdocIn(
+	public List<String> findAllGeojsonByProcessId(String id) {
+		List<GeojsonLookup> data = geoLookupRepo.findDistinctGeojsonByEisdocIn(
 				docRepository.findAllByProcessId(Long.parseLong(id))
 		);
 		
@@ -52,7 +66,7 @@ public class GeojsonLookupService {
 			if(result) {
 				return result;
 			} else {
-				result = geoRepo.existsByEisdoc(datum);
+				result = geoLookupRepo.existsByEisdoc(datum);
 			}
 		}
 		
@@ -61,25 +75,25 @@ public class GeojsonLookupService {
 	
 	
 	public List<GeojsonLookup> findAllByEisdoc(String id) {
-		return geoRepo.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
+		return geoLookupRepo.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
 	}
 	/** Given a process id, get GeojsonLookup data for eisdoc ids from that process */
 	public List<GeojsonLookup> findAllByEisdocIn(String id) {
-		return geoRepo.findAllByEisdocIn(docRepository.findAllByProcessId(Long.parseLong(id)));
+		return geoLookupRepo.findAllByEisdocIn(docRepository.findAllByProcessId(Long.parseLong(id)));
 	}
 	public boolean existsByEisdoc(String id) {
-		return geoRepo.existsByEisdoc(docRepository.findById(Long.parseLong(id)).get());
+		return geoLookupRepo.existsByEisdoc(docRepository.findById(Long.parseLong(id)).get());
 	}
 	
 
 	public List<GeojsonLookup> findAll() {
-		return geoRepo.findAll();
+		return geoLookupRepo.findAll();
 	}
 	public void save(GeojsonLookup geoLookupForImport) {
-		geoRepo.save(geoLookupForImport);
+		geoLookupRepo.save(geoLookupForImport);
 	}
 	public boolean existsByGeojsonAndEisdoc(Geojson geojson, EISDoc eisdoc) {
-		return geoRepo.existsByGeojsonAndEisdoc(geojson, eisdoc);
+		return geoLookupRepo.existsByGeojsonAndEisdoc(geojson, eisdoc);
 	}
 	
 }
