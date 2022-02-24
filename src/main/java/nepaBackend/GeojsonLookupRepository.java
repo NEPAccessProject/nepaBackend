@@ -1,6 +1,8 @@
 package nepaBackend;
 
+import java.math.BigInteger;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,24 +17,27 @@ import nepaBackend.model.GeojsonLookup;
 public interface GeojsonLookupRepository extends JpaRepository<GeojsonLookup, Long> {
 	
 	// Group by used when we only need to represent each unique geojson object once
-	@Query(value = "SELECT DISTINCT * FROM geojson_lookup g"
+	@Query(value = "SELECT gtable.gid,COUNT(*) FROM"
+			+ " (SELECT g.geojson_id gid,g.eisdoc_id FROM geojson_lookup g"
 			+ " WHERE"
-			+ " g.eisdoc_id IN :ids"
-			+ " GROUP BY g.geojson_id",
+			+ " g.eisdoc_id IN :ids) gtable"
+			+ " GROUP BY gtable.gid ORDER BY gtable.gid",
 			nativeQuery=true)
-	List<GeojsonLookup> findDistinctGeojsonByEisdocIdIn(@Param("ids") List<Long> ids);
-	@Query(value = "SELECT DISTINCT * FROM geojson_lookup g"
+	List<Object[]> findDistinctGeojsonByEisdocIdIn(@Param("ids") List<Long> ids);
+	@Query(value = "SELECT gtable.gid,COUNT(*) FROM"
+			+ " (SELECT g.geojson_id gid,g.eisdoc_id FROM geojson_lookup g"
 			+ " WHERE"
-			+ " g.eisdoc_id IN :docs"
-			+ " GROUP BY g.geojson_id",
+			+ " g.eisdoc_id IN :docs) gtable"
+			+ " GROUP BY gtable.gid ORDER BY gtable.gid",
 			nativeQuery=true)
-	List<GeojsonLookup> findDistinctGeojsonByEisdocIn(@Param("docs") List<EISDoc> docs);
-	@Query(value = "SELECT DISTINCT * FROM geojson_lookup g"
+	List<Object[]> findDistinctGeojsonByEisdocIn(@Param("docs") List<EISDoc> docs);
+	@Query(value = "SELECT gtable.gid,COUNT(*) FROM"
+			+ " (SELECT g.geojson_id gid,g.eisdoc_id FROM geojson_lookup g"
 			+ " WHERE"
-			+ " g.eisdoc_id = :doc_id"
-			+ " GROUP BY g.geojson_id",
+			+ " g.eisdoc_id = :doc_id) gtable"
+			+ " GROUP BY gtable.gid",
 			nativeQuery=true)
-	List<GeojsonLookup> findDistinctGeojsonByEisdocId(@Param("doc_id") Long doc_id);
+	List<Object[]> findDistinctGeojsonByEisdocId(@Param("doc_id") Long doc_id);
 	
 	
 	// TODO: Include logic to give back something like an Object[] with counts for each geojson
@@ -44,5 +49,7 @@ public interface GeojsonLookupRepository extends JpaRepository<GeojsonLookup, Lo
 
 	List<GeojsonLookup> findAllByEisdoc(EISDoc doc);
 	List<GeojsonLookup> findAllByEisdocIn(List<EISDoc> docList);
+	
+	Optional<GeojsonLookup> findByGeojsonId(long geojsonId);
 
 }

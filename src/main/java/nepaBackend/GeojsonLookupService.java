@@ -1,4 +1,5 @@
 package nepaBackend;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,76 +9,111 @@ import org.springframework.stereotype.Service;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.Geojson;
 import nepaBackend.model.GeojsonLookup;
+import nepaBackend.pojo.GeodataWithCount;
 
 @Service
 public class GeojsonLookupService {
 	@Autowired
 	private GeojsonLookupRepository geoLookupRepo;
 	@Autowired
+	private GeojsonRepository geoRepo;
+	@Autowired
 	private DocRepository docRepository;
 
 
 
+	// TODO: obj[1] is the counts; can use that later
 	public List<String> findOtherGeojsonByDocList(List<Long> lids) {
-		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
+		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
 		
 		List<String> geoData = new ArrayList<String>();
-		for(GeojsonLookup datum : allData) {
-			if(datum.getGeojson().getGeoId() >= 5000000) { // geoid for "other" type is >= 5000000: non-county/state
-				geoData.add(datum.getGeojson().getGeojson());
+		for(Object[] obj : allData) {
+			Long geoid = ((BigInteger) obj[0]).longValue();
+			if(geoid >= 5000000) {
+				geoData.add(
+					geoRepo.findById(geoid).get().getGeojson()
+				);
 			}
 		}
 		
+//		for(GeojsonLookup datum : allData) {
+//			if(datum.getGeojson().getGeoId() >= 5000000) { // geoid for "other" type is >= 5000000: non-county/state
+//				geoData.add(datum.getGeojson().getGeojson());
+//			}
+//		}
+		
 		return geoData;
 	}
-	// TODO: Get a List<Object[]> or something and include the counts.
-	// Best approach is probably a custom join query with a subselect/group for counts
+	// TODO: obj[1] is the counts; can use that later
 	public List<String> findAllGeojsonByDocList(List<Long> lids) {
-		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
+		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
 		
 		List<String> geoData = new ArrayList<String>();
-		for(GeojsonLookup datum : allData) {
-			geoData.add(datum.getGeojson().getGeojson());
+		for(Object[] obj : allData) {
+			Long geoid = ((BigInteger) obj[0]).longValue();
+			geoData.add(
+				geoRepo.findById(geoid).get().getGeojson()
+			);
 		}
+//		for(GeojsonLookup datum : allData) {
+//			geoData.add(datum.getGeojson().getGeojson());
+//		}
 		
 		return geoData;
 	}
-	// TODO: Get a List<Object[]> or something and include the counts.
-	// Best approach is probably a custom join query with a subselect/group for counts
-	public List<String> findAllStateCountyGeojsonByDocList(List<Long> lids) {
-		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
+	public List<GeodataWithCount> findAllStateCountyGeojsonByDocList(List<Long> lids) {
+		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
+
+		// TODO: obj[1] is the counts; can use that later
+		List<GeodataWithCount> geoWithCount = new ArrayList<GeodataWithCount>();
 		
-		List<String> geoData = new ArrayList<String>();
-		for(GeojsonLookup datum : allData) {
-			if(datum.getGeojson().getGeoId() < 5000000) { // geoid for "other" type is >= 5000000: non-county/state
-				geoData.add(datum.getGeojson().getGeojson());
+//		List<String> geoData = new ArrayList<String>();
+		for(Object[] obj : allData) {
+			Long geoid = ((BigInteger) obj[0]).longValue();
+//			System.out.println("Count: " + obj[1]);
+			if(geoid < 5000000) { // geoid for "other" type is >= 5000000: non-county/state
+				geoWithCount.add(
+					new GeodataWithCount(
+						geoRepo.findById(geoid).get().getGeojson(), 
+						((BigInteger) obj[1]).longValue()
+					)
+				);
 			}
 		}
 		
-		return geoData;
+		return geoWithCount;
 	}
+	// TODO on frontend: ask for this once only
 	public List<String> findAllGeojsonByEisdocId(String id) {
-		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocId(
+		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocId(
 				Long.parseLong(id)
 		);
-		
 		List<String> geoData = new ArrayList<String>();
-		for(GeojsonLookup datum : allData) {
-			geoData.add(datum.getGeojson().getGeojson());
+
+		for(Object[] obj : allData) {
+			Long geoid = ((BigInteger) obj[0]).longValue();
+//			System.out.println("ID: " + geoid);
+			geoData.add(
+				geoRepo.findById(geoid).get().getGeojson()
+			);
 		}
 		
 		return geoData;
 	}
 	/** Given a process id, check geojson data for match on eisdoc ids from that process */
 	public List<String> findAllGeojsonByProcessId(String id) {
-		List<GeojsonLookup> data = geoLookupRepo.findDistinctGeojsonByEisdocIn(
+		List<Object[]> data = geoLookupRepo.findDistinctGeojsonByEisdocIn(
 				docRepository.findAllByProcessId(Long.parseLong(id))
 		);
 		
 		List<String> results = new ArrayList<String>();
-		for(GeojsonLookup datum: data) {
-			results.add(datum.getGeojson().getGeojson());
+		for(Object[] obj : data) {
+			Long geoid = ((BigInteger) obj[0]).longValue();
+			results.add(
+				geoRepo.findById(geoid).get().getGeojson()
+			);
 		}
+		
 		
 		return results;
 	}

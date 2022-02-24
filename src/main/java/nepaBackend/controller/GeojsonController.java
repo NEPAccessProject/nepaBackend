@@ -33,6 +33,7 @@ import nepaBackend.GeojsonRepository;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.Geojson;
 import nepaBackend.model.GeojsonLookup;
+import nepaBackend.pojo.GeodataWithCount;
 import nepaBackend.pojo.UploadInputsGeo;
 import nepaBackend.pojo.UploadInputsGeoLinks;
 
@@ -118,9 +119,9 @@ public class GeojsonController {
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_state_county_for_eisdocs", method = RequestMethod.POST)
-	private ResponseEntity<List<String>> findAllGeojsonStateCountyByDocList(@RequestHeader Map<String, String> headers,
+	private ResponseEntity<List<GeodataWithCount>> findAllGeojsonStateCountyByDocList(@RequestHeader Map<String, String> headers,
 				@RequestBody String ids) {
-		
+
 		try {
 			JSONObject jso = new JSONObject(ids);
 			JSONArray jsa = jso.getJSONArray("ids");
@@ -129,12 +130,12 @@ public class GeojsonController {
 				lids.add(jsa.getLong(i));
 			}
 
-			List<String> data = geoLookupService.findAllStateCountyGeojsonByDocList(lids);
+			List<GeodataWithCount> data = geoLookupService.findAllStateCountyGeojsonByDocList(lids);
 			
-			return new ResponseEntity<List<String>>(data,HttpStatus.OK);
+			return new ResponseEntity<List<GeodataWithCount>>(data,HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<GeodataWithCount>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	
