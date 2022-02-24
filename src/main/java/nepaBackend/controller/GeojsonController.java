@@ -67,6 +67,53 @@ public class GeojsonController {
 		}
 	}
 
+
+	/** Returns state and county geojson data for all documents listed 
+	 * Need to use POST because the payload is somewhat large (~100kb+) */
+	@CrossOrigin
+	@RequestMapping(path = "/get_geodata_other_for_eisdocs", method = RequestMethod.POST)
+	private ResponseEntity<List<String>> findOtherGeojsonByDocList(@RequestHeader Map<String, String> headers,
+				@RequestBody String ids) {
+		
+		try {
+			JSONObject jso = new JSONObject(ids);
+			JSONArray jsa = jso.getJSONArray("ids");
+			List<Long> lids = new ArrayList<Long>();
+			for(int i = 0; i < jsa.length(); i++) {
+				lids.add(jsa.getLong(i));
+			}
+
+			List<String> data = geoLookupService.findOtherGeojsonByDocList(lids);
+			
+			return new ResponseEntity<List<String>>(data,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+	/** Returns state and county geojson data for all documents listed 
+	 * Need to use POST because the payload is somewhat large (~100kb+) */
+	@CrossOrigin
+	@RequestMapping(path = "/get_all_geodata_for_eisdocs", method = RequestMethod.POST)
+	private ResponseEntity<List<String>> findAllGeojsonByDocList(@RequestHeader Map<String, String> headers,
+				@RequestBody String ids) {
+		
+		try {
+			JSONObject jso = new JSONObject(ids);
+			JSONArray jsa = jso.getJSONArray("ids");
+			List<Long> lids = new ArrayList<Long>();
+			for(int i = 0; i < jsa.length(); i++) {
+				lids.add(jsa.getLong(i));
+			}
+
+			List<String> data = geoLookupService.findAllGeojsonByDocList(lids);
+			
+			return new ResponseEntity<List<String>>(data,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 	/** Returns state and county geojson data for all documents listed 
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
 	@CrossOrigin
@@ -90,6 +137,7 @@ public class GeojsonController {
 			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
+	
 	/** Returns geojson strings for a specific document */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_geojson_for_eisdoc", method = RequestMethod.GET)
@@ -188,16 +236,21 @@ public class GeojsonController {
 				
 				// Update or add new?
 				if(geoRepo.existsByGeoId(geoForImport.getGeoId())) {
-					// Update
+					// skip?
 					results.add("Item " + i 
-							+ ": " + "Replacing existing feature:: " + itr.name 
+							+ ": " + "Skipped (exists):: " + itr.name 
 							+ "; geo_id: " + itr.geo_id);
 					
-					Geojson oldGeoJson = geoRepo.findByGeoId(geoForImport.getGeoId()).get();
-					oldGeoJson.setGeojson(geoForImport.getGeojson());
-					oldGeoJson.setName(geoForImport.getName());
-					
-					geoRepo.save(oldGeoJson);
+					// Update
+//					results.add("Item " + i 
+//							+ ": " + "Replacing existing feature:: " + itr.name 
+//							+ "; geo_id: " + itr.geo_id);
+//					
+//					Geojson oldGeoJson = geoRepo.findByGeoId(geoForImport.getGeoId()).get();
+//					oldGeoJson.setGeojson(geoForImport.getGeojson());
+//					oldGeoJson.setName(geoForImport.getName());
+//					
+//					geoRepo.save(oldGeoJson);
 				} else { 
 					// Add new
 					results.add("Item " + i 
@@ -253,15 +306,19 @@ public class GeojsonController {
 			
 			// Update or add new?
 			if(geoRepo.existsByGeoId(geoForImport.getGeoId())) {
-				// Update
-				results.add("Replacing existing feature:: " + itr.name 
+				// skip?
+				results.add("Skipped (exists):: " + itr.name 
 						+ "; geo_id: " + itr.geo_id);
 				
-				Geojson oldGeoJson = geoRepo.findByGeoId(geoForImport.getGeoId()).get();
-				oldGeoJson.setGeojson(geoForImport.getGeojson());
-				oldGeoJson.setName(geoForImport.getName());
-				
-				geoRepo.save(oldGeoJson);
+				// Update
+//				results.add("Replacing existing feature:: " + itr.name 
+//						+ "; geo_id: " + itr.geo_id);
+//				
+//				Geojson oldGeoJson = geoRepo.findByGeoId(geoForImport.getGeoId()).get();
+//				oldGeoJson.setGeojson(geoForImport.getGeojson());
+//				oldGeoJson.setName(geoForImport.getName());
+//				
+//				geoRepo.save(oldGeoJson);
 			} else { 
 				// Add new
 				results.add("Adding new feature for:: " + itr.name 
