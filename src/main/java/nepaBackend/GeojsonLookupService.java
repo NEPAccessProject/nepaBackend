@@ -17,6 +17,31 @@ public class GeojsonLookupService {
 	private DocRepository docRepository;
 
 
+
+	public List<String> findOtherGeojsonByDocList(List<Long> lids) {
+		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
+		
+		List<String> geoData = new ArrayList<String>();
+		for(GeojsonLookup datum : allData) {
+			if(datum.getGeojson().getGeoId() >= 5000000) { // geoid for "other" type is >= 5000000: non-county/state
+				geoData.add(datum.getGeojson().getGeojson());
+			}
+		}
+		
+		return geoData;
+	}
+	// TODO: Get a List<Object[]> or something and include the counts.
+	// Best approach is probably a custom join query with a subselect/group for counts
+	public List<String> findAllGeojsonByDocList(List<Long> lids) {
+		List<GeojsonLookup> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
+		
+		List<String> geoData = new ArrayList<String>();
+		for(GeojsonLookup datum : allData) {
+			geoData.add(datum.getGeojson().getGeojson());
+		}
+		
+		return geoData;
+	}
 	// TODO: Get a List<Object[]> or something and include the counts.
 	// Best approach is probably a custom join query with a subselect/group for counts
 	public List<String> findAllStateCountyGeojsonByDocList(List<Long> lids) {
