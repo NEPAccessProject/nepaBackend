@@ -21,21 +21,25 @@ public class GeojsonLookupService {
 	private DocRepository docRepository;
 
 
-	public List<String> findOtherGeojsonByDocList(List<Long> lids) {
+	public List<GeodataWithCount> findOtherGeojsonByDocList(List<Long> lids) {
 		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
 		
-		List<String> geoData = new ArrayList<String>();
+		List<GeodataWithCount> geoData = new ArrayList<GeodataWithCount>();
 		for(Object[] obj : allData) {
-			Long geoid = ((BigInteger) obj[0]).longValue();
-			if(geoid >= 5000000) {
-				try {
+			try {
+				Long geoid = ((BigInteger) obj[0]).longValue();
+				Geojson geoj = geoRepo.findById(geoid).get();
+				if(geoj.getGeoId() < 5000000) { // geoid for "other" type is >= 5000000: non-county/state
 					geoData.add(
-						geoRepo.findById(geoid).get().getGeojson()
+						new GeodataWithCount(
+							geoj.getGeojson(), 
+							((BigInteger) obj[1]).longValue()
+						)
 					);
-				} catch(Exception e) {
-					e.printStackTrace();
-					// data corruption? Skip
 				}
+			} catch(Exception e) {
+				e.printStackTrace();
+				// data corruption? Skip
 			}
 		}
 		
@@ -48,15 +52,18 @@ public class GeojsonLookupService {
 		return geoData;
 	}
 	
-	public List<String> findAllGeojsonByDocList(List<Long> lids) {
+	public List<GeodataWithCount> findAllGeojsonByDocList(List<Long> lids) {
 		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
 		
-		List<String> geoData = new ArrayList<String>();
+		List<GeodataWithCount> geoData = new ArrayList<GeodataWithCount>();
 		for(Object[] obj : allData) {
 			Long geoid = ((BigInteger) obj[0]).longValue();
 			try {
 				geoData.add(
-					geoRepo.findById(geoid).get().getGeojson()
+					new GeodataWithCount(
+						geoRepo.findById(geoid).get().getGeojson(), 
+						((BigInteger) obj[1]).longValue()
+					)
 				);
 			} catch(Exception e) {
 				e.printStackTrace();
@@ -78,24 +85,24 @@ public class GeojsonLookupService {
 		for(Object[] obj : allData) {
 			Long geoid = ((BigInteger) obj[0]).longValue();
 //			System.out.println("Count: " + obj[1]);
-			if(geoid < 5000000) { // geoid for "other" type is >= 5000000: non-county/state
-				try {
+			try {
+				Geojson geoj = geoRepo.findById(geoid).get();
+				if(geoj.getGeoId() < 5000000) { // geoid for "other" type is >= 5000000: non-county/state
 					geoWithCount.add(
 						new GeodataWithCount(
-							geoRepo.findById(geoid).get().getGeojson(), 
+							geoj.getGeojson(), 
 							((BigInteger) obj[1]).longValue()
 						)
 					);
-				} catch(Exception e) {
-					e.printStackTrace();
-					// data corruption? Skip
 				}
+			} catch(Exception e) {
+				e.printStackTrace();
+				// data corruption? Skip
 			}
 		}
 		
 		return geoWithCount;
 	}
-	// TODO on frontend: ask for this once only
 	public List<String> findAllGeojsonByEisdocId(String id) {
 		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocId(
 				Long.parseLong(id)

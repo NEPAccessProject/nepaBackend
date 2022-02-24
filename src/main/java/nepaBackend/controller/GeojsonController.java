@@ -73,7 +73,7 @@ public class GeojsonController {
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
 	@CrossOrigin
 	@RequestMapping(path = "/get_geodata_other_for_eisdocs", method = RequestMethod.POST)
-	private ResponseEntity<List<String>> findOtherGeojsonByDocList(@RequestHeader Map<String, String> headers,
+	private ResponseEntity<List<GeodataWithCount>> findOtherGeojsonByDocList(@RequestHeader Map<String, String> headers,
 				@RequestBody String ids) {
 		
 		try {
@@ -84,19 +84,19 @@ public class GeojsonController {
 				lids.add(jsa.getLong(i));
 			}
 
-			List<String> data = geoLookupService.findOtherGeojsonByDocList(lids);
+			List<GeodataWithCount> data = geoLookupService.findOtherGeojsonByDocList(lids);
 			
-			return new ResponseEntity<List<String>>(data,HttpStatus.OK);
+			return new ResponseEntity<List<GeodataWithCount>>(data,HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<GeodataWithCount>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	/** Returns state and county geojson data for all documents listed 
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
 	@CrossOrigin
 	@RequestMapping(path = "/get_all_geodata_for_eisdocs", method = RequestMethod.POST)
-	private ResponseEntity<List<String>> findAllGeojsonByDocList(@RequestHeader Map<String, String> headers,
+	private ResponseEntity<List<GeodataWithCount>> findAllGeojsonByDocList(@RequestHeader Map<String, String> headers,
 				@RequestBody String ids) {
 		
 		try {
@@ -107,12 +107,12 @@ public class GeojsonController {
 				lids.add(jsa.getLong(i));
 			}
 
-			List<String> data = geoLookupService.findAllGeojsonByDocList(lids);
+			List<GeodataWithCount> data = geoLookupService.findAllGeojsonByDocList(lids);
 			
-			return new ResponseEntity<List<String>>(data,HttpStatus.OK);
+			return new ResponseEntity<List<GeodataWithCount>>(data,HttpStatus.OK);
 		} catch(Exception e) {
 			e.printStackTrace();
-			return new ResponseEntity<List<String>>(HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<List<GeodataWithCount>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 	/** Returns state and county geojson data for all documents listed 
