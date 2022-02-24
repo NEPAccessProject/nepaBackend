@@ -21,8 +21,6 @@ public class GeojsonLookupService {
 	private DocRepository docRepository;
 
 
-
-	// TODO: obj[1] is the counts; can use that later
 	public List<String> findOtherGeojsonByDocList(List<Long> lids) {
 		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
 		
@@ -30,9 +28,14 @@ public class GeojsonLookupService {
 		for(Object[] obj : allData) {
 			Long geoid = ((BigInteger) obj[0]).longValue();
 			if(geoid >= 5000000) {
-				geoData.add(
-					geoRepo.findById(geoid).get().getGeojson()
-				);
+				try {
+					geoData.add(
+						geoRepo.findById(geoid).get().getGeojson()
+					);
+				} catch(Exception e) {
+					e.printStackTrace();
+					// data corruption? Skip
+				}
 			}
 		}
 		
@@ -44,16 +47,21 @@ public class GeojsonLookupService {
 		
 		return geoData;
 	}
-	// TODO: obj[1] is the counts; can use that later
+	
 	public List<String> findAllGeojsonByDocList(List<Long> lids) {
 		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
 		
 		List<String> geoData = new ArrayList<String>();
 		for(Object[] obj : allData) {
 			Long geoid = ((BigInteger) obj[0]).longValue();
-			geoData.add(
-				geoRepo.findById(geoid).get().getGeojson()
-			);
+			try {
+				geoData.add(
+					geoRepo.findById(geoid).get().getGeojson()
+				);
+			} catch(Exception e) {
+				e.printStackTrace();
+				// data corruption? Skip
+			}
 		}
 //		for(GeojsonLookup datum : allData) {
 //			geoData.add(datum.getGeojson().getGeojson());
@@ -64,7 +72,6 @@ public class GeojsonLookupService {
 	public List<GeodataWithCount> findAllStateCountyGeojsonByDocList(List<Long> lids) {
 		List<Object[]> allData = geoLookupRepo.findDistinctGeojsonByEisdocIdIn(lids);
 
-		// TODO: obj[1] is the counts; can use that later
 		List<GeodataWithCount> geoWithCount = new ArrayList<GeodataWithCount>();
 		
 //		List<String> geoData = new ArrayList<String>();
@@ -72,12 +79,17 @@ public class GeojsonLookupService {
 			Long geoid = ((BigInteger) obj[0]).longValue();
 //			System.out.println("Count: " + obj[1]);
 			if(geoid < 5000000) { // geoid for "other" type is >= 5000000: non-county/state
-				geoWithCount.add(
-					new GeodataWithCount(
-						geoRepo.findById(geoid).get().getGeojson(), 
-						((BigInteger) obj[1]).longValue()
-					)
-				);
+				try {
+					geoWithCount.add(
+						new GeodataWithCount(
+							geoRepo.findById(geoid).get().getGeojson(), 
+							((BigInteger) obj[1]).longValue()
+						)
+					);
+				} catch(Exception e) {
+					e.printStackTrace();
+					// data corruption? Skip
+				}
 			}
 		}
 		
