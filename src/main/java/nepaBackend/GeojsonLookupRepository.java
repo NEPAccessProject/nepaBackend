@@ -1,6 +1,5 @@
 package nepaBackend;
 
-import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
 
@@ -45,6 +44,13 @@ public interface GeojsonLookupRepository extends JpaRepository<GeojsonLookup, Lo
 
 	boolean existsByEisdoc(EISDoc eisDoc);
 	boolean existsByGeojsonAndEisdoc(Geojson geojson, EISDoc eisdoc);
+	@Query(value = "SELECT IF( EXISTS("
+			+ " SELECT gl.eisdoc_id,gl.geojson_id,g.id,g.geo_id FROM geojson_lookup gl" +
+			"   INNER JOIN test.geojson g ON g.id = gl.geojson_id" + 
+			"	WHERE gl.eisdoc_id = :eid AND g.geo_id = :gid)," + 
+			"    'true','false' )AS result",
+			nativeQuery=true)
+	boolean existsByGeojsonAndEisdoc(@Param("gid") long geojson, @Param("eid") long eisdoc); // more efficient?
 
 
 	List<GeojsonLookup> findAllByEisdoc(EISDoc doc);

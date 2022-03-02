@@ -368,35 +368,33 @@ public class GeojsonController {
 					results.add("Item " + i + ": " + "Error:: No GeoID");
 				} else {
 					String[] geoIds = itr.geo_id.split(";");
-					Optional<EISDoc> doc = docRepo.findById(Long.parseLong(itr.meta_id));
 					
-					if(doc.isPresent()) {
-						for(int j = 0; j < geoIds.length; j++) {
-							Optional<Geojson> geo = geoRepo.findByGeoId(Long.parseLong(geoIds[j].strip()));
+					for(int j = 0; j < geoIds.length; j++) {
 							
-							if(geo.isPresent()) {
+						// Skip or add new?
+						if(geoLookupService.existsByGeojsonAndEisdoc(geoIds[j], itr.meta_id))  {
+							// Skip
+							results.add("Item " + i 
+									+ ": " + "Skipping (exists):: " + itr.meta_id 
+									+ "; geo_id: " + geoIds[j]);
+						} else { 
+							// Add new
+							try {
+								Optional<EISDoc> doc = docRepo.findById(Long.parseLong(itr.meta_id.strip()));
+								Optional<Geojson> geo = geoRepo.findByGeoId(Long.parseLong(geoIds[j].strip()));
 								
-								// Skip or add new?
-								if( geoLookupService.existsByGeojsonAndEisdoc(geo.get(), doc.get()) ) {
-									// Skip
-									results.add("Item " + i 
-											+ ": " + "Skipping (exists):: " + itr.meta_id 
-											+ "; geo_id: " + geoIds[j]);
-								} else { 
-									// Add new
-									results.add("Item " + i 
-											+ ": " + "Adding new connection for:: " + itr.meta_id 
-											+ "; geo_id: " + geoIds[j]);
-			
-									GeojsonLookup geoLookupForImport = new GeojsonLookup( geo.get(),doc.get() );
-									geoLookupService.save(geoLookupForImport);
-								}
-							} else {
-								results.add("Item " + i + ": " + "Missing:: geo " + itr.geo_id);
+								results.add("Item " + i 
+										+ ": " + "Adding new connection for:: " + itr.meta_id 
+										+ "; geo_id: " + geoIds[j]);
+		
+								GeojsonLookup geoLookupForImport = new GeojsonLookup( geo.get(),doc.get() );
+								geoLookupService.save(geoLookupForImport);
+							} catch(java.util.NoSuchElementException e) {
+								results.add("Item " + i 
+										+ ": " + "Record or geodata missing:: " + itr.meta_id 
+										+ "; geo_id: " + geoIds[j]);
 							}
 						}
-					} else {
-						results.add("Item " + i + ": Missing:: doc " + itr.meta_id);
 					}
 				}
 				

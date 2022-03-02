@@ -175,5 +175,9 @@ public class GeojsonLookupService {
 	public boolean existsByGeojsonAndEisdoc(Geojson geojson, EISDoc eisdoc) {
 		return geoLookupRepo.existsByGeojsonAndEisdoc(geojson, eisdoc);
 	}
+
+	public boolean existsByGeojsonAndEisdoc(String geo_id, String meta_id) {
+		return geoLookupRepo.existsByGeojsonAndEisdoc(Long.parseLong(geo_id), Long.parseLong(meta_id));
+	}
 	
 }
