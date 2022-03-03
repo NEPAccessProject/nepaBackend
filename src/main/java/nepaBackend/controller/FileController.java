@@ -302,7 +302,7 @@ public class FileController {
 				// (i.e. corrupt/invalid/empty)
 				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 			}
-			String downloadFilename = nepaFiles.get(0).getFolder() + "_" + nepaFiles.get(0).getDocumentType();
+			String downloadFilename = nepaFiles.get(0).getFolder() + "_" + doc.getDocumentType();
 			downloadFilename = downloadFilename.replaceAll(" ", "_");
 			
 		    zip = new ZipOutputStream(response.getOutputStream());
