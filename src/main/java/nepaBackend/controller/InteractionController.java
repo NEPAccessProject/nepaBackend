@@ -132,6 +132,7 @@ public class InteractionController {
 					if(logUser == null) {
 						combinedLogs.add(new InteractionSearchLog(
 								"(anonymous)",
+								"",
 								log.getDoc(),
 								log.getActionType().toString(),
 								log.getLogTime()
@@ -140,6 +141,7 @@ public class InteractionController {
 						// Get any interaction below admin role
 						combinedLogs.add(new InteractionSearchLog(
 								log.getUser().getUsername(),
+								log.getUser().getEmail(),
 								log.getDoc(),
 								log.getActionType().toString(),
 								log.getLogTime()
@@ -153,6 +155,7 @@ public class InteractionController {
 					if(!logUser.isPresent()) {
 						combinedLogs.add(new InteractionSearchLog(
 								"(anonymous or old data)",
+								"",
 								null,
 								"SEARCH: " + log.getTerms(),
 								log.getSearchTime()
@@ -161,6 +164,7 @@ public class InteractionController {
 					else if(logUser.isPresent() && logUser.get().getRole().contentEquals("USER")) {
 						combinedLogs.add(new InteractionSearchLog(
 								logUser.get().getUsername(),
+								logUser.get().getEmail(),
 								null,
 								"SEARCH: " + log.getTerms(),
 								log.getSearchTime()
