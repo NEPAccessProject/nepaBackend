@@ -68,6 +68,19 @@ public class GeojsonController {
 		}
 	}
 
+	/** Returns all state and county geojson data */
+	@CrossOrigin
+	@RequestMapping(path = "/get_all_state_county", method = RequestMethod.GET)
+	private ResponseEntity<List<Geojson>> findAllGeojsonStateCounty(@RequestHeader Map<String, String> headers) {
+
+		try {
+			List<Geojson> data = geoRepo.findAllStateCountyGeojson();
+			return new ResponseEntity<List<Geojson>>(data,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<Geojson>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
 
 	/** Returns state and county geojson data for all documents listed 
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
