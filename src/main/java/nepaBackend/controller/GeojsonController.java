@@ -186,6 +186,23 @@ public class GeojsonController {
 		}
 	}
 
+	/** Returns all eisdocs for a specific geo_id (for potential use by a map-first search) */
+	@CrossOrigin
+	@RequestMapping(path = "/find_all_eisdoc_for_geojson", method = RequestMethod.GET)
+	private ResponseEntity<List<EISDoc>> findAllDocsForGeojson(@RequestHeader Map<String, String> headers,
+				@RequestParam String geoId) {
+		try {
+			List<EISDoc> results = geoLookupService.findAllDocsForGeojson(geoId);
+
+//			System.out.println("Got geojson data, size of list: " + results.size());
+			
+			return new ResponseEntity<List<EISDoc>>(results,HttpStatus.OK);
+		} catch(Exception e) {
+			e.printStackTrace();
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	}
+
 
 	@CrossOrigin
 	@RequestMapping(path = "/exists_for_eisdoc", method = RequestMethod.GET)

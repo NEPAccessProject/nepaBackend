@@ -58,4 +58,9 @@ public interface GeojsonLookupRepository extends JpaRepository<GeojsonLookup, Lo
 	
 	Optional<GeojsonLookup> findByGeojsonId(long geojsonId);
 
+	@Query(value = "SELECT eisdoc_id FROM geojson_lookup g"
+			+ " WHERE g.geojson_id = :geoId",
+			nativeQuery=true)
+	List<Long> findAllEisdocIdByGeojsonId(@Param("geoId") Long geoId);
+
 }

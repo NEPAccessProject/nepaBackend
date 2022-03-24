@@ -179,5 +179,18 @@ public class GeojsonLookupService {
 	public boolean existsByGeojsonAndEisdoc(String geo_id, String meta_id) {
 		return geoLookupRepo.existsByGeojsonAndEisdoc(Long.parseLong(geo_id), Long.parseLong(meta_id));
 	}
+
+	/** 
+	 * 1. Get geojson by geo_id
+	 * 2. Get doc id list by geojson id in geojson lookup table
+	 * 3. Get all docs by doc id list 
+	 * 4. Return doc list */
+	public List<EISDoc> findAllDocsForGeojson(String geoId) {
+		Geojson geo = geoRepo.findByGeoId( Long.parseLong(geoId) ).get();
+		List<Long> glist = geoLookupRepo.findAllEisdocIdByGeojsonId(geo.getId());
+		List<EISDoc> docs = docRepository.findAllById(glist);
+		
+		return docs;
+	}
 	
 }
