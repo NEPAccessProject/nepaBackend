@@ -135,16 +135,18 @@ public class InteractionController {
 								"",
 								log.getDoc(),
 								log.getActionType().toString(),
-								log.getLogTime()
+								log.getLogTime(),
+								null
 						));
 					} else if(!logUser.getRole().contentEquals("ADMIN")) {
 						// Get any interaction below admin role
 						combinedLogs.add(new InteractionSearchLog(
-								log.getUser().getUsername(),
-								log.getUser().getEmail(),
+								logUser.getUsername(),
+								logUser.getEmail(),
 								log.getDoc(),
 								log.getActionType().toString(),
-								log.getLogTime()
+								log.getLogTime(),
+								logUser.getRegisteredOn()
 						));
 					} 
 					
@@ -158,7 +160,8 @@ public class InteractionController {
 								"",
 								null,
 								"SEARCH: " + log.getTerms(),
-								log.getSearchTime()
+								log.getSearchTime(),
+								null
 						));
 					}
 					else if(logUser.isPresent() && logUser.get().getRole().contentEquals("USER")) {
@@ -167,7 +170,8 @@ public class InteractionController {
 								logUser.get().getEmail(),
 								null,
 								"SEARCH: " + log.getTerms(),
-								log.getSearchTime()
+								log.getSearchTime(),
+								logUser.get().getRegisteredOn()
 						));
 					}
 					

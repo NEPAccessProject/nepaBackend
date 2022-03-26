@@ -15,18 +15,30 @@ public class InteractionSearchLog {
 	
 	private LocalDateTime logTime;
 
+	private LocalDateTime registerTime;
+
 	public InteractionSearchLog() {
 	}
 	
-	public InteractionSearchLog(String username, String email, EISDoc doc, String actionType, LocalDateTime logTime) {
+	public InteractionSearchLog(String username, String email, EISDoc doc, String actionType, 
+			LocalDateTime logTime, LocalDateTime registerTime) {
 		super();
 		this.username = username;
 		this.email = email;
 		this.doc = doc;
 		this.actionType = actionType;
 		this.logTime = logTime;
+		this.registerTime = registerTime;
 	}
 
+
+	public LocalDateTime getRegisterTime() {
+		return registerTime;
+	}
+
+	public void setRegisterTime(LocalDateTime registerTime) {
+		this.registerTime = registerTime;
+	}
 
 	public String getUsername() {
 		return username;

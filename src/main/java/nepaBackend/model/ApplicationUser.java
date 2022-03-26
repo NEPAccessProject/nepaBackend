@@ -54,6 +54,17 @@ public class ApplicationUser { // application_user
 
     @Column(name = "active", columnDefinition="TINYINT(1) default 0") // User has been approved and can use the system
     private boolean active;
+    
+    @Column(name = "registered_on", columnDefinition="TIMESTAMP NULL DEFAULT NULL")
+    private LocalDateTime registeredOn;
+
+	public LocalDateTime getRegisteredOn() {
+		return registeredOn;
+	}
+
+	public void setRegisteredOn(LocalDateTime registeredOn) {
+		this.registeredOn = registeredOn;
+	}
 
 	public long getId() {
         return id;

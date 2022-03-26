@@ -252,6 +252,7 @@ public class UserController {
                 user.setEmailAddress(Globals.normalizeSpace(user.getEmail()));
                 user.setVerified(false);
                 user.setActive(true);
+                user.setRegisteredOn(LocalDateTime.now());
                 user.setRole("USER");
                 if(isValidUser(user)) { 
                     if(!Globals.TESTING) {applicationUserRepository.save(user);}
@@ -307,6 +308,7 @@ public class UserController {
                     user.setVerified(true);
                     user.setActive(true);
                     user.setRole("USER");
+                    user.setRegisteredOn(LocalDateTime.now());
                     if(isValidUserPreRegister(user)) { 
                         applicationUserRepository.save(user);
                     } else { 
