@@ -92,19 +92,24 @@ public class ResetEmailController {
     		} else {
                 return new ResponseEntity<String>("Email was not sent.", HttpStatus.INTERNAL_SERVER_ERROR);
     		}
-        } catch(Exception ex) { 
+        } catch(NullPointerException ex) { // user not found
         	
         	try {
-            	// Emails are typically created with @email.arizona.edu.  The exception could be email address not found
-            	// because it didn't find a user looking for @arizona.edu, which is also valid.
-        		
-        		// If @arizona.edu, try looking for @email.arizona.edu instead and proceed normally if so
+        		// If @arizona.edu, try looking for @email.arizona.edu, or if @email.arizona.edu 
+        		// try looking for @arizona.edu (this is a common user mistake)
                 String emailService = resetEmail.email;
             	int index = resetEmail.email.indexOf('@');
             	emailService = emailService.substring(index);
+            	
+            	String emailFinisher = "@arizona.edu";
             	if(emailService.contentEquals("@arizona.edu")) {
+            		emailFinisher = "@email.arizona.edu";
+            	}
+            	
+            	if(emailService.contentEquals("@arizona.edu") || 
+            			emailService.contentEquals("@email.arizona.edu")) {
             		ApplicationUser resetUser = 
-            				applicationUserService.findByEmail(resetEmail.email.substring(0, index) + "@email.arizona.edu");
+            				applicationUserService.findByEmail(resetEmail.email.substring(0, index) + emailFinisher);
                     
             		LocalDateTime timeNow = LocalDateTime.now();
             		
@@ -133,16 +138,13 @@ public class ResetEmailController {
 //        			System.out.println("Failure?" + logEx);
         		}
         	}
-            
-    		try {
-    			logEmail(resetEmail.email, ex.toString(), "Reset", false);
-    		}catch(Exception logEx) {
-//    			System.out.println("Failure?" + logEx);
-    			// If the error log fails to log then we're already in a hole (no db access?)
-    		}
+        	
     		// Email probably doesn't exist.
             return new ResponseEntity<String>("Error in sending email: "+ex, HttpStatus.NOT_FOUND);
-        }
+        } catch (Exception e) {
+			logEmail(resetEmail.email, e.toString(), "Reset", false);
+	        return new ResponseEntity<String>("Error in sending email: "+e, HttpStatus.INTERNAL_SERVER_ERROR);
+		}
     }
  
     private boolean sendResetEmail(ApplicationUser resetUser) throws Exception{
