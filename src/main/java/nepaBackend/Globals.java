@@ -7,16 +7,20 @@ import java.util.List;
 public class Globals {
 
     public static final boolean TESTING = false;
-    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\DocumentText";
-    private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
-    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\EISDoc";
+    
+    private static final String PROD_DB_BASE_URL = "mis-jvinaldbl1.microagelab.arizona.edu";
 
-//    private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
+    private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
     private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
     
-//    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\DocumentText";
-//    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\EISDoc";
-  	
+    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\DocumentText";
+    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\EISDoc";
+
+    // old test paths
+//    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
+//    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\DocumentText";
+//    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\EISDoc";
+    
     public static final Path getIndexPath() {
     	if(TESTING) {
     		return Path.of(TESTING_INDEX_DIRECTORY_PATH);
@@ -40,9 +44,9 @@ public class Globals {
 	}
 
     // Database/file server URL to base folder containing all files exposed to DAL for download
-    public static final String DOWNLOAD_URL = "http://mis-jvinaldbl1.catnet.arizona.edu:80/test/";
+    public static final String DOWNLOAD_URL = "http://"+PROD_DB_BASE_URL+":80/test/";
     // Database/file server URL for Express service which handles new file uploads (and potentially updating or deleting files)
-    public static final String UPLOAD_URL = "http://mis-jvinaldbl1.catnet.arizona.edu:5309/";
+    public static final String UPLOAD_URL = "http://"+PROD_DB_BASE_URL+:"+SecurityConstants.EXPRESS_PORT+"/";
     
     public static final List<String> EIS_TYPES = Arrays.asList("Draft Supplement",
 			"Final Supplement",
