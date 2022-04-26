@@ -8,7 +8,8 @@ public class Globals {
 
     public static final boolean TESTING = false;
     
-    private static final String PROD_DB_BASE_URL = "mis-jvinaldbl1.microagelab.arizona.edu";
+//    private static final String PROD_DB_BASE_URL = "mis-jvinaldbl1.microagelab.arizona.edu";
+    private static final String PROD_DB_BASE_URL = SecurityConstants.DB_ADDRESS;
 
     private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
     private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
