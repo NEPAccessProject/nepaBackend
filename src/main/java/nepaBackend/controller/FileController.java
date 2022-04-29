@@ -767,6 +767,27 @@ public class FileController {
 		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
 	}
 
+	
+	/** 
+	 * Takes .csv file requiring id field and updates existing records by id with all non-blank fields.
+	 * 
+	 * @return List of strings with message per record (zero-based list) indicating success/error 
+	 * and potentially more details */
+	@CrossOrigin
+	@RequestMapping(path = "/upload_csv_ids", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> updateWithCsvByIds(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		String token = headers.get("authorization");
+		
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		}
+		
+		List<String> results = doCSVUpdate(csv, token);
+		
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
 
 
 	/** 
@@ -2570,6 +2591,155 @@ public class FileController {
 		
 		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
 	}
+	
+	/** Updates everything including title/type/date, 
+	 * but doesn't overwrite anything if incoming field is missing (null/blank) */
+	private ResponseEntity<Long> updateDtoByIdNoOverwrite(UploadInputs itr, EISDoc existingRecord, Long userid) {
+
+		// if this happens then this function should not have been called in the first place
+		if(existingRecord.getId() != Long.parseLong(itr.id)) {
+			return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.BAD_REQUEST);
+		}
+		
+		// Save log for accountability and restore option
+		UpdateLog ul = updateLogService.newUpdateLogFromEIS(existingRecord, userid);
+		updateLogRepository.save(ul);
+
+		
+		// Yes, even update title/type/date, because we're updating by ID
+		if(itr.title == null || itr.title.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setTitle(itr.title);
+		}
+		if(itr.document == null || itr.document.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setDocumentType(itr.document);
+		}
+
+		if(itr.federal_register_date == null || itr.federal_register_date.isBlank()) {
+			// skip, leave original
+		} else {
+			try {
+				LocalDate parsedDate = parseDate(itr.federal_register_date);
+				existingRecord.setRegisterDate(parsedDate);
+			} catch (IllegalArgumentException e) {
+			} catch (Exception e) {
+			}
+		}
+		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
+			// skip, leave original
+		} else {
+			try {
+				LocalDate parsedDate = parseDate(itr.federal_register_date);
+				existingRecord.setCommentDate(parsedDate);
+			} catch (IllegalArgumentException e) {
+			} catch (Exception e) {
+			}
+		}
+		
+		if(itr.agency == null || itr.agency.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setAgency(itr.agency);
+		}
+		if(itr.cooperating_agency == null || itr.cooperating_agency.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setCooperatingAgency(itr.cooperating_agency);
+		}
+		if(itr.department == null || itr.department.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setDepartment(itr.department);
+		}
+		
+		if(itr.state == null || itr.state.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setState(itr.state);
+		}
+		if(itr.county == null || !itr.county.isBlank()) {
+			// skip
+		} else {
+			existingRecord.setCounty(Globals.normalizeSpace(itr.county));
+		}
+		
+		if(itr.noi_date == null || itr.noi_date.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setNoiDate(parseDate(itr.noi_date));
+		}
+		if(itr.draft_noa == null || itr.draft_noa.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setDraftNoa(parseDate(itr.draft_noa));
+		}
+		if(itr.final_noa == null || itr.final_noa.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setFinalNoa(parseDate(itr.final_noa));
+		}
+		if(itr.first_rod_date == null || itr.first_rod_date.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setFirstRodDate(parseDate(itr.first_rod_date));
+		}
+
+		
+		if(itr.summary_text == null || itr.summary_text.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setSummaryText(itr.summary_text);
+		}
+		if(itr.subtype == null || itr.subtype.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setSubtype(itr.subtype);
+		}
+		if(itr.status == null || itr.status.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setStatus(itr.status);
+		}
+		if(itr.notes == null || itr.notes.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setNotes(itr.notes);
+		}
+		if(itr.link == null || itr.link.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setLink(itr.link);
+		}
+
+		if(itr.process_id == null || itr.process_id.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setProcessId(Long.parseLong(itr.process_id));
+		}
+		
+		if(itr.eis_identifier == null || itr.eis_identifier.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setFolder(itr.eis_identifier.strip());
+		}
+		if(itr.filename == null || itr.filename.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setFilename(itr.filename.strip());
+		}
+		if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
+			// skip, leave original
+		} else {
+			existingRecord.setCommentsFilename(itr.comments_filename.strip());
+		}
+		
+		docRepository.save(existingRecord); // save to db, ID shouldn't change
+		
+		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
+	}
 
 
 	/** Expects matching record and new folder; updates; preserves most metadata */
@@ -3640,6 +3810,66 @@ public class FileController {
 		}
 		
 		return createdFolder;
+	}
+
+	/** Logic for creating/updating/skipping metadata records.
+	 * 
+	 * No match: Create new if valid. 
+	 * Match: Update if no existing filename && folder, else skip
+	 * @return list of results (dummy results if shouldImport == false)
+	 * */
+	private List<String> doCSVUpdate(String csv, String token) {
+		
+		fillAgencies();
+		
+		List<String> results = new ArrayList<String>();
+		
+	    // Possible headers:
+	    // ID, Title, Document, EPA Comment Letter Date, Federal Register Date, Agency, State, 
+		// EIS Identifier, Filename, Link, Notes, Status, Subtype, County, Cooperating Agency
+	    // Translations must match UploadInputs.class
+		
+	    try {
+	    	
+	    	ObjectMapper mapper = new ObjectMapper();
+		    UploadInputs dto[] = mapper.readValue(csv, UploadInputs[].class);
+	
+		    // Ensure metadata is valid
+			int count = 0;
+			for (UploadInputs itr : dto) {
+				
+				itr = this.normalizeUploadInputs(itr);
+				
+			    // Need ID
+			    if(itr.id != null && !itr.id.isBlank()) {
+	
+					
+					// get match for update
+					Optional<EISDoc> recordThatMayExist = docRepository.findById(Long.parseLong(itr.id));
+					
+					// Update
+					if(recordThatMayExist.isPresent()) {
+						ResponseEntity<Long> status = updateDtoByIdNoOverwrite(itr, recordThatMayExist.get(), applicationUserService.getUserFromToken(token).getId());
+						
+						if(status.getStatusCodeValue() != 200) { // Error
+							results.add("Item " + count + ": Error (not updated): " + itr.id);
+				    	} else {
+							results.add("Item " + count + ": Updated: " + itr.id);
+				    	}
+			    	} else {
+						results.add("Item " + count + ": ID match not found (not updated): " + itr.id);
+			    	} 
+		    	} else {
+					results.add("Item " + count + ": No incoming ID found (not updated)");
+			    }
+			    count++;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			results.add(e.getLocalizedMessage());
+		}
+	
+		return results;
 	}
 
 	public static String encodeURIComponent(String s) {
