@@ -774,7 +774,7 @@ public class FileController {
 	 * @return List of strings with message per record (zero-based list) indicating success/error 
 	 * and potentially more details */
 	@CrossOrigin
-	@RequestMapping(path = "/upload_csv_ids", method = RequestMethod.POST, consumes = "multipart/form-data")
+	@RequestMapping(path = "/uploadCSV_ids", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> updateWithCsvByIds(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
 		String token = headers.get("authorization");
