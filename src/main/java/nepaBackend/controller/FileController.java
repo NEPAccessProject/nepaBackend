@@ -2544,7 +2544,7 @@ public class FileController {
 		} else {
 			existingRecord.setState(Globals.normalizeSpace(itr.state));
 		}
-		if(itr.county == null || !itr.county.isBlank()) {
+		if(itr.county == null || itr.county.isBlank()) {
 			// skip
 		} else {
 			existingRecord.setCounty(Globals.normalizeSpace(itr.county));
@@ -2660,7 +2660,7 @@ public class FileController {
 		} else {
 			existingRecord.setState(itr.state);
 		}
-		if(itr.county == null || !itr.county.isBlank()) {
+		if(itr.county == null || itr.county.isBlank()) {
 			// skip
 		} else {
 			existingRecord.setCounty(Globals.normalizeSpace(itr.county));
