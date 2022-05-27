@@ -25,4 +25,5 @@ public interface CustomizedTextRepository {
 	int getTotalHits(String field) throws Exception;
 
 	String testTerms(String terms);
+	List<String> lookup(String terms);
 }

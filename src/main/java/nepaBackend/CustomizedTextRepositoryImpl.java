@@ -1,10 +1,14 @@
 package nepaBackend;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -26,10 +30,17 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TotalHitCountCollector;
+import org.apache.lucene.search.spell.LuceneDictionary;
+import org.apache.lucene.search.suggest.Lookup;
+import org.apache.lucene.search.suggest.analyzing.AnalyzingInfixSuggester;
+import org.apache.lucene.search.suggest.analyzing.AnalyzingSuggester;
 import org.apache.lucene.search.uhighlight.UnifiedHighlighter;
 import org.apache.lucene.search.vectorhighlight.FastVectorHighlighter;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.MMapDirectory;
+import org.apache.lucene.store.RAMDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.Search;
 import org.hibernate.search.mapper.orm.session.SearchSession;
@@ -56,7 +67,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	JdbcTemplate jdbcTemplate;
 	
 	@Autowired
+	DocRepository docRepo;
+	
+	@Autowired
 	Analyzer analyzer;
+	
+	@Autowired
+	AnalyzingInfixSuggester suggester;
 	
 	private static final Logger logger = LoggerFactory.getLogger(CustomizedTextRepositoryImpl.class);
 	
@@ -237,6 +254,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Override
 	public List<MetadataWithContext3> CombinedSearchNoContextHibernate6(SearchInputs searchInputs, SearchType searchType, int limit) throws ParseException {
 		try {
+//			lookup(searchInputs.title);
 			
 
 			// Testing and for reference: getting the actual index
@@ -457,10 +475,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		
 		// 1: Get EISDocs by IDs.
         
-        List<EISDoc> docs = em
-        		.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
-        		.setParameter("ids", metaIds)
-        		.getResultList();
+//        List<EISDoc> docs = em
+//        		.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
+//        		.setParameter("ids", metaIds)
+//        		.getResultList();
+        List<EISDoc> docs = docRepo.findAllById(metaIds);
         
 		
 //		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
@@ -981,6 +1000,84 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					rs.getString("subtype")
 				)
 			);
+	}
+	
+	// Deserialize EISDoc from a LookupResult payload.
+    private EISDoc getEISDoc(Lookup.LookupResult result)
+    {
+        try {
+            BytesRef payload = result.payload;
+            if (payload != null) {
+                ByteArrayInputStream bis = new ByteArrayInputStream(payload.bytes);
+                ObjectInputStream in = new ObjectInputStream(bis);
+                EISDoc e = (EISDoc) in.readObject();
+                return e;
+            } else {
+            	System.out.println("cool there's no payload");
+                return null;
+            }
+        } catch (IOException|ClassNotFoundException e) {
+            throw new Error("Could not decode payload :(");
+        }
+    }
+    
+    @Override
+    public List<String> lookup(String terms) {
+		List<String> highlightedLookups = new ArrayList<String>();
+    	if(Globals.TESTING) {System.out.println( "Lookup(\""+terms+"\")" );}
+//		MMapDirectory lookupDir = new MMapDirectory(Globals.getSuggestPath());
+//
+//    	// Create a new instance, loading from a previously builtAnalyzingInfixSuggester directory, 
+//    	// if it exists. This directory must beprivate to the infix suggester 
+//    	// (i.e., not an externalLucene index). 
+//        AnalyzingInfixSuggester suggester = new AnalyzingInfixSuggester(
+//        		lookupDir, analyzer);
+//        List<EISDoc> docs = docRepo.findAll();
+//        Iterator<EISDoc> iterator = docs.iterator();
+//        suggester.build(new EISDocIterator(iterator));
+        
+		try {
+			List<Lookup.LookupResult> results;
+			
+			// Perform lookup
+//			results = suggester2.lookup(terms, null, false, 2);
+			results = suggester.lookup(terms, 3, true, true);
+			for (Lookup.LookupResult result : results) {
+				// Do something with each lookup result
+//				highlightedLookups.add(result.highlightKey.toString());
+				System.out.println(result.key);
+				System.out.println(result.highlightKey.toString());
+
+				// Option to do something with actual doc found by lookup (not just the title text)
+				// Could easily send the ID and title back and frontend could make a link out of that to
+				// the details page for example, and this may make more sense than suggesting the user
+				// searches for the entire title
+				EISDoc e = getEISDoc(result);
+				if (e != null) {
+					highlightedLookups.add(e.getId() + ":::" + result.highlightKey.toString());
+//					System.out.println(e.getId() + ": " + e.getTitle() + ": " + e.getDocumentType());
+				} else {
+//					System.out.println("null");
+				}
+			}
+		}
+		catch (IOException e) {
+			System.err.println("lookup() IOError");
+			logger.error("lookup() IOError");
+		}
+		catch (Exception e) {
+			System.err.println("Error");
+			logger.error("lookup() Error");
+		} 
+		
+		// Do something with list of highlighted results
+		return highlightedLookups;
+		
+//		try {
+//			suggester.close();
+//		} catch (Exception e) {
+//			System.err.println("Couldn't close suggester");
+//		}
 	}
 	
 }

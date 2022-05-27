@@ -6,17 +6,19 @@ import java.util.List;
 
 public class Globals {
 
-    public static final boolean TESTING = false;
+    public static final boolean TESTING = true;
     
 //    private static final String PROD_DB_BASE_URL = "mis-jvinaldbl1.microagelab.arizona.edu";
     private static final String PROD_DB_BASE_URL = SecurityConstants.DB_ADDRESS;
 
     private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
     private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
+    private static final String SUGGEST_PATH = "/LuceneSuggest";
     
     private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\DocumentText";
     private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\EISDoc";
-
+    private static final String TEST_SUGGEST_PATH = "C:\\lucene_suggest";
+    
     // old test paths
 //    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
 //    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\gitrepo\\uapBackend\\uapBackend\\DocumentText";
@@ -42,6 +44,13 @@ public class Globals {
     	} else {
     		return (META_INDEX_DIRECTORY_PATH);
     	}
+	}
+	public static Path getSuggestPath() {
+		if(TESTING) {
+			return Path.of(TEST_SUGGEST_PATH);
+		} else {
+			return Path.of(SUGGEST_PATH);
+		}
 	}
 
     // Database/file server URL to base folder containing all files exposed to DAL for download

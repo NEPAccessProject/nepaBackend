@@ -95,6 +95,8 @@ dependencies {
     */
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-highlighter
 	compile group: 'org.apache.lucene', name: 'lucene-highlighter', version: '8.7.0'
+	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-suggest
+	compile group: 'org.apache.lucene', name: 'lucene-suggest', version: '8.7.0'
 	/** Gradle should install these artifact dependencies unless otherwise noted
 	https://mvnrepository.com/artifact/org.apache.lucene/lucene-grouping
 	compile group: 'org.apache.lucene', name: 'lucene-grouping', version: '5.5.0'	

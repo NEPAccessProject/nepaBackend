@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Iterator;
+import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.SimpleAnalyzer;
@@ -13,16 +15,25 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.MultiReader;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.suggest.analyzing.AnalyzingInfixSuggester;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.MMapDirectory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import nepaBackend.model.EISDoc;
 
 // "You should keep the index open as long as possible. Both IndexReader and
 // IndexSearcher are thread-safe and don't require additional synchronization. 
 // One could cache the index searcher e.g. in the application context."
 @Configuration
 public class LuceneConfig {
+	
+	@Autowired
+	DocRepository docRepo;
+	
     /**
      * Lucene index, storage location
      */
@@ -36,6 +47,31 @@ public class LuceneConfig {
     @Bean
     public StandardAnalyzer analyzer() {
         return new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+    }
+    
+    @Bean
+    public AnalyzingInfixSuggester suggester() throws IOException {
+    	MMapDirectory lookupDir = new MMapDirectory(Globals.getSuggestPath());
+
+    	// Create a new instance, loading from a previously builtAnalyzingInfixSuggester directory, 
+    	// if it exists. This directory must beprivate to the infix suggester 
+    	// (i.e., not an externalLucene index). 
+        AnalyzingInfixSuggester suggester = new AnalyzingInfixSuggester(
+        		lookupDir, analyzer());
+//        AnalyzingSuggester suggester2 = new AnalyzingSuggester(ramDir, "what", analyzer);
+//        LuceneDictionary dict = new LuceneDictionary(metaReader, "title");
+//        suggester2.build(dict);
+//        suggester.build(dict);
+        List<EISDoc> docs = docRepo.findAll();
+        Iterator<EISDoc> iterator = docs.iterator();
+//        System.out.println("Hi");
+//        System.out.println("1 " + iterator.next().getTitle());
+//        System.out.println("2 " + docs.get(0).getTitle());
+        
+        suggester.build(new EISDocIterator(iterator));
+//        suggester2.build(new EISDocIterator(iterator));
+        
+        return suggester;
     }
 
     /**

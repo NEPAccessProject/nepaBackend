@@ -1,5 +1,6 @@
 package nepaBackend.model;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 import javax.persistence.Column;
@@ -17,8 +18,13 @@ import org.hibernate.search.mapper.pojo.mapping.definition.annotation.Indexed;
 @Entity
 @Table(name="eisdoc") 
 @Indexed
-public class EISDoc {
-    @Id
+public class EISDoc implements Serializable {
+    /**
+	 * 
+	 */
+	private static final long serialVersionUID = 2460838831806990307L;
+
+	@Id
     @Column(name="id")
     @GeneratedValue(strategy=GenerationType.IDENTITY)
     @GenericField(name="document_id",projectable=Projectable.YES)

@@ -1,5 +1,6 @@
 package nepaBackend.controller;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +31,7 @@ import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
 import nepaBackend.Globals;
 import nepaBackend.SearchLogRepository;
+import nepaBackend.SuggestEISDocs;
 import nepaBackend.TextRepository;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.ApplicationUser;
@@ -65,6 +67,11 @@ public class FulltextController {
 		return new ResponseEntity<String>(textRepository.testTerms(terms), HttpStatus.OK);
 	}
 	
+	@CrossOrigin
+	@GetMapping(path = "/search/suggest")
+	public ResponseEntity<List<String>> suggest(@RequestParam String terms) {
+		return new ResponseEntity<List<String>>(textRepository.lookup(terms), HttpStatus.OK);
+	}
 
 	// Metadata search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
 	@CrossOrigin
@@ -186,8 +193,10 @@ public class FulltextController {
 	// Returns highlights for given list of IDs and filenames
 	@CrossOrigin
 	@PostMapping(path = "/get_highlightsFVH")
-	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody UnhighlightedDTO unhighlighted)
+	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody UnhighlightedDTO unhighlighted) throws IOException
 	{
+//		SuggestEISDocs.lookup(unhighlighted.getTerms());
+		
 		try {
 			if(unhighlighted.isMarkup()) {
 				List<List<String>> highlights = new ArrayList<List<String>>(

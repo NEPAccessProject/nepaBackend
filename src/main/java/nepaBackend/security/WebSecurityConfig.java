@@ -61,6 +61,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .antMatchers(HttpMethod.POST, "/user/opt_out").permitAll()
          /** Here's where we're now allowing anonymous searches/details viewing: **/
          .antMatchers(HttpMethod.POST, "/text/search").permitAll()
+         .antMatchers(HttpMethod.GET, "/text/search/**").permitAll()
          .antMatchers(HttpMethod.POST, "/text/search_top").permitAll()
          .antMatchers(HttpMethod.POST, "/text/search_no_context").permitAll()
          .antMatchers(HttpMethod.POST, "/text/get_highlightsFVH").permitAll()
