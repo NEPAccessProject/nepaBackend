@@ -9,6 +9,7 @@ import nepaBackend.controller.MetadataWithContext3;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.Suggestion;
 import nepaBackend.pojo.UnhighlightedDTO;
 
 public interface CustomizedTextRepository {
@@ -25,5 +26,5 @@ public interface CustomizedTextRepository {
 	int getTotalHits(String field) throws Exception;
 
 	String testTerms(String terms);
-	List<String> lookup(String terms);
+	List<Suggestion> lookup(String terms);
 }

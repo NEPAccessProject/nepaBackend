@@ -56,6 +56,7 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.pojo.ReducedText;
 import nepaBackend.pojo.ScoredResult;
 import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.Suggestion;
 import nepaBackend.pojo.Unhighlighted;
 import nepaBackend.pojo.UnhighlightedDTO;
 
@@ -1022,8 +1023,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
     }
     
     @Override
-    public List<String> lookup(String terms) {
-		List<String> highlightedLookups = new ArrayList<String>();
+    public List<Suggestion> lookup(String terms) {
+		List<Suggestion> highlightedLookups = new ArrayList<Suggestion>();
     	if(Globals.TESTING) {System.out.println( "Lookup(\""+terms+"\")" );}
 //		MMapDirectory lookupDir = new MMapDirectory(Globals.getSuggestPath());
 //
@@ -1045,8 +1046,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			for (Lookup.LookupResult result : results) {
 				// Do something with each lookup result
 //				highlightedLookups.add(result.highlightKey.toString());
-				System.out.println(result.key);
-				System.out.println(result.highlightKey.toString());
+//				System.out.println(result.key);
+//				System.out.println(result.highlightKey.toString());
 
 				// Option to do something with actual doc found by lookup (not just the title text)
 				// Could easily send the ID and title back and frontend could make a link out of that to
@@ -1054,7 +1055,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				// searches for the entire title
 				EISDoc e = getEISDoc(result);
 				if (e != null) {
-					highlightedLookups.add(e.getId() + ":::" + result.highlightKey.toString());
+					if(e.getProcessId() != null) {
+						highlightedLookups.add(new Suggestion(result.highlightKey.toString(), e.getProcessId(), true));
+					} else {
+						highlightedLookups.add(new Suggestion(result.highlightKey.toString(), e.getId(), false));
+					}
 //					System.out.println(e.getId() + ": " + e.getTitle() + ": " + e.getDocumentType());
 				} else {
 //					System.out.println("null");

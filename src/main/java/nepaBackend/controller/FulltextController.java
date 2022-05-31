@@ -38,6 +38,7 @@ import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.SearchLog;
 import nepaBackend.pojo.SearchInputs;
+import nepaBackend.pojo.Suggestion;
 import nepaBackend.pojo.UnhighlightedDTO;
 import nepaBackend.security.SecurityConstants;
 
@@ -68,8 +69,8 @@ public class FulltextController {
 	
 	@CrossOrigin
 	@GetMapping(path = "/search/suggest")
-	public ResponseEntity<List<String>> suggest(@RequestParam String terms) {
-		return new ResponseEntity<List<String>>(textRepository.lookup(terms), HttpStatus.OK);
+	public ResponseEntity<List<Suggestion>> suggest(@RequestParam String terms) {
+		return new ResponseEntity<List<Suggestion>>(textRepository.lookup(terms), HttpStatus.OK);
 	}
 
 	// Metadata search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
