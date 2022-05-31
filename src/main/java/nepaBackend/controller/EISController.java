@@ -37,6 +37,7 @@ import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
+import nepaBackend.NameRanker;
 import nepaBackend.ProcessRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.UpdateLogService;
@@ -475,6 +476,14 @@ public class EISController {
 			for(NEPAFile file: files) {
 				filenames.add(file.getFilename());
 			}
+
+			// Order filenames here
+//			try { // just in case the ordering fails?
+//				NameRanker nr = new NameRanker();
+//				nr.rank(filenames);
+//			} catch(Exception e) {
+//				logger.error("Couldn't NameRanker.rank(filenames): " + String.join(",", filenames));
+//			}
 			
 			results.add(new DocWithFilenames(doc,filenames));
 		}

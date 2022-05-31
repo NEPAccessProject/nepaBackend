@@ -13,6 +13,7 @@ public class NameRanker {
     	nameComparator = new NameComparator();
     }
 
+    /** Modifies order of elements in filenames in-place: Collections.sort(filenames, NameComparator) */
     public void rank(List<String> filenames) {
         Collections.sort(filenames, this.nameComparator);
     }

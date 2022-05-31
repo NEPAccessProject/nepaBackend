@@ -71,6 +71,7 @@ import nepaBackend.DocRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
+import nepaBackend.NameRanker;
 import nepaBackend.ProcessRepository;
 import nepaBackend.TextRepository;
 import nepaBackend.UpdateLogRepository;
@@ -245,10 +246,20 @@ public class FileController {
 	public ResponseEntity<List<String>> filenames(@RequestParam long document_id) {
 		try {
 			List<String> filenames = textRepository.findFilenameByDocumentId(document_id);
+			
 			if(filenames == null || filenames.size() == 0) {
 				// try the old way instead?
 				filenames = textRepository.findFilenameByDocumentIdOld(document_id);
 			}
+			
+			// Order filenames here
+			try { // just in case the ordering fails?
+				NameRanker nr = new NameRanker();
+				nr.rank(filenames);
+			} catch(Exception e) {
+				logger.error("Couldn't NameRanker.rank(filenames): " + String.join(",", filenames));
+			}
+			
 			return new ResponseEntity<List<String>>(filenames, HttpStatus.OK);
 		} catch (Exception e) {
 			return new ResponseEntity<List<String>>(HttpStatus.NOT_FOUND);
