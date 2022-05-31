@@ -31,7 +31,6 @@ import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
 import nepaBackend.Globals;
 import nepaBackend.SearchLogRepository;
-import nepaBackend.SuggestEISDocs;
 import nepaBackend.TextRepository;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.ApplicationUser;
