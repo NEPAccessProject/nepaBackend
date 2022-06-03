@@ -6,7 +6,7 @@ import java.util.List;
 
 public class Globals {
 
-    public static final boolean TESTING = true;
+    public static final boolean TESTING = false;
     
 //    private static final String PROD_DB_BASE_URL = "mis-jvinaldbl1.microagelab.arizona.edu";
     private static final String PROD_DB_BASE_URL = SecurityConstants.DB_ADDRESS;
