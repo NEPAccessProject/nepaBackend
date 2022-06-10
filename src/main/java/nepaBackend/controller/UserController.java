@@ -990,6 +990,7 @@ public class UserController {
             } else {
 	            helper.setTo(new String[] {
 	            		"paulmirocha@arizona.edu", 
+	            		"emcgove@arizona.edu",
 	            		"derbridge@email.arizona.edu", 
 	            		"abinfordwalsh@email.arizona.edu", 
 	            		SecurityConstants.EMAIL_HANDLE
