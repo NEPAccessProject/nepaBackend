@@ -664,6 +664,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //							.concat("</span>"));
 					} else {
 			        	Document document = indexSearcher.doc(luceneId,fieldsToLoad);
+			        	// Highlight necessarily non-null for any non-empty document.get("plaintext")
 						String highlight = highlighter.highlightWithoutSearcher(
 								"plaintext", 
 								luceneTextOnlyQuery, 
@@ -671,7 +672,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 								1)
 								.toString();
 						
-						if(highlight.length() > fragmentSizeCustom) { //c'mon
+						if(highlight == null) {
+							// Shouldn't be possible. If the file isn't indexed, it shouldn't
+							// match in the first place, so the frontend shouldn't ask for a highlight
+							// for a file that the text search can't find.
+							highlight = "No text snippet found";
+						} else if(highlight.length() > fragmentSizeCustom) { //c'mon
 							int firstHitAt = highlight.indexOf("<b>");
 							highlight = highlight.substring(Math.max(firstHitAt - (fragmentSizeCustom / 2), 0), Math.min(firstHitAt + (fragmentSizeCustom / 2), highlight.length()));
 						}
