@@ -50,12 +50,24 @@ public class UpdateLogService {
 		updateLog.setDocument(recordToUpdate.getDocumentType());
 		updateLog.setFilename(recordToUpdate.getFilename());
 		updateLog.setState(recordToUpdate.getState());
+		updateLog.setCounty(recordToUpdate.getCounty());
 		updateLog.setFolder(recordToUpdate.getFolder());
 		updateLog.setLink(recordToUpdate.getLink());
 		updateLog.setNotes(recordToUpdate.getNotes());
 		updateLog.setSummary(recordToUpdate.getSummaryText());
 		updateLog.setDate(recordToUpdate.getRegisterDate());
 		updateLog.setProcessId(recordToUpdate.getProcessId());
+		
+		updateLog.setCommentsDate(recordToUpdate.getCommentDate());
+		updateLog.setCommentsFilename(recordToUpdate.getCommentsFilename());
+
+		updateLog.setDraftNoa(recordToUpdate.getDraftNoa());
+		updateLog.setFinalNoa(recordToUpdate.getFinalNoa());
+		updateLog.setFirstRodDate(recordToUpdate.getFirstRodDate());
+		updateLog.setNoiDate(recordToUpdate.getNoiDate());
+
+		updateLog.setStatus(recordToUpdate.getStatus());
+		updateLog.setSubtype(recordToUpdate.getSubtype());
 		
 		updateLog.setUserId(id);
 		

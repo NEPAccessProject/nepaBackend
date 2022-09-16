@@ -51,9 +51,15 @@ public class UpdateLog {
   
     @Column(name="state")
     private String state;
+
+    @Column(name="county")
+    private String county;
     
     @Column(name="filename", columnDefinition ="TEXT")
     private String filename;
+
+    @Column(name="comments_filename", columnDefinition ="TEXT")
+    private String commentsFilename;
 
     @Column(name="folder")
     private String folder;
@@ -66,10 +72,31 @@ public class UpdateLog {
     
     @Column(name="summary", columnDefinition ="TEXT")
     private String summary;
+    
+    @Column(name="status", columnDefinition ="TEXT")
+    private String status;
+    
+    @Column(name="subtype", columnDefinition ="TEXT")
+    private String subtype;
 
 	@Column(name="date",columnDefinition="DATE")
     private LocalDate date; 
 	
+	@Column(name="comments_date",columnDefinition="DATE")
+    private LocalDate commentsDate; 
+	
+    @Column(name="noi_date",columnDefinition="DATE")
+    private LocalDate noiDate; 
+
+    @Column(name="draft_noa",columnDefinition="DATE")
+    private LocalDate draftNoa; 
+
+    @Column(name="final_noa",columnDefinition="DATE")
+    private LocalDate finalNoa; 
+
+    @Column(name="first_rod_date",columnDefinition="DATE")
+    private LocalDate firstRodDate; 
+
 	@Column(name="process_id")
 	private Long processId;
 
@@ -80,8 +107,12 @@ public class UpdateLog {
 		this.savedTime = LocalDateTime.now();
 	}
 	
-    public UpdateLog(Long id, Long userId, Long documentId, String title, String document, String agency, String state, String filename,
-    		String folder, String link, String notes) {
+    public UpdateLog(Long id, Long userId, Long documentId, 
+    		String title, String document, 
+    		String agency, String cooperatingAgency, String department, String state, String county, 
+    		String filename, String commentsFilename, String folder, 
+    		String link, String notes, String summary, String status, String subtype,
+    		LocalDate date, LocalDate commentsDate) {
 		super();
 		this.id = id;
 		this.userId = userId;
@@ -89,11 +120,20 @@ public class UpdateLog {
 		this.title = title;
 		this.document = document;
 		this.agency = agency;
+		this.cooperatingAgency = cooperatingAgency;
+		this.department = department;
 		this.state = state;
+		this.county = county;
 		this.filename = filename;
+		this.commentsFilename = commentsFilename;
 		this.folder = folder;
 		this.link = link;
 		this.notes = notes;
+		this.summary = summary;
+		this.status = status;
+		this.subtype = subtype;
+		this.date = date;
+		this.commentsDate = commentsDate;
 		this.savedTime = LocalDateTime.now();
 	}
 
@@ -219,5 +259,78 @@ public class UpdateLog {
 
 	public void setProcessId(Long processId) {
 		this.processId = processId;
+	}
+
+	
+	public String getCounty() {
+		return county;
+	}
+
+	public void setCounty(String county) {
+		this.county = county;
+	}
+
+	public String getCommentsFilename() {
+		return commentsFilename;
+	}
+
+	public void setCommentsFilename(String commentsFilename) {
+		this.commentsFilename = commentsFilename;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getSubtype() {
+		return subtype;
+	}
+
+	public void setSubtype(String subtype) {
+		this.subtype = subtype;
+	}
+
+	public LocalDate getCommentsDate() {
+		return commentsDate;
+	}
+
+	public void setCommentsDate(LocalDate commentsDate) {
+		this.commentsDate = commentsDate;
+	}
+
+	public LocalDate getNoiDate() {
+		return noiDate;
+	}
+
+	public void setNoiDate(LocalDate noiDate) {
+		this.noiDate = noiDate;
+	}
+
+	public LocalDate getDraftNoa() {
+		return draftNoa;
+	}
+
+	public void setDraftNoa(LocalDate draftNoa) {
+		this.draftNoa = draftNoa;
+	}
+
+	public LocalDate getFinalNoa() {
+		return finalNoa;
+	}
+
+	public void setFinalNoa(LocalDate finalNoa) {
+		this.finalNoa = finalNoa;
+	}
+
+	public LocalDate getFirstRodDate() {
+		return firstRodDate;
+	}
+
+	public void setFirstRodDate(LocalDate firstRodDate) {
+		this.firstRodDate = firstRodDate;
 	}
 }
