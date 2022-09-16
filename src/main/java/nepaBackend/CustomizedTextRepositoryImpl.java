@@ -1020,11 +1020,11 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
                 EISDoc e = (EISDoc) in.readObject();
                 return e;
             } else {
-            	System.out.println("cool there's no payload");
+            	System.out.println("Can't deserialize EISDoc: Null payload");
                 return null;
             }
         } catch (IOException|ClassNotFoundException e) {
-            throw new Error("Could not decode payload :(");
+            throw new Error("Could not decode payload");
         }
     }
     
