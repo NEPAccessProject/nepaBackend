@@ -40,6 +40,12 @@ public class EISMatch {
 		this.document2 = document2;
 		this.match_percent = match_percent;
 	}
+    public EISMatch(int document1, int document2, BigDecimal match_percent) {
+		super();
+		this.document1 = document1;
+		this.document2 = document2;
+		this.match_percent = match_percent;
+	}
 
 	public Long getMatch_id() {
 		return match_id;

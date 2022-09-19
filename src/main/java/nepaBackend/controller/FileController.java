@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -17,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -65,6 +67,9 @@ import org.springframework.web.multipart.MultipartFile;
 //import org.xml.sax.SAXException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.openjson.JSONArray;
+import com.github.openjson.JSONException;
+import com.github.openjson.JSONObject;
 
 import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
@@ -79,6 +84,7 @@ import nepaBackend.UpdateLogService;
 import nepaBackend.ZipExtractor;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
+import nepaBackend.model.EISMatch;
 import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.NEPAProcess;
@@ -3880,6 +3886,113 @@ public class FileController {
 			results.add(e.getLocalizedMessage());
 		}
 	
+		return results;
+	}
+	
+
+	/** TODO: Complete doAlignmentImport and test that everything goes smoothly in local testing before
+	 * deployment
+	 * 
+	 * @param alignment
+	 * @param headers
+	 * @return
+	 * @throws IOException
+	 */
+	@CrossOrigin
+	@RequestMapping(path = "/import_json_alignment", method = RequestMethod.POST, consumes = "multipart/form-data")
+	private ResponseEntity<List<String>> importJsonAlignmentData(@RequestPart(name="alignment") String alignment, @RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		String token = headers.get("authorization");
+		
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		}
+		
+		List<String> results = doAlignmentImport(alignment);
+		
+		return new ResponseEntity<List<String>>(results, HttpStatus.OK);
+	}
+	/** TODO: 
+	 * 1. Ensure JSON mapping works;
+	 * 2. Ensure importing of alignment data to database works;
+	 * 3. Record any problems;
+	 * 4. Return results, especially if any errors in importing.
+	 * 
+	 * TODO: Advanced functionality: Returns process match suggestions to be curated
+	 * Instead of step 4 above, we:
+	 * 1. Using new alignment data and relevant metadata, generate a list of probable process matches; 
+	 * 2. Return list of probable process matches. Could be ordered as sequential pairs in a single list, OR
+	 * a 3D list like an array of arrays where each internal array is a set of probably-matching records.
+	 * 
+	 * @param jsonString
+	 * @return
+	 */
+	private List<String> doAlignmentImport(String jsonString) {
+		List<String> results = new ArrayList<String>();
+		int counter = 0; // count predictions for fun
+
+        try { // iterate through entire json hashmap
+            JSONObject jsonObject = new JSONObject(jsonString);
+            Iterator<String> keys = jsonObject.keys();
+            while(keys.hasNext()) {
+                String key = keys.next(); // e.g. 17522 (id of base record)
+                
+                results.add("Outer key: " + key);
+                
+                if(jsonObject.get(key) instanceof JSONArray) {
+                    JSONArray array = (JSONArray) jsonObject.get(key); // array of id/sim/prediction objects
+                    for(int i = 0; i < array.length(); i++) {
+                        JSONObject object = (JSONObject) array.get(i);
+                        
+                        
+                        // TODO: We could add the match data item to the database here, and see if it takes
+                        // too long for Spring/Hibernate or if it's nice and fast. Could also
+                        // add this to a list/array here and add that to the database afterwards
+                        EISMatch scoredMatch = new EISMatch(
+                        		Integer.parseInt(key), // base record id
+                        		Integer.parseInt(object.getString("id")), // aligned record id
+                        		new BigDecimal(object.getString("sim")) // score
+                        );
+                        
+                        
+                        results.add(key + " Inner Item " + i + 
+                        		": ID: " + object.getString("id") +
+                        		"; Score: " + object.getString("sim") +
+                        		"; Prediction: " + object.getString("prediction"));
+                        
+                        if( object.getString("prediction").contentEquals("true") ) {
+
+//                        	BigDecimal bigD = new BigDecimal(object.getString("sim"));
+//                        	if(bigD.compareTo(BigDecimal.valueOf(2/3)) < 0) {
+//                            	// I think the threshold for prediction=true might be a score of 2/3 or greater
+//                            	// so this might be impossible
+//                        		System.out.println("Prediction true but below 0.66: " + bigD);
+//                        	}
+                        	
+                        	counter++;
+                        }
+//                        Iterator<String> innerKeys = object.keys();
+//                        while(innerKeys.hasNext()) {
+//                            String innerKey = innerKeys.next();
+//                            
+//                            results.add("Inner key " + i + ": " + innerKey + "; value: " + object.get(innerKey));
+//                        }
+                    }
+                }
+            }
+
+        } catch (JSONException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (Exception e) {
+        	e.printStackTrace();
+        }
+        
+        results.add("Prediction true count: " + counter);
+        
+        // TODO: After import, we could go get a fresh list of most likely process matches.
+        
 		return results;
 	}
 
