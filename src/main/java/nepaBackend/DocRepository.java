@@ -694,6 +694,17 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			"	e.size > 0 " + 
 			"   AND n.document_id is null " + 
 			"	AND d.document_id is null", nativeQuery = true)
+	List<EISDoc> findNotExtracted();
+	
+	@Query(value = "SELECT " + 
+			"    e.* " + 
+			"FROM " + 
+			"    eisdoc e " + 
+			"	 LEFT OUTER JOIN document_text d ON " + 
+			"		 e.id = d.document_id " + 
+			"WHERE " + 
+			"	e.size > 0 " + 
+			"	AND d.document_id is null", nativeQuery = true)
 	List<EISDoc> findNotIndexed();
 
 }

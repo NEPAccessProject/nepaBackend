@@ -99,5 +99,10 @@ public class DocService {
 	public List<EISDoc> findNotIndexed() {
 		return docRepository.findNotIndexed();
 	}
+	
+	/** List of records with size > 0 bytes, yet no files are extracted/recorded */
+	public List<EISDoc> findNotExtracted() {
+		return docRepository.findNotExtracted();
+	}
 
 }

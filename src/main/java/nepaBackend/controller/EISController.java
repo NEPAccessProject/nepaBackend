@@ -230,6 +230,16 @@ public class EISController {
 		}
 	}
 	
+	@GetMapping(path = "/not_extracted")
+	public @ResponseBody ResponseEntity<List<EISDoc>> notExtracted(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(applicationUserService.curatorOrHigher(token)) {
+			return new ResponseEntity<List<EISDoc>>(docService.findNotExtracted(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
+	
 	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs")
 	public @ResponseBody ResponseEntity<Object> getAllPairs(@RequestHeader Map<String, String> headers) {
