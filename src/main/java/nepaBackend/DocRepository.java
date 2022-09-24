@@ -473,14 +473,14 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	long findMaxProcessId();
 
 	@Query(value = 
-			"		select t.* \r\n" + 
-			"		from eisdoc t join \r\n" + 
-			"		(select document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', '') as title, register_date, count(*) as NumDuplicates \r\n" + 
-			"		  from eisdoc \r\n" + 
-			"		  group by document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', ''), register_date\r\n" + 
-			"		  having NumDuplicates > 1\r\n" + 
-			"		) tsum \r\n" + 
-			"		on t.document_type = tsum.document_type and (REGEXP_REPLACE(t.title, '[^0-9a-zA-Z]', '')) = tsum.title and t.register_date = tsum.register_date\r\n" + 
+			"		select t.* " + 
+			"		from eisdoc t join " + 
+			"		(select document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', '') as title, register_date, count(*) as NumDuplicates " + 
+			"		  from eisdoc " + 
+			"		  group by document_type, REGEXP_REPLACE(title, '[^0-9a-zA-Z]', ''), register_date " + 
+			"		  having NumDuplicates > 1 " + 
+			"		) tsum " + 
+			"		on t.document_type = tsum.document_type and (REGEXP_REPLACE(t.title, '[^0-9a-zA-Z]', '')) = tsum.title and t.register_date = tsum.register_date " + 
 			"		ORDER BY title", nativeQuery = true)
 	List<EISDoc> findAllDuplicates();
 
@@ -526,13 +526,13 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	List<EISDoc> findAllByProcessId(Long processId);
 
 	@Query(value = 	
-			"		select t.* \r\n" + 
-			"		from eisdoc t join \r\n" + 
-			"		(select document_type, process_id, count(*) as NumDuplicates \r\n" + 
-			"		  from eisdoc \r\n" + 
-			"		  group by document_type, process_id \r\n" + 
-			"		  having NumDuplicates > 1\r\n" + 
-			"		) tsum \r\n" + 
+			"		select t.* " + 
+			"		from eisdoc t join " + 
+			"		(select document_type, process_id, count(*) as NumDuplicates " + 
+			"		  from eisdoc " + 
+			"		  group by document_type, process_id " + 
+			"		  having NumDuplicates > 1 " + 
+			"		) tsum " + 
 			"		on t.document_type = tsum.document_type and t.process_id = tsum.process_id" + 
 			"		ORDER BY process_id", nativeQuery = true)
 	List<EISDoc> findAllDuplicatesProcess();
@@ -545,94 +545,94 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	List<EISDoc> sizeUnder200();
 
-	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files\r\n" + 
-			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount\r\n" + 
-			"	  FROM eisdoc\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"      UNION\r\n" + 
-			"      SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
-			"      FROM eisdoc GROUP BY agency\r\n" + 
-			"      UNION \r\n" + 
-			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount\r\n" + 
-			"      FROM eisdoc \r\n" + 
-			"      WHERE size > 200\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"     ) AS A\r\n" + 
-			"GROUP BY A.agency\r\n" + 
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files " + 
+			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount " + 
+			"	  FROM eisdoc " + 
+			"      GROUP BY agency " + 
+			"      UNION " + 
+			"      SELECT agency, COUNT(1) tableACount, 0 AS tableBCount " + 
+			"      FROM eisdoc GROUP BY agency " + 
+			"      UNION " + 
+			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount " + 
+			"      FROM eisdoc " + 
+			"      WHERE size > 200 " + 
+			"      GROUP BY agency " + 
+			"     ) AS A " + 
+			"GROUP BY A.agency " + 
 			"ORDER BY A.agency",nativeQuery = true)
 	List<Object[]> reportAgencyCombined();
 	
 
-	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files\r\n" + 
-			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount\r\n" + 
-			"	  FROM eisdoc\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"      UNION\r\n" + 
-			"	   SELECT agency, COUNT(1) tableACount, 0 AS tableBCount\r\n" + 
-			"      FROM eisdoc \r\n" + 
-			"      WHERE YEAR(register_date) >= 2000\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"      UNION \r\n" + 
-			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount\r\n" + 
-			"      FROM eisdoc \r\n" + 
-			"      WHERE size > 200 AND YEAR(register_date) >= 2000\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"     ) AS A\r\n" + 
-			"GROUP BY A.agency\r\n" + 
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files " + 
+			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount " + 
+			"	  FROM eisdoc " + 
+			"      GROUP BY agency " + 
+			"      UNION " + 
+			"	   SELECT agency, COUNT(1) tableACount, 0 AS tableBCount " + 
+			"      FROM eisdoc " + 
+			"      WHERE YEAR(register_date) >= 2000 " + 
+			"      GROUP BY agency " + 
+			"      UNION " + 
+			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount " + 
+			"      FROM eisdoc " + 
+			"      WHERE size > 200 AND YEAR(register_date) >= 2000 " + 
+			"      GROUP BY agency " + 
+			"     ) AS A " + 
+			"GROUP BY A.agency " + 
 			"ORDER BY A.agency",nativeQuery = true)
 	List<Object[]> reportAgencyCombinedAfter2000();
 
-	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files, MAX(tableCCount) as processCount, MAX(tableDCount) as processAndFileCount\r\n" + 
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files, MAX(tableCCount) as processCount, MAX(tableDCount) as processAndFileCount " + 
 	"FROM ("+
-	"	  SELECT agency, COUNT(1) tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
-	"      FROM eisdoc \r\n" + 
-	"      GROUP BY agency\r\n" + 
-	"      UNION \r\n" + 
-	"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
-	"      FROM eisdoc \r\n" + 
-	"      WHERE size > 200\r\n" + 
-	"      GROUP BY agency\r\n" + 
-	"      UNION\r\n" + 
-	"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, COUNT(DISTINCT process_id) tableCCount, 0 AS tableDCount\r\n" + 
-	"      FROM eisdoc \r\n" + 
-	"      WHERE process_id IS NOT NULL AND process_id >= 0\r\n" + 
-	"      GROUP BY agency\r\n" + 
-	"      UNION\r\n" + 
-	"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, COUNT(1) tableDCount\r\n" + 
-	"      FROM eisdoc \r\n" + 
-	"      WHERE process_id IS NOT NULL AND process_id >= 0 AND size > 200\r\n" + 
-	"      GROUP BY agency\r\n" + 
-	"     ) AS A\r\n" + 
-	"GROUP BY A.agency\r\n" + 
+	"	  SELECT agency, COUNT(1) tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount " + 
+	"      FROM eisdoc " + 
+	"      GROUP BY agency " + 
+	"      UNION " + 
+	"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount, 0 AS tableCCount, 0 AS tableDCount " + 
+	"      FROM eisdoc " + 
+	"      WHERE size > 200 " + 
+	"      GROUP BY agency " + 
+	"      UNION " + 
+	"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, COUNT(DISTINCT process_id) tableCCount, 0 AS tableDCount " + 
+	"      FROM eisdoc " + 
+	"      WHERE process_id IS NOT NULL AND process_id >= 0 " + 
+	"      GROUP BY agency " + 
+	"      UNION " + 
+	"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, COUNT(1) tableDCount " + 
+	"      FROM eisdoc " + 
+	"      WHERE process_id IS NOT NULL AND process_id >= 0 AND size > 200 " + 
+	"      GROUP BY agency " + 
+	"     ) AS A " + 
+	"GROUP BY A.agency " + 
 	"ORDER BY A.agency",nativeQuery = true)
 	List<Object[]> reportAgencyProcess();
 	
-	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files, MAX(tableCCount) as processCount, MAX(tableDCount) as processAndFileCount\r\n" + 
-			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
-			"	  FROM eisdoc\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"      UNION\r\n" + 
-			"	  SELECT agency, COUNT(1) tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
-			"      FROM eisdoc \r\n" + 
-			"      WHERE YEAR(register_date) >= 2000\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"      UNION \r\n" + 
-			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount, 0 AS tableCCount, 0 AS tableDCount\r\n" + 
-			"      FROM eisdoc \r\n" + 
-			"      WHERE size > 200 AND YEAR(register_date) >= 2000\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"      UNION\r\n" + 
-			"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, COUNT(DISTINCT process_id) tableCCount, 0 AS tableDCount\r\n" + 
-			"      FROM eisdoc \r\n" + 
-			"      WHERE process_id IS NOT NULL AND process_id >= 0 AND YEAR(register_date) >= 2000\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"      UNION\r\n" + 
-			"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, COUNT(1) tableDCount\r\n" + 
-			"      FROM eisdoc \r\n" + 
-			"      WHERE process_id IS NOT NULL AND process_id >= 0 AND YEAR(register_date) >= 2000 AND size > 200\r\n" + 
-			"      GROUP BY agency\r\n" + 
-			"     ) AS A\r\n" + 
-			"GROUP BY A.agency\r\n" + 
+	@Query(value = "SELECT A.agency, MAX(tableACount) as total, MAX(tableBCount) as files, MAX(tableCCount) as processCount, MAX(tableDCount) as processAndFileCount " + 
+			"FROM (SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount " + 
+			"	  FROM eisdoc " + 
+			"      GROUP BY agency " + 
+			"      UNION " + 
+			"	  SELECT agency, COUNT(1) tableACount, 0 AS tableBCount, 0 AS tableCCount, 0 AS tableDCount " + 
+			"      FROM eisdoc " + 
+			"      WHERE YEAR(register_date) >= 2000 " + 
+			"      GROUP BY agency " + 
+			"      UNION " + 
+			"      SELECT agency, 0 AS tableACount, COUNT(1) tableBCount, 0 AS tableCCount, 0 AS tableDCount " + 
+			"      FROM eisdoc " + 
+			"      WHERE size > 200 AND YEAR(register_date) >= 2000 " + 
+			"      GROUP BY agency " + 
+			"      UNION " + 
+			"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, COUNT(DISTINCT process_id) tableCCount, 0 AS tableDCount " + 
+			"      FROM eisdoc " + 
+			"      WHERE process_id IS NOT NULL AND process_id >= 0 AND YEAR(register_date) >= 2000 " + 
+			"      GROUP BY agency " + 
+			"      UNION " + 
+			"      SELECT agency, 0 AS tableACount, 0 AS tableBCount, 0 AS tableCCount, COUNT(1) tableDCount " + 
+			"      FROM eisdoc " + 
+			"      WHERE process_id IS NOT NULL AND process_id >= 0 AND YEAR(register_date) >= 2000 AND size > 200 " + 
+			"      GROUP BY agency " + 
+			"     ) AS A " + 
+			"GROUP BY A.agency " + 
 			"ORDER BY A.agency",nativeQuery = true)
 	List<Object[]> reportAgencyProcessAfter2000();
 	
@@ -670,17 +670,30 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			@Param("date") LocalDate date);
 	
 	@Query(value = 	
-			"		select t.* \r\n" + 
-			"		from eisdoc t join \r\n" + 
-			"		(select document_type, folder, count(*) as NumDuplicates \r\n" + 
-			"		  from eisdoc \r\n" + 
-			"		  where folder is not null and LENGTH(folder)>0 \r\n" +
-			"		  group by document_type, folder \r\n" + 
-			"		  having NumDuplicates > 1\r\n" + 
-			"		) tsum \r\n" + 
+			"		select t.* " + 
+			"		from eisdoc t join " + 
+			"		(select document_type, folder, count(*) as NumDuplicates " + 
+			"		  from eisdoc " + 
+			"		  where folder is not null and LENGTH(folder)>0 " +
+			"		  group by document_type, folder " + 
+			"		  having NumDuplicates > 1 " + 
+			"		) tsum " + 
 			"		on t.document_type = tsum.document_type and t.folder = tsum.folder" + 
 			"		ORDER BY folder", nativeQuery = true)
 	List<EISDoc> findNonUniqueTypeFolderPairs();
 
+	@Query(value = "SELECT " + 
+			"    e.* " + 
+			"FROM " + 
+			"    eisdoc e " + 
+			"    LEFT OUTER JOIN nepafile n ON " + 
+			"        e.id = n.document_id " + 
+			"	 LEFT OUTER JOIN document_text d ON " + 
+			"		 e.id = d.document_id " + 
+			"WHERE " + 
+			"	e.size > 0 " + 
+			"   AND n.document_id is null " + 
+			"	AND d.document_id is null", nativeQuery = true)
+	List<EISDoc> findNotIndexed();
 
 }

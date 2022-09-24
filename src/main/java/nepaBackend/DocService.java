@@ -92,5 +92,12 @@ public class DocService {
 	public List<String> findMissingFilenames() {
 		return docRepository.findMissingFilenames();
 	}
+	
+	/** Returns records with attached files and listed size > 0 bytes, but nothing has been indexed. 
+	 * This implies something went wrong with extraction, parsing or indexing - if it couldn't extract
+	 * or parse, then the archive may be corrupted and may need to be fixed (replaced). */
+	public List<EISDoc> findNotIndexed() {
+		return docRepository.findNotIndexed();
+	}
 
 }

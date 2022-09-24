@@ -219,6 +219,16 @@ public class EISController {
 			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
 		}
 	}
+
+	@GetMapping(path = "/not_indexed")
+	public @ResponseBody ResponseEntity<List<EISDoc>> notIndexed(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+		if(applicationUserService.curatorOrHigher(token)) {
+			return new ResponseEntity<List<EISDoc>>(docService.findNotIndexed(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<List<EISDoc>>(HttpStatus.UNAUTHORIZED);
+		}
+	}
 	
 	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs")
