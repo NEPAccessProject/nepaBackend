@@ -80,7 +80,8 @@ public class ReportController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo("<abinfordwalsh@email.arizona.edu>");
-            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+//            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject("NEPAccess Data Issue Report");
             helper.setText("Reported by: " + userEmail
             		+ "\nFor process ID "+processId+": https://www.nepaccess.org/process-details?id=" + processId

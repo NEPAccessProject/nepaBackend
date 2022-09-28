@@ -343,7 +343,8 @@ public class UserController {
 	            		"derbridge@email.arizona.edu", 
 	            		"lauralh@email.arizona.edu"
 	    		});
-	            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+//	            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+	            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
 	            helper.setSubject("NEPAccess Approval Request");
 	            helper.setText("This is an automatically generated email due to"
 	            		+ " a new account being registered."
@@ -721,7 +722,8 @@ public class UserController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(user.getEmail());
-            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject("NEPAccess Registration Request");
 //            helper.setText("This is an automatically generated email in response to"
 //            		+ " a request to register an account linked to this email address."
@@ -996,7 +998,8 @@ public class UserController {
 	            		SecurityConstants.EMAIL_HANDLE
 	    		});
             }
-            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject("(NEPAccess Contact) " + contactForm.subject);
             helper.setText("Contact from: " + contactForm.name
             		+ "\nEmail address: " + contactForm.email
@@ -1071,7 +1074,8 @@ public class UserController {
             } else {
 	            helper.setTo(setToList);
             }
-            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject(subj);
             helper.setText(bodyText);
              

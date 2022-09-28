@@ -153,7 +153,8 @@ public class ResetEmailController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(resetUser.getEmail());
-            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject("NEPAccess Reset Password Request");
             helper.setText("This is an automatically generated email in response to"
             		+ " a request to reset the password for the account linked"
