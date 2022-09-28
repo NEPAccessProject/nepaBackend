@@ -1035,20 +1035,18 @@ public class UserController {
             status = false;
     	}
     	
-    	if(status) {
-    		try {
-        		// Log contact fields to database
-        		Contact contact = new Contact(
-        				contactForm.body,
-        				contactForm.subject,
-        				contactForm.name,
-        				contactForm.email);
-        		contactRepository.save(contact);
-                logEmail(contactForm.email, "", "Contact", true);
-    		} catch (Exception ex) {
-    			// Do nothing
-    		}
-    	}
+		try {
+    		// Log contact fields to database regardless of whether contact email was sent
+    		Contact contact = new Contact(
+    				contactForm.body,
+    				contactForm.subject,
+    				contactForm.name,
+    				contactForm.email);
+    		contactRepository.save(contact);
+            logEmail(contactForm.email, "", "Contact", true);
+		} catch (Exception ex) {
+			// Do nothing
+		}
         
         return status;
 	}
