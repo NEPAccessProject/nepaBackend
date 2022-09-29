@@ -11,6 +11,9 @@ import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +48,9 @@ import nepaBackend.security.SecurityConstants;
 @Controller
 public class ResetEmailController {
 	
-    @Autowired
+	private static final Logger logger = LoggerFactory.getLogger(ResetEmailController.class);
+	
+	@Autowired
     private JavaMailSender sender;
 
     @Autowired
@@ -299,8 +304,9 @@ public class ResetEmailController {
     	    } else {
     	    	return false;
     	    }
-    	} catch (Exception ex) {
-//    		System.out.println(ex);
+    	} catch (Exception ex) {    		
+    		logger.error("Couldn't verify reset token: ### " + token + " ###; Exception: " + ex.getLocalizedMessage());
+    		ex.printStackTrace();
     		return false;
     	}
     }
