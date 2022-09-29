@@ -994,6 +994,7 @@ public class UserController {
 	            		"paulmirocha@arizona.edu", 
 	            		"emcgove@arizona.edu",
 	            		"derbridge@email.arizona.edu", 
+	            		"ashleystava@arizona.edu",
 	            		"abinfordwalsh@email.arizona.edu", 
 	            		SecurityConstants.EMAIL_HANDLE
 	    		});
