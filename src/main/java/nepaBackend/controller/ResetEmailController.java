@@ -11,6 +11,8 @@ import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +47,9 @@ import nepaBackend.security.SecurityConstants;
 @Controller
 public class ResetEmailController {
 	
-    @Autowired
+	private static final Logger logger = LoggerFactory.getLogger(ResetEmailController.class);
+	
+	@Autowired
     private JavaMailSender sender;
 
     @Autowired
@@ -219,9 +223,98 @@ public class ResetEmailController {
                 		(SecurityConstants.SECRET + resetUser.getPassword())
                 		.getBytes()
                 ));
-		
+
+		// JWTs are inherently URL-safe, so this should work.
 		return "https://www.nepaccess.org/reset?token="+token;
 	}
+	
+	/** resetTest helper */
+//	private String getResetTest(ApplicationUser resetUser) {
+//        String token = JWT.create()
+//                .withSubject(resetUser.getUsername())
+//                .withExpiresAt(new Date(System.currentTimeMillis() + SecurityConstants.RESET_EXPIRATION_TIME))
+//                .withJWTId(String.valueOf(
+//        				(resetUser).getId() 
+//        		))
+//                .sign(HMAC512( // Combine secret and password hash to create a single-use password reset JWT
+//                		(SecurityConstants.SECRET + resetUser.getPassword())
+//                		.getBytes()
+//                ));
+//
+//		// JWTs are inherently URL-safe, so this should work.
+//		return "https://localhost:3000/reset_test?token="+token;
+//	}
+
+	/** Returns a reset link only for local testing - should not be deployed */
+//	@CrossOrigin
+//    @PostMapping(path = "/reset/test", 
+//    		consumes = "application/json", 
+//    		produces = "application/json", 
+//    		headers = "Accept=application/json")
+//    @ResponseBody
+//    ResponseEntity<String> resetTest(@RequestBody ResetEmail resetEmail) {
+//            try {
+//            	// Throws exception if email doesn't exist or if multiple records are found
+//        		ApplicationUser resetUser = applicationUserService.findByEmail(resetEmail.email);
+//                
+//        		LocalDateTime timeNow = LocalDateTime.now();
+//        		
+//        		// If there has been a reset (default null column)
+//        		if(resetUser.getLastReset() != null) {
+//        			// And if 24 hours haven't passed since the last email reset
+//        			if((timeNow.minusDays(1)).isBefore(resetUser.getLastReset())) {
+//        				// then return a special HttpStatus
+//        				return new ResponseEntity<String>("Too soon", HttpStatus.I_AM_A_TEAPOT);
+//        			}
+//        		}
+//        		
+//                return new ResponseEntity<String>(getResetTest(resetUser), HttpStatus.OK);
+//            } catch(NullPointerException ex) { // user not found
+//            	
+//            	try {
+//            		// If @arizona.edu, try looking for @email.arizona.edu, or if @email.arizona.edu 
+//            		// try looking for @arizona.edu (this is a common user mistake)
+//                    String emailService = resetEmail.email;
+//                	int index = resetEmail.email.indexOf('@');
+//                	emailService = emailService.substring(index);
+//                	
+//                	String emailFinisher = "@arizona.edu";
+//                	if(emailService.contentEquals("@arizona.edu")) {
+//                		emailFinisher = "@email.arizona.edu";
+//                	}
+//                	
+//                	if(emailService.contentEquals("@arizona.edu") || 
+//                			emailService.contentEquals("@email.arizona.edu")) {
+//                		ApplicationUser resetUser = 
+//                				applicationUserService.findByEmail(resetEmail.email.substring(0, index) + emailFinisher);
+//                        
+//                		LocalDateTime timeNow = LocalDateTime.now();
+//                		
+//                		// If there has been a reset (default null column)
+//                		if(resetUser.getLastReset() != null) {
+//                			// And if 24 hours haven't passed since the last email reset
+//                			if((timeNow.minusDays(1)).isBefore(resetUser.getLastReset())) {
+//                				// then return a special HttpStatus
+//                				return new ResponseEntity<String>("Too soon", HttpStatus.I_AM_A_TEAPOT);
+//                			}
+//                		}
+//
+//                        return new ResponseEntity<String>(getResetTest(resetUser), HttpStatus.OK);
+//                	}
+//            		
+//            	} catch (Exception e) {
+//            		e.printStackTrace();
+//                    return new ResponseEntity<String>("Error in sending email: "+e, HttpStatus.NOT_FOUND);
+//            	}
+//            	
+//        		// Email probably doesn't exist.
+//            	ex.printStackTrace();
+//                return new ResponseEntity<String>("Error in sending email: "+ex, HttpStatus.NOT_FOUND);
+//            } catch (Exception e) {
+//        		e.printStackTrace();
+//                return new ResponseEntity<String>("Error in sending email: "+e, HttpStatus.NOT_FOUND);
+//    		}
+//    }
 
 	// Route for custom check of custom JWT generated for password resets
     @CrossOrigin
@@ -300,7 +393,8 @@ public class ResetEmailController {
     	    	return false;
     	    }
     	} catch (Exception ex) {
-//    		System.out.println(ex);
+    		logger.error("Couldn't verify reset token: ### " + token + " ###; Exception: " + ex.getLocalizedMessage());
+    		ex.printStackTrace();
     		return false;
     	}
     }
