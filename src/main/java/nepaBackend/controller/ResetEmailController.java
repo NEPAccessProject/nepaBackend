@@ -63,11 +63,8 @@ public class ResetEmailController {
     public ResetEmailController() {
     }
 
-	// TODO: Test on production server, see if email works
-    // TODO: Limits on how often reset email can be sent
-    // can save datetime in db and check against that
-    // TODO (frontend): Captcha, landing page to set password from reset link
-    // Route to generate and email a reset link to given email address
+    /** Route to generate and email a reset link to given email address. Limit 1 per address per 24 hours 
+     * (which is how long the token is valid for) */
     @CrossOrigin
     @PostMapping(path = "/reset/send", 
     		consumes = "application/json", 
@@ -140,7 +137,7 @@ public class ResetEmailController {
         		try {
         			logEmail(resetEmail.email, e.toString(), "Reset", false);
         		}catch(Exception logEx) {
-//        			System.out.println("Failure?" + logEx);
+        			// do nothing
         		}
         	}
         	
@@ -158,7 +155,6 @@ public class ResetEmailController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(resetUser.getEmail());
-//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject("NEPAccess Reset Password Request");
             helper.setText("This is an automatically generated email in response to"
@@ -178,26 +174,18 @@ public class ResetEmailController {
     		
     	} catch (MailAuthenticationException e) {
             logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
-
-//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
             
     		return false;
     	} catch (MailSendException e) {
             logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
-
-//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
             
     		return false;
     	} catch (MailException e) {
             logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
             
-//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
-            
     		return false;
     	} catch (Exception e) {
             logEmail(resetUser.getEmail(), e.toString(), "Reset", false);
-            
-//            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
             
     		return false;
     	}
@@ -205,7 +193,6 @@ public class ResetEmailController {
 		try {
             logEmail(resetUser.getEmail(), "", "Reset", true);
 		}catch(Exception ex) {
-//			System.out.println("Failure?" + ex);
 			// Do nothing
 		}
 		
@@ -311,6 +298,25 @@ public class ResetEmailController {
     	}
     }
     
+    @CrossOrigin
+    @GetMapping(path = "/email/logs", 
+    		produces = "application/json", 
+    		headers = "Accept=application/json")
+    ResponseEntity<List<EmailLog>> getEmailResetLogs(@RequestHeader Map<String, String> headers) {
+    	String token = headers.get("authorization");
+		
+		boolean admin = applicationUserService.isAdmin(token);
+		
+	    if (admin) {
+	    	List<EmailLog> logs = emailLogRepository.findAll();
+	    	return new ResponseEntity<List<EmailLog>>(logs, HttpStatus.OK);
+	    } else {
+	    	return new ResponseEntity<List<EmailLog>>(new ArrayList<EmailLog>(), HttpStatus.UNAUTHORIZED);
+	    }
+    	
+    }
+
+    
     /**
      * @param email
      * @param errorString
@@ -333,41 +339,5 @@ public class ResetEmailController {
     	}
     	return false;
     }
-    
-    @SuppressWarnings("unused")
-	private void emailAdmin(String email, String errorType, String errorMessage) {
-    	MimeMessage message = sender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message);
-        
-		try {
-			helper.setTo(SecurityConstants.EMAIL_HANDLE);
-			helper.setText("Failure for " + email + " : " + errorMessage);
-        	helper.setSubject("NEPAccess Reset Password Failure: " + errorType);
-		} catch (MessagingException e) {
-//			e.printStackTrace();
-		}
-        
-        sender.send(message);
-    }
-    
-    @CrossOrigin
-    @GetMapping(path = "/email/logs", 
-    		produces = "application/json", 
-    		headers = "Accept=application/json")
-    ResponseEntity<List<EmailLog>> getEmailResetLogs(@RequestHeader Map<String, String> headers) {
-    	String token = headers.get("authorization");
-		
-		boolean admin = applicationUserService.isAdmin(token);
-		
-	    if (admin) {
-	    	List<EmailLog> logs = emailLogRepository.findAll();
-	    	return new ResponseEntity<List<EmailLog>>(logs, HttpStatus.OK);
-	    } else {
-	    	return new ResponseEntity<List<EmailLog>>(new ArrayList<EmailLog>(), HttpStatus.UNAUTHORIZED);
-	    }
-    	
-    }
-    
-    // TODO: User generation emails with login links like with password reset?
-	// If they want to do that instead of generating passwords
+
 }

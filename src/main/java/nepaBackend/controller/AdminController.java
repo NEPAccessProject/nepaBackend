@@ -1,12 +1,21 @@
 package nepaBackend.controller;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailException;
+import org.springframework.mail.MailSendException;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,11 +50,15 @@ import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.model.UserStatusLog;
+import nepaBackend.pojo.EmailOut;
 
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
 
+	@Autowired
+    private JavaMailSender sender;
+	
     @Autowired
     private ApplicationUserService applicationUserService;
     @Autowired
@@ -72,6 +85,55 @@ public class AdminController {
     private UserStatusLogRepository userStatusLogRepository;
 
     public AdminController() {
+    }
+    
+    @PostMapping("/send_email")
+    private @ResponseBody ResponseEntity<String> sendEmail(@RequestHeader Map<String, String> headers,
+    			@RequestBody EmailOut emailOut) {
+		String token = headers.get("authorization");
+		
+    	if(!applicationUserService.isAdmin(token)) {
+			return new ResponseEntity<String>(HttpStatus.UNAUTHORIZED);
+    	} else {
+        	try {
+                MimeMessage message = sender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(message);
+                 
+                helper.setTo(emailOut.recipientEmail);
+                message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+                helper.setSubject(emailOut.subject);
+                helper.setText(emailOut.body);
+                 
+                sender.send(message);
+	    		String rsp = "Sent email to " + emailOut.recipientEmail + " about " + emailOut.subject + " with body:\n" + emailOut.body;
+	    		
+				return new ResponseEntity<String>(rsp, HttpStatus.OK);
+	    	} catch (MailAuthenticationException e) {
+	            logEmail(emailOut.recipientEmail, e.toString(), "sendEmail", false);
+	
+	//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+	
+				return new ResponseEntity<String>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+	    	} catch (MailSendException e) {
+	            logEmail(emailOut.recipientEmail, e.toString(), "sendEmail", false);
+	
+	//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+	
+				return new ResponseEntity<String>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+	    	} catch (MailException e) {
+	            logEmail(emailOut.recipientEmail, e.toString(), "sendEmail", false);
+	            
+	//            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+	
+				return new ResponseEntity<String>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+	    	} catch (Exception e) {
+	            logEmail(emailOut.recipientEmail, e.toString(), "sendEmail", false);
+	            
+	//            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+	
+				return new ResponseEntity<String>(e.toString(), HttpStatus.INTERNAL_SERVER_ERROR);
+	    	}
+    	}
     }
 
     @PostMapping("/fix_garbage")
@@ -578,5 +640,28 @@ public class AdminController {
 		
 		updateLogService.save(updateLog);
 	}
+
 	
+    /**
+     * @param email
+     * @param errorString
+     * @param emailType
+     * @param sent
+     * @return
+     */
+    private boolean logEmail(String email, String errorString, String emailType, Boolean sent) {
+    	try {
+        	EmailLog log = new EmailLog();
+    		log.setEmail(email);
+    		log.setErrorType(errorString);
+    		log.setEmailType(emailType); // ie "Reset"
+    		log.setSent(sent);
+    		log.setLogTime(LocalDateTime.now());
+    		emailLogRepository.save(log);
+    		return true;
+    	} catch (Exception e) {
+    		// do nothing
+    	}
+    	return false;
+    }
 }
