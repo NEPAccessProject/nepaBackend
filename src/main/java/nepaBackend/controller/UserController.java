@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -814,6 +815,44 @@ public class UserController {
 		return new ResponseEntity<Void>(HttpStatus.UNAUTHORIZED);
 	}
 	
+
+	/** Edit any? items other than username, email or password */
+	@PostMapping(path = "/details/changeProfile")
+	public ResponseEntity<Void> changeProfile(@RequestBody ApplicationUser newUserData,
+			@RequestHeader Map<String, String> headers) {
+
+		// get token, which has already been verified
+		String token = headers.get("authorization");
+		// get ID
+        String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
+                .getId();
+
+        try {
+    		ApplicationUser user = applicationUserRepository.findById(Long.valueOf(id)).get();
+    		
+			// update
+    		// Required fields:
+    		if(Globals.saneInput(newUserData.getAffiliation())) { 
+        		user.setAffiliation(newUserData.getAffiliation());
+    		}
+    		if(Globals.saneInput(newUserData.getFirstName())) { 
+        		user.setFirstName(newUserData.getFirstName());
+    		}
+    		if(Globals.saneInput(newUserData.getLastName())) { 
+        		user.setLastName(newUserData.getLastName());
+    		}
+    		user.setJobTitle(newUserData.getJobTitle());
+    		user.setOrganization(newUserData.getOrganization());
+			applicationUserRepository.save(user);
+			
+			return new ResponseEntity<Void>(HttpStatus.OK);
+        } catch(NoSuchElementException e) {
+    		return new ResponseEntity<Void>(HttpStatus.NOT_FOUND);
+        } catch(Exception e) {
+        	return new ResponseEntity<Void>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+	}
+	
 	@GetMapping(path = "/details/get_details")
 	public ResponseEntity<AppUserDetails> getDetails(@RequestHeader Map<String, String> headers) {
 		// get user token, which has already been verified through security filters
@@ -995,7 +1034,6 @@ public class UserController {
 	            		"emcgove@arizona.edu",
 	            		"derbridge@email.arizona.edu", 
 	            		"ashleystava@arizona.edu",
-	            		"abinfordwalsh@email.arizona.edu", 
 	            		SecurityConstants.EMAIL_HANDLE
 	    		});
             }
