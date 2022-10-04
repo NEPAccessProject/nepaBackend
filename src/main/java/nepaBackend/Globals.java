@@ -87,12 +87,12 @@ public class Globals {
 			"A3",
 			"A1");
     
-	// TODO: Smarter sanity check
+	/** Isn't null or blank */
 	public static final boolean saneInput(String sInput) {
 		if(sInput == null) {
 			return false;
 		}
-		return (sInput.trim().length() > 0);
+		return (!sInput.isBlank());
 	}
 
 	public static final boolean saneInput(String[] sInput) {
