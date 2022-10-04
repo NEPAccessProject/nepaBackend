@@ -328,72 +328,72 @@ public class UserController {
     	}
     }
     
-    private boolean sendApprovalEmail(ApplicationUser user) {
-    	
-    	if(Globals.TESTING) {
-    		return true;
-    	} else {
-    		
-	    	boolean status = true;
-	    	
-	    	try {
-	            MimeMessage message = sender.createMimeMessage();
-	            MimeMessageHelper helper = new MimeMessageHelper(message);
-	
-	            helper.setTo(new String[] {
-	            		"derbridge@email.arizona.edu", 
-	            		"lauralh@email.arizona.edu"
-	    		});
-//	            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
-	            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
-	            helper.setSubject("NEPAccess Approval Request");
-	            helper.setText("This is an automatically generated email due to"
-	            		+ " a new account being registered."
-	            		+ "\n\nFrom username: " + user.getUsername()
-	            		+ "\nEmail: " + user.getEmail()
-	            		+ "\n\nUser can be approved at: https://www.nepaccess.org/approve"
-	            		+ "\n(Users are not approved by default)"
-	            );
-	             
-	            sender.send(message);
-	    		
-	    	} catch (MailAuthenticationException e) {
-	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-	
-	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
-	            
-	            status = false;
-	    	} catch (MailSendException e) {
-	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-	
-	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
-	            
-	            status = false;
-	    	} catch (MailException e) {
-	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-	            
-	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
-	            
-	            status = false;
-	    	} catch (Exception e) {
-	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-	            
-	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
-	            
-	            status = false;
-	    	}
-	    	
-	    	if(status) {
-	    		try {
-	                logEmail(user.getEmail(), "", "Approval", true);
-	    		} catch (Exception ex) {
-	    			// Do nothing
-	    		}
-	    	}
-	        
-	        return status;
-    	}
-	}
+//    private boolean sendApprovalEmail(ApplicationUser user) {
+//    	
+//    	if(Globals.TESTING) {
+//    		return true;
+//    	} else {
+//    		
+//	    	boolean status = true;
+//	    	
+//	    	try {
+//	            MimeMessage message = sender.createMimeMessage();
+//	            MimeMessageHelper helper = new MimeMessageHelper(message);
+//	
+//	            helper.setTo(new String[] {
+//	            		"derbridge@email.arizona.edu", 
+//	            		"lauralh@email.arizona.edu"
+//	    		});
+////	            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
+//	            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+//	            helper.setSubject("NEPAccess Approval Request");
+//	            helper.setText("This is an automatically generated email due to"
+//	            		+ " a new account being registered."
+//	            		+ "\n\nFrom username: " + user.getUsername()
+//	            		+ "\nEmail: " + user.getEmail()
+//	            		+ "\n\nUser can be approved at: https://www.nepaccess.org/approve"
+//	            		+ "\n(Users are not approved by default)"
+//	            );
+//	             
+//	            sender.send(message);
+//	    		
+//	    	} catch (MailAuthenticationException e) {
+//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+//	
+//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
+//	            
+//	            status = false;
+//	    	} catch (MailSendException e) {
+//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+//	
+//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
+//	            
+//	            status = false;
+//	    	} catch (MailException e) {
+//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+//	            
+//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
+//	            
+//	            status = false;
+//	    	} catch (Exception e) {
+//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
+//	            
+//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
+//	            
+//	            status = false;
+//	    	}
+//	    	
+//	    	if(status) {
+//	    		try {
+//	                logEmail(user.getEmail(), "", "Approval", true);
+//	    		} catch (Exception ex) {
+//	    			// Do nothing
+//	    		}
+//	    	}
+//	        
+//	        return status;
+//    	}
+//	}
 
     // More lax requirements.
 	private boolean isValidUserPreRegister(ApplicationUser user) {
@@ -1032,9 +1032,8 @@ public class UserController {
 	            helper.setTo(new String[] {
 	            		"paulmirocha@arizona.edu", 
 	            		"emcgove@arizona.edu",
-	            		"derbridge@email.arizona.edu", 
-	            		"ashleystava@arizona.edu",
-	            		SecurityConstants.EMAIL_HANDLE
+//	            		"derbridge@email.arizona.edu", 
+	            		"ashleystava@arizona.edu"
 	    		});
             }
 //          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
