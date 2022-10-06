@@ -13,3 +13,4 @@ src/main/resources/application-prod.properties
 /EISDoc/
 src/main/java/nepaBackend/LuceneHighlighter.java
 logs/
+*.properties
