@@ -212,6 +212,9 @@ public class GeojsonController {
 			boolean result = geoLookupService.existsByEisdoc(id);
 			
 			return new ResponseEntity<Boolean>(result,HttpStatus.OK);
+		} catch(java.util.NoSuchElementException e) { // orphaned somehow?
+			e.printStackTrace();
+			return new ResponseEntity<Boolean>(HttpStatus.INTERNAL_SERVER_ERROR);
 		} catch(Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<Boolean>(HttpStatus.INTERNAL_SERVER_ERROR);
