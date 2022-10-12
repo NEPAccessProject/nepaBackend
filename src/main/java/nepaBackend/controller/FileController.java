@@ -142,8 +142,6 @@ public class FileController {
 	private static String uploadURL = Globals.UPLOAD_URL.concat("uploadFilesTest");
 	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
 	
-//	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
-	
     @GetMapping("/findAllNepaFiles")
     private @ResponseBody ResponseEntity<List<NEPAFile>> findAllNepaFiles(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
