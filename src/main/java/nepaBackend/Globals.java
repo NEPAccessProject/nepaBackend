@@ -4,11 +4,12 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
+import nepaBackend.security.SecurityConstants;
+
 public class Globals {
 
-    public static final boolean TESTING = false;
+    public static final boolean TESTING = SecurityConstants.TEST_ENVIRONMENT;
     
-//    private static final String PROD_DB_BASE_URL = "mis-jvinaldbl1.microagelab.arizona.edu";
     private static final String PROD_DB_BASE_URL = SecurityConstants.DB_ADDRESS;
 
     private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
@@ -56,7 +57,7 @@ public class Globals {
     // Database/file server URL to base folder containing all files exposed to DAL for download
     public static final String DOWNLOAD_URL = "http://"+PROD_DB_BASE_URL+":80/test/";
     // Database/file server URL for Express service which handles new file uploads (and potentially updating or deleting files)
-    public static final String UPLOAD_URL = "http://"+PROD_DB_BASE_URL+:"+SecurityConstants.EXPRESS_PORT+"/";
+    public static final String UPLOAD_URL = "http://"+PROD_DB_BASE_URL+":"+SecurityConstants.EXPRESS_PORT+"/";
     
     public static final List<String> EIS_TYPES = Arrays.asList("Draft Supplement",
 			"Final Supplement",
