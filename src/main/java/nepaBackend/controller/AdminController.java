@@ -8,6 +8,10 @@ import java.util.Optional;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +55,7 @@ import nepaBackend.model.NEPAFile;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.model.UserStatusLog;
 import nepaBackend.pojo.EmailOut;
+import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/admin")
@@ -83,6 +88,9 @@ public class AdminController {
     private UpdateLogService updateLogService;
     @Autowired
     private UserStatusLogRepository userStatusLogRepository;
+
+	private static String deleteURL = Globals.UPLOAD_URL.concat("delete_file");
+	private static String deleteTestURL = "http://localhost:5309/delete_file";
 
     public AdminController() {
     }
@@ -136,6 +144,7 @@ public class AdminController {
     	}
     }
 
+    /** likely one-time use only */
     @PostMapping("/fix_garbage")
     private @ResponseBody ResponseEntity<String> fixGarbage(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -295,8 +304,7 @@ public class AdminController {
     
     
     /** Given DocumentText ID, delete the DocumentText and any NEPAFile(s) for it from the linked EISDoc.
-     * Does not delete the actual file, so a bulk file process call will pick it back up unless
-     * the file is deleted manually */
+     * File is also deleted */
     @CrossOrigin
     @RequestMapping(path = "/delete_text", method = RequestMethod.POST)
     ResponseEntity<String> deleteFileByDocumentTextId(@RequestBody String id, @RequestHeader Map<String, String> headers) {
@@ -323,7 +331,8 @@ public class AdminController {
     			if(nepaFile.isPresent()) {
     				NEPAFile presentFile = nepaFile.get();
         			
-        			// Log + Delete NEPAFile
+        			// Log + Delete NEPAFile, file from disk
+    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
     				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
     				nepaFileRepository.delete(presentFile);
     			}
@@ -331,15 +340,6 @@ public class AdminController {
     			// Log + Delete DocumentText
 				logDelete(presentText.getEisdoc(), "Deleted: DocumentText", user, presentText.getFilename());
 				textRepository.delete(presentText);
-				
-				// If we decide to delete the file itself, we would want to clear the filename
-//				eisDoc.setFilename("");
-//				docRepository.save(eisDoc);
-				
-				// since we aren't right now, this file would be re-processed if we called sync()
-				// and therefore it's very reversible.
-				// If we didn't set the file log to imported=false, and we had logic to not re-import if
-				// logged as imported, then it would never be re-processed.
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
     		} else if(applicationUserService.isCurator(user)) {
@@ -359,7 +359,7 @@ public class AdminController {
     }
 
     
-    // Deletes NEPAFile and related texts, sets as not imported
+    // Deletes NEPAFile, file on disk and related text, sets as not imported
     @CrossOrigin
     @RequestMapping(path = "/delete_nepa_file", method = RequestMethod.POST)
     ResponseEntity<String> deleteNepaFileById(@RequestBody String id, @RequestHeader Map<String, String> headers) {
@@ -378,19 +378,32 @@ public class AdminController {
     			EISDoc eisDoc = presentFile.getEisdoc();
     			
     			// Get DocumentText by eisdoc and filename from NEPAFile
-    			Optional<DocumentText> textRecord = textRepository.findByEisdocAndFilenameIn(eisDoc, presentFile.getFilename());
-    			
-    			if(textRecord.isPresent()) {
-    				DocumentText presentText = textRecord.get();
+    			try {
+        			Optional<DocumentText> textRecord = textRepository.findByEisdocAndFilenameIn(eisDoc, presentFile.getFilename());
         			
-        			// Log + Delete DocumentText
+        			if(textRecord.isPresent()) {
+        				DocumentText presentText = textRecord.get();
+            			
+            			// Log + Delete DocumentText
+        				logDelete(presentText.getEisdoc(), "Deleted: DocumentText", user, presentText.getFilename());
+        				textRepository.delete(presentText);
+        			}
+        			
+        			// Log + Delete NEPAFile, file on disk
+    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+    				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
+    				nepaFileRepository.delete(presentFile);
+    			} catch(org.springframework.dao.IncorrectResultSizeDataAccessException e) {
+    				// Duplicate filename: Can't differentiate now, have to delete one arbitrarily
+    				List<DocumentText> records = textRepository.findAllByEisdocAndFilenameIn(eisDoc, presentFile.getFilename());
+    				DocumentText presentText = records.get(0);
+    				
     				logDelete(presentText.getEisdoc(), "Deleted: DocumentText", user, presentText.getFilename());
     				textRepository.delete(presentText);
+    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+    				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
+    				nepaFileRepository.delete(presentFile);
     			}
-    			
-    			// Log + Delete NEPAFile
-				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
-				nepaFileRepository.delete(presentFile);
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
     		} else if(applicationUserService.isCurator(user)) {
@@ -409,8 +422,8 @@ public class AdminController {
     		
     }
 
-    /** Delete all NEPAFiles and DocumentTexts from an EISDoc by its ID, then delete the actual files on disk, and finally delete
-     * the Folder field for the EISDoc and update it.
+    /** Delete all NEPAFiles and DocumentTexts from an EISDoc by its ID, then delete the actual files on disk, 
+     * and finally delete the Folder field for the EISDoc and update it.
      * Using ORM to delete allows Lucene to automatically also delete the relevant data from its index. */
     @CrossOrigin
     @RequestMapping(path = "/deleteAllFiles", method = RequestMethod.POST)
@@ -455,7 +468,8 @@ public class AdminController {
     			List<NEPAFile> nepaFileList = nepaFileRepository.findAllByEisdoc(foundDoc);
     			for(NEPAFile nepaFile : nepaFileList) {
     				
-    				// TODO: Delete from disk here?
+    				// Delete from disk here
+    				fileDeleter(headers, nepaFile.getRelativePath() + nepaFile.getFilename());
     				
     				// if matching (single file link), delete filename from record.
     				if(nepaFile.getFilename().contentEquals(foundDoc.getFilename())) {
@@ -595,6 +609,30 @@ public class AdminController {
     	
     	return new ResponseEntity<String>(serverResponse, HttpStatus.OK);
     }
+    
+	private String fileDeleter(Map<String, String> headers, String path) {
+		String token = headers.get("authorization");
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
+		{
+			return null;
+		}
+	
+	    try {
+	    	// In a single-machine setup, this could be done within Java and not with external services
+		    HttpPost request = new HttpPost(deleteURL);
+		    if(Globals.TESTING) { request = new HttpPost(deleteTestURL); }
+		    request.setHeader("key", SecurityConstants.APP_KEY);
+		    request.setHeader("filename", path);
+	
+		    HttpClient client = HttpClientBuilder.create().build();
+		    HttpResponse response = client.execute(request);
+		    
+		    return response.getStatusLine().toString();
+	    } catch(Exception e) {
+	    	e.printStackTrace();
+	    	return e.getLocalizedMessage();
+	    }
+	}
     
     private void deleteTitleAlignmentScores(EISDoc doc) {
     	List<EISMatch> toDelete1 = matchService.findAllByDocument1( java.lang.Math.toIntExact(doc.getId()) );

@@ -130,4 +130,6 @@ public interface EISMatchRepository extends JpaRepository<EISMatch, Long>{
 
 	List<EISMatch> findAllByDocument1(int id);
 	List<EISMatch> findAllByDocument2(int id);
+
+	boolean existsByDocument1AndDocument2(int document1, int document2);
 }

@@ -73,9 +73,11 @@ import com.github.openjson.JSONObject;
 
 import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
+import nepaBackend.EISMatchRepository;
 import nepaBackend.FileLogRepository;
 import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
+import nepaBackend.NEPAFileService;
 import nepaBackend.NameRanker;
 import nepaBackend.ProcessRepository;
 import nepaBackend.TextRepository;
@@ -90,8 +92,10 @@ import nepaBackend.model.NEPAFile;
 import nepaBackend.model.NEPAProcess;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.pojo.DumbProcessInputs;
+import nepaBackend.pojo.FolderDelete;
 import nepaBackend.pojo.ProcessInputs;
 import nepaBackend.pojo.UploadInputs;
+import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/file")
@@ -112,9 +116,13 @@ public class FileController {
 	@Autowired
 	private NEPAFileRepository nepaFileRepository;
 	@Autowired
+	private NEPAFileService nepaFileService;
+	@Autowired
 	private ProcessRepository processRepository;
 	@Autowired
     private FileLogRepository fileLogRepository;
+	@Autowired
+    private EISMatchRepository matchRepository;
 	
 	private static DateTimeFormatter[] parseFormatters = Stream.of(
 			"yyyy-MM-dd", "MM-dd-yyyy", "yyyy/MM/dd", "MM/dd/yyyy", 
@@ -141,6 +149,9 @@ public class FileController {
 	
 	private static String uploadURL = Globals.UPLOAD_URL.concat("uploadFilesTest");
 	private static String uploadTestURL = "http://localhost:5309/uploadFilesTest";
+	
+	private static String deleteURL = Globals.UPLOAD_URL.concat("delete_file");
+	private static String deleteTestURL = "http://localhost:5309/delete_file";
 	
     @GetMapping("/findAllNepaFiles")
     private @ResponseBody ResponseEntity<List<NEPAFile>> findAllNepaFiles(@RequestHeader Map<String, String> headers) {
@@ -569,7 +580,9 @@ public class FileController {
 	    				.build();
 			    HttpPost request = new HttpPost(uploadURL);
 			    if(testing) { request = new HttpPost(uploadTestURL); }
+			    request.setHeader("key", SecurityConstants.APP_KEY);
 			    request.setEntity(entity);
+			    
 			    HttpClient client = HttpClientBuilder.create().build();
 			    HttpResponse response = client.execute(request);
 			    
@@ -697,6 +710,7 @@ public class FileController {
 		    				.build();
 			    HttpPost request = new HttpPost(uploadURL);
 			    if(testing) { request = new HttpPost(uploadTestURL); }
+			    request.setHeader("key", SecurityConstants.APP_KEY);
 			    request.setEntity(entity);
 	
 			    HttpClient client = HttpClientBuilder.create().build();
@@ -1172,6 +1186,7 @@ public class FileController {
 				    				.build();
 					    HttpPost request = new HttpPost(uploadURL);
 					    if(testing) { request = new HttpPost(uploadTestURL); }
+					    request.setHeader("key", SecurityConstants.APP_KEY);
 					    request.setEntity(entity);
 			
 					    HttpClient client = HttpClientBuilder.create().build();
@@ -1192,6 +1207,8 @@ public class FileController {
 					    }
 			    	}
 			    	else if(foundDoc.isPresent()) {
+			    		// If there are old source files, delete them so we can replace them fully
+			    		this.handleAnyOrphanedFiles(headers, foundDoc.get(), origFilename);
 			    		// If found we can link this to something, therefore proceed with upload
 
 			    		// We're setting the directory to / for the archive upload.  Plan to extract later
@@ -1208,6 +1225,7 @@ public class FileController {
 				    				.build();
 					    HttpPost request = new HttpPost(uploadURL);
 					    if(testing) { request = new HttpPost(uploadTestURL); }
+					    request.setHeader("key", SecurityConstants.APP_KEY);
 					    request.setEntity(entity);
 			
 					    HttpClient client = HttpClientBuilder.create().build();
@@ -1239,7 +1257,6 @@ public class FileController {
 					    	boolean convert = true;
 					    	boolean skipIfHasFolder = false;
 					    	results[i] += " *** Extract/convert result: " + extractOneZip(savedDoc, skipIfHasFolder, convert);
-					    	
 					    } else {
 					    	// File already exists in legacy style
 					    	results[i] = "Couldn't upload: " + origFilename;
@@ -1249,6 +1266,14 @@ public class FileController {
 				    	results[i] = "No folder and no filename match: " + files[i].getOriginalFilename();
 			    	}
 			    } else if(metadataExists(folderName)){
+		    		// If there are old source files, delete them so we can replace them fully
+				    // First, reuse some logic to find the exact, correct eisdoc
+			    	String documentType = getDocumentTypeOrEmpty(origFilename);
+					Optional<EISDoc> existingDoc = docRepository.findTopByFolderAndDocumentTypeIn(folderName, documentType);
+					if(existingDoc.isPresent()) { // If we found it, handle any orphaned files
+			    		this.handleAnyOrphanedFiles(headers, existingDoc.get());
+					}
+					
 			    	logger.info("Uploading " + files[i].getOriginalFilename());
 			    	// If metadata exists we can link this to something, therefore proceed with upload
 				    String savePath = getPathOnly(origFilename);
@@ -1265,6 +1290,7 @@ public class FileController {
 			    				.build();
 				    HttpPost request = new HttpPost(uploadURL);
 				    if(testing) { request = new HttpPost(uploadTestURL); }
+				    request.setHeader("key", SecurityConstants.APP_KEY);
 				    request.setEntity(entity);
 		
 				    CloseableHttpClient client = HttpClientBuilder.create().build();
@@ -1304,7 +1330,6 @@ public class FileController {
 						    if(existingDocs.size() > 0) { // If we have a linked document:
 						    	// Run Tika on folder
 							    this.convertNEPAFile(savedNEPAFile);
-							    
 						    }
 				    	}
 				    } else {
@@ -1348,6 +1373,51 @@ public class FileController {
 		
 		return new ResponseEntity<String[]>(results, HttpStatus.OK);
 	}
+
+	/** Check for orphaned files here and run deleteFolder() if found. */
+	private void handleAnyOrphanedFiles(Map<String, String> headers, EISDoc foundDoc) {
+		// Multiple source folders?
+//		if(nepaFileRepository.countDistinctFoldersByDocumentId(foundDoc.getId()) > 1) {
+			// Delete all old folder contents and related database items
+			List<String> allFolders = nepaFileRepository.getDistinctFoldersByDocumentId(foundDoc.getId());
+			for(String folder: allFolders) {
+				System.out.println("Folder: " + folder);
+				if(!foundDoc.getFolder().contentEquals(folder)) { // old folder?
+					try {
+						System.out.println("Folder IS OLD");
+						this.deleteFolder(new FolderDelete(folder, foundDoc.getId().toString(), foundDoc.getFolder()), headers);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+//		}
+	}
+	/** Overloaded version for when foundDoc foldername will be set after a .zip is imported */
+	private void handleAnyOrphanedFiles(Map<String, String> headers, EISDoc foundDoc, String newName) {
+		// Multiple source folders?
+//		if(nepaFileRepository.countDistinctFoldersByDocumentId(foundDoc.getId()) > 1) {
+			// Delete all old folder contents and related database items
+			List<String> allFolders = nepaFileRepository.getDistinctFoldersByDocumentId(foundDoc.getId());
+			for(String folder: allFolders) {
+				if(!newName.substring(0, newName.length()-4).contentEquals(folder)) { // old folder?
+					// (Remove .zip extension to get what the folder name will be)
+					try {
+						this.deleteFolder(
+								new FolderDelete(
+									folder, 
+									foundDoc.getId().toString(), 
+									newName.substring(0, newName.length()-4)
+								), 
+								headers);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+//		}
+	}
+	
 
 	// Must have a link available, presumably added by a CSV import. 
 	// Therefore EISDoc needs a Folder, and the connection has to be enforced after we have both.
@@ -2920,6 +2990,7 @@ public class FileController {
 	    				.build();
 		    HttpPost request = new HttpPost(uploadURL);
 		    if(testing) { request = new HttpPost(uploadTestURL); }
+		    request.setHeader("key", SecurityConstants.APP_KEY);
 		    request.setEntity(entity);
 	
 		    HttpClient client = HttpClientBuilder.create().build();
@@ -3888,6 +3959,90 @@ public class FileController {
 	}
 	
 
+	@CrossOrigin
+	@RequestMapping(path = "/get_multi_folder", method = RequestMethod.GET)
+	private ResponseEntity<List<NEPAFile>> getMultiFolder(@RequestHeader Map<String, String> headers) 
+										throws IOException { 
+		String token = headers.get("authorization");
+		
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
+		{
+			return new ResponseEntity<List<NEPAFile>>(HttpStatus.UNAUTHORIZED);
+		}
+		
+		List<NEPAFile> results = nepaFileRepository.getMultiFolder();
+		
+		return new ResponseEntity<List<NEPAFile>>(results, HttpStatus.OK);
+	}
+
+	@CrossOrigin
+	@RequestMapping(path = "/delete_folder", method = RequestMethod.POST, consumes = "application/json")
+	private ResponseEntity<List<String>> deleteFolder(
+				@RequestBody FolderDelete deleteSet, 
+				@RequestHeader Map<String, String> headers) throws IOException { 
+		String token = headers.get("authorization");
+		
+		if( !applicationUserService.isAdmin(token) ) 
+		{
+			return new ResponseEntity<List<String>>(HttpStatus.UNAUTHORIZED);
+		} else {
+			// Note: How to handle unlikely case where we have identical filenames from two 
+			// different sources, but they have different contents (and therefore, deleting one
+			// arbitrarily can be wrong)? Basically this shouldn't happen.
+			// Logic isn't designed for an EIS to be split between multiple folders.
+			// Avoid this by deleting the old set of files before importing new ones. Therefore the importer
+			// needs to be able to check for orphaned files and run this deleteFolder() on them.
+			
+			// Get list of files on disk to actually delete in return here
+			List<String> results = nepaFileService.deleteAllForFolderAndId(
+					deleteSet.deleteName, 
+					deleteSet.id, 
+					deleteSet.newName);
+
+			List<String> deleteResults = new ArrayList<String>();
+			for(String result: results) {
+				String deleteResult = fileDeleter(headers, result);
+				deleteResults.add(deleteResult += ":: " + result);
+				System.out.println(deleteResult += ":: " + result);
+			}
+
+			// Size saved in db could now be wrong, update that now
+			try {
+				this.addUpAndSaveFolderSize(docRepository.findById(Long.parseLong(deleteSet.id)).get());
+			} catch(Exception e) {
+				// doesn't exist?
+			}
+			
+			return new ResponseEntity<List<String>>(deleteResults, HttpStatus.OK);
+		}
+		
+	}
+	
+	private String fileDeleter(Map<String, String> headers, String path) {
+		String token = headers.get("authorization");
+		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
+		{
+			return null;
+		}
+	
+	    try {
+	    	// In a single-machine setup, this could be done within Java and not with external services
+		    HttpPost request = new HttpPost(deleteURL);
+		    if(Globals.TESTING) { request = new HttpPost(deleteTestURL); }
+		    request.setHeader("key", SecurityConstants.APP_KEY);
+		    request.setHeader("filename", path);
+	
+		    HttpClient client = HttpClientBuilder.create().build();
+		    HttpResponse response = client.execute(request);
+		    
+		    return response.getStatusLine().toString();
+	    } catch(Exception e) {
+	    	e.printStackTrace();
+	    	return e.getLocalizedMessage();
+	    }
+	}
+	
+
 	/** TODO: Complete doAlignmentImport and test that everything goes smoothly in local testing before
 	 * deployment
 	 * 
@@ -3931,54 +4086,61 @@ public class FileController {
 		int counter = 0; // count predictions for fun
 
         try { // iterate through entire json hashmap
+//            long start = System.currentTimeMillis();
             JSONObject jsonObject = new JSONObject(jsonString);
             Iterator<String> keys = jsonObject.keys();
             while(keys.hasNext()) {
-                String key = keys.next(); // e.g. 17522 (id of base record)
+                String baseId = keys.next(); // e.g. 17522 (id of base record)
                 
-                results.add("Outer key: " + key);
+                results.add("Outer key: " + baseId);
                 
-                if(jsonObject.get(key) instanceof JSONArray) {
-                    JSONArray array = (JSONArray) jsonObject.get(key); // array of id/sim/prediction objects
+                if(jsonObject.get(baseId) instanceof JSONArray) {
+                    
+                    JSONArray array = (JSONArray) jsonObject.get(baseId); // array of id/sim/prediction objects
+                    List<EISMatch> matchesToSave = new ArrayList<EISMatch>();
                     for(int i = 0; i < array.length(); i++) {
-                        JSONObject object = (JSONObject) array.get(i);
                         
                         
-                        // TODO: We could add the match data item to the database here, and see if it takes
-                        // too long for Spring/Hibernate or if it's nice and fast. Could also
-                        // add this to a list/array here and add that to the database afterwards
-                        EISMatch scoredMatch = new EISMatch(
-                        		Integer.parseInt(key), // base record id
-                        		Integer.parseInt(object.getString("id")), // aligned record id
-                        		new BigDecimal(object.getString("sim")) // score
-                        );
+                        JSONObject jsonScore = (JSONObject) array.get(i);
+                    	BigDecimal bigD = new BigDecimal(jsonScore.getString("sim")); // score
+                    	// Until we have a purpose for lower scores, only add > 0.5 for efficiency.
+                    	// The .json scores can be kept around externally if anything changes
+                    	if( bigD.compareTo(BigDecimal.valueOf(0.5)) > 0 ) {
+                        	int ibaseId = Integer.parseInt(baseId); // base record id
+                        	int imatchId = Integer.parseInt(jsonScore.getString("id")); // aligned record id
+	                        // Ensure we never add duplicate scores
+	                        if(!matchRepository.existsByDocument1AndDocument2(
+	                        		ibaseId,
+	                        		imatchId ))
+	                        {
+                                EISMatch scoredMatch = new EISMatch(
+                            		ibaseId, 
+                            		imatchId, 
+                            		bigD 
+                                );
+                            	matchesToSave.add(scoredMatch);
+                        	}
+                        }
                         
                         
-                        results.add(key + " Inner Item " + i + 
-                        		": ID: " + object.getString("id") +
-                        		"; Score: " + object.getString("sim") +
-                        		"; Prediction: " + object.getString("prediction"));
+                        results.add(baseId + " Inner Item " + i + 
+                        		": ID: " + jsonScore.getString("id") +
+                        		"; Score: " + jsonScore.getString("sim") +
+                        		"; Prediction: " + jsonScore.getString("prediction"));
                         
-                        if( object.getString("prediction").contentEquals("true") ) {
-
-//                        	BigDecimal bigD = new BigDecimal(object.getString("sim"));
-//                        	if(bigD.compareTo(BigDecimal.valueOf(2/3)) < 0) {
-//                            	// I think the threshold for prediction=true might be a score of 2/3 or greater
-//                            	// so this might be impossible
-//                        		System.out.println("Prediction true but below 0.66: " + bigD);
-//                        	}
-                        	
+                        // I think this just means the score was >66%?
+                        // Could use this to return a list of new "predicted" process connections,
+                        // or we could do that later with any score threshold, optionally using the entire
+                        // metadata table instead of just for the new records.
+                        if( jsonScore.getString("prediction").contentEquals("true") ) {
                         	counter++;
                         }
-//                        Iterator<String> innerKeys = object.keys();
-//                        while(innerKeys.hasNext()) {
-//                            String innerKey = innerKeys.next();
-//                            
-//                            results.add("Inner key " + i + ": " + innerKey + "; value: " + object.get(innerKey));
-//                        }
                     }
+                	matchRepository.saveAll(matchesToSave);
                 }
             }
+//            long end = System.currentTimeMillis();
+//            System.out.println("Entire set took " + (end - start) + "ms");
 
         } catch (JSONException e) {
             // TODO Auto-generated catch block

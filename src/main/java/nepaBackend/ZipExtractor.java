@@ -18,6 +18,8 @@ import org.slf4j.LoggerFactory;
 import com.github.openjson.JSONArray;
 import com.github.openjson.JSONObject;
 
+import nepaBackend.security.SecurityConstants;
+
 /**
  * Extracts files of a .zip URL to
  * a destination directory.
@@ -139,6 +141,7 @@ public class ZipExtractor {
 		
     	HttpPost request = new HttpPost(extractURL);
 	    if(Globals.TESTING) { request = new HttpPost(extractURLTest); }
+	    request.setHeader("key", SecurityConstants.APP_KEY);
 	    request.setEntity(new UrlEncodedFormEntity(arguments));
 	    
 	    HttpResponse response = httpClient.execute(request);
