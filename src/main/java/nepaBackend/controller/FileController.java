@@ -2681,6 +2681,8 @@ public class FileController {
 	 * but doesn't overwrite anything if incoming field is missing (null/blank) */
 	private ResponseEntity<Long> updateDtoByIdNoOverwrite(UploadInputs itr, EISDoc existingRecord, Long userid) {
 
+		boolean isChanged = false;
+		
 		// if this happens then this function should not have been called in the first place
 		if(existingRecord.getId() != Long.parseLong(itr.id)) {
 			return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.BAD_REQUEST);
@@ -2688,144 +2690,117 @@ public class FileController {
 		
 		// Save log for accountability and restore option
 		UpdateLog ul = updateLogService.newUpdateLogFromEIS(existingRecord, userid);
-		updateLogRepository.save(ul);
-
 		
 		// Yes, even update title/type/date, because we're updating by ID
-		if(itr.title == null || itr.title.isBlank()) {
-			// skip, leave original
-		} else {
+		if(saneAndDifferent(itr.title, existingRecord.getTitle())) {
+			// only change if not identical
+			isChanged = true;
 			existingRecord.setTitle(itr.title);
 		}
-		if(itr.document == null || itr.document.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setDocumentType(itr.document);
-		}
 
-		if(itr.federal_register_date == null || itr.federal_register_date.isBlank()) {
-			// skip, leave original
-		} else {
-			try {
-				LocalDate parsedDate = parseDate(itr.federal_register_date);
-				existingRecord.setRegisterDate(parsedDate);
-			} catch (IllegalArgumentException e) {
-			} catch (Exception e) {
-			}
+		if(saneAndDifferent(itr.epa_comment_letter_date, existingRecord.getCommentDate())) {
+			existingRecord.setCommentDate(parseDate(itr.epa_comment_letter_date));
+			isChanged = true;
 		}
-		if(itr.epa_comment_letter_date == null || itr.epa_comment_letter_date.isBlank()) {
-			// skip, leave original
-		} else {
-			try {
-				LocalDate parsedDate = parseDate(itr.federal_register_date);
-				existingRecord.setCommentDate(parsedDate);
-			} catch (IllegalArgumentException e) {
-			} catch (Exception e) {
-			}
+		if(saneAndDifferent(itr.federal_register_date, existingRecord.getRegisterDate())) {
+			existingRecord.setRegisterDate(parseDate(itr.federal_register_date));
+			isChanged = true;
 		}
 		
-		if(itr.agency == null || itr.agency.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setAgency(itr.agency);
-		}
-		if(itr.cooperating_agency == null || itr.cooperating_agency.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setCooperatingAgency(itr.cooperating_agency);
-		}
-		if(itr.department == null || itr.department.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setDepartment(itr.department);
-		}
-		
-		if(itr.state == null || itr.state.isBlank()) {
-			// skip, leave original
-		} else {
+		if(saneAndDifferent(itr.state, existingRecord.getState())) {
 			existingRecord.setState(itr.state);
+			isChanged = true;
 		}
-		if(itr.county == null || itr.county.isBlank()) {
-			// skip
-		} else {
-			existingRecord.setCounty(Globals.normalizeSpace(itr.county));
+		if(saneAndDifferent(itr.agency, existingRecord.getAgency())) {
+			existingRecord.setAgency(itr.agency);
+			isChanged = true;
 		}
-		
-		if(itr.noi_date == null || itr.noi_date.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setNoiDate(parseDate(itr.noi_date));
+		if(saneAndDifferent(itr.cooperating_agency, existingRecord.getCooperatingAgency())) {
+			existingRecord.setCooperatingAgency(itr.cooperating_agency);
+			isChanged = true;
 		}
-		if(itr.draft_noa == null || itr.draft_noa.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setDraftNoa(parseDate(itr.draft_noa));
-		}
-		if(itr.final_noa == null || itr.final_noa.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setFinalNoa(parseDate(itr.final_noa));
-		}
-		if(itr.first_rod_date == null || itr.first_rod_date.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setFirstRodDate(parseDate(itr.first_rod_date));
-		}
-
-		
-		if(itr.summary_text == null || itr.summary_text.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setSummaryText(itr.summary_text);
-		}
-		if(itr.subtype == null || itr.subtype.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setSubtype(itr.subtype);
-		}
-		if(itr.status == null || itr.status.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setStatus(itr.status);
-		}
-		if(itr.notes == null || itr.notes.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setNotes(itr.notes);
-		}
-		if(itr.link == null || itr.link.isBlank()) {
-			// skip, leave original
-		} else {
+		if(saneAndDifferent(itr.link, existingRecord.getLink())) {
 			existingRecord.setLink(itr.link);
+			isChanged = true;
 		}
-
-		if(itr.process_id == null || itr.process_id.isBlank()) {
-			// skip, leave original
-		} else {
+		if(saneAndDifferent(itr.notes, existingRecord.getNotes())) {
+			existingRecord.setNotes(itr.notes);
+			isChanged = true;
+		}
+		
+		if(itr.process_id != null && !itr.process_id.isBlank()
+				&& (existingRecord.getProcessId() == null 
+					|| !(Long.parseLong(itr.process_id) == existingRecord.getProcessId().longValue())) ) {
 			existingRecord.setProcessId(Long.parseLong(itr.process_id));
+			isChanged = true;
 		}
-		
-		if(itr.eis_identifier == null || itr.eis_identifier.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setFolder(itr.eis_identifier.strip());
-		}
-		if(itr.filename == null || itr.filename.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setFilename(itr.filename.strip());
-		}
-		if(itr.comments_filename == null || itr.comments_filename.isBlank()) {
-			// skip, leave original
-		} else {
-			existingRecord.setCommentsFilename(itr.comments_filename.strip());
-		}
-		
-		docRepository.save(existingRecord); // save to db, ID shouldn't change
-		
-		return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
-	}
 
+		if(saneAndDifferent(itr.county, existingRecord.getCounty())) {
+			existingRecord.setCounty(itr.county);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.status, existingRecord.getStatus())) {
+			existingRecord.setStatus(itr.status);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.subtype, existingRecord.getSubtype())) {
+			existingRecord.setSubtype(itr.subtype);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.document, existingRecord.getDocumentType())) {
+			existingRecord.setDocumentType(itr.document);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.department, existingRecord.getDepartment())) {
+			existingRecord.setDepartment(itr.department);
+			isChanged = true;
+		}
+		
+		if(saneAndDifferent(itr.noi_date, existingRecord.getNoiDate())) {
+			existingRecord.setNoiDate(parseDate(itr.noi_date));
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.draft_noa, existingRecord.getDraftNoa())) {
+			existingRecord.setDraftNoa(parseDate(itr.draft_noa));
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.final_noa, existingRecord.getFinalNoa())) {
+			existingRecord.setFinalNoa(parseDate(itr.final_noa));
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.first_rod_date, existingRecord.getFirstRodDate())) {
+			existingRecord.setFirstRodDate(parseDate(itr.first_rod_date));
+			isChanged = true;
+		}
+
+		if(saneAndDifferent(itr.summary_text, existingRecord.getSummaryText())) {
+			existingRecord.setSummaryText(itr.summary_text);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.eis_identifier, existingRecord.getFolder())) {
+			existingRecord.setFolder(itr.eis_identifier);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.filename, existingRecord.getFilename())) {
+			existingRecord.setFilename(itr.filename);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.comments_filename, existingRecord.getCommentsFilename())) {
+			isChanged = true;
+			existingRecord.setCommentsFilename(itr.comments_filename);
+		}
+		
+		
+		if(isChanged) {
+			docRepository.save(existingRecord); // save to db, ID shouldn't change
+			updateLogRepository.save(ul); // save update log
+			
+			return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<Long>(existingRecord.getId(), HttpStatus.ALREADY_REPORTED);
+		}
+		
+	}
 
 	/** Expects matching record and new folder; updates; preserves most metadata */
 	private ResponseEntity<Long> updateDtoJustFolder(UploadInputs itr, EISDoc existingRecord) {
@@ -3937,10 +3912,12 @@ public class FileController {
 					if(recordThatMayExist.isPresent()) {
 						ResponseEntity<Long> status = updateDtoByIdNoOverwrite(itr, recordThatMayExist.get(), applicationUserService.getUserFromToken(token).getId());
 						
-						if(status.getStatusCodeValue() != 200) { // Error
-							results.add("Item " + count + ": Error (not updated): " + itr.id);
-				    	} else {
+						if(status.getStatusCodeValue() == 200) { 
 							results.add("Item " + count + ": Updated: " + itr.id);
+						} else if(status.getStatusCodeValue() == 208) {
+							results.add("Item " + count + ": Identical (not updated): " + itr.id);
+				    	} else { // Error
+							results.add("Item " + count + ": Error (not updated): " + itr.id);
 				    	}
 			    	} else {
 						results.add("Item " + count + ": ID match not found (not updated): " + itr.id);
@@ -4172,6 +4149,39 @@ public class FileController {
 	    }
 
 	    return result;
+	}
+	
+	/** Returns if new string is valid Date, and non-identical */
+	private boolean saneAndDifferent(String newString, LocalDate oldDate) {
+		try {
+			if(newString == null || newString.isBlank()) {
+				// skip, leave original
+				return false;
+			} else {
+				LocalDate newDate = parseDate(newString);
+				if(oldDate == null || !newDate.isEqual(oldDate)) {
+					return true;
+				} else {
+					return false;
+				}
+			}
+		} catch (IllegalArgumentException e) {
+			// never mind
+			return false;
+		}
+	}
+
+	/** Returns true if new string is non-null, non-blank, and non-identical */
+	private boolean saneAndDifferent(String newString, String oldString) {
+		if( Globals.saneInput(newString) ) { // New string has content
+			if( !Globals.saneInput(oldString) ) { // Old string doesn't have content
+				return true; // Necessarily different
+			} else { // Old string also has content
+				return !(newString.contentEquals(oldString)); // Return true if different
+			}
+		} else {
+			return false;
+		}
 	}
 	
 	/** Return full name for given agency abbreviation if found, else return string unchanged */
