@@ -38,6 +38,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         .antMatchers("/reset/change")
         .antMatchers("/reset/send")
         .antMatchers("/reset/check")
+        .antMatchers("/stats/eis_count")
         .antMatchers("/stats/total_count")
         .antMatchers("/stats/latest_year")
         .antMatchers("/stats/earliest_year");
