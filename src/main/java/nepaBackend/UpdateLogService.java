@@ -1,6 +1,5 @@
 package nepaBackend;
 import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,13 +68,16 @@ public class UpdateLogService {
 		updateLog.setStatus(recordToUpdate.getStatus());
 		updateLog.setSubtype(recordToUpdate.getSubtype());
 		
+		updateLog.setDecision(recordToUpdate.getDecision());
+		updateLog.setAction(recordToUpdate.getAction());
+		
 		updateLog.setUserId(id);
 		
 		return updateLog;
 	}
 	
 	public EISDoc fillEISFromUpdateLog(EISDoc recordToRestore, UpdateLog logToRestoreFrom) {
-		
+
 		recordToRestore.setAgency(logToRestoreFrom.getAgency());
 		recordToRestore.setDepartment(logToRestoreFrom.getDepartment());
 		recordToRestore.setCooperatingAgency(logToRestoreFrom.getCooperatingAgency());
@@ -83,12 +85,27 @@ public class UpdateLogService {
 		recordToRestore.setDocumentType(logToRestoreFrom.getDocument());
 		recordToRestore.setFilename(logToRestoreFrom.getFilename());
 		recordToRestore.setState(logToRestoreFrom.getState());
+		recordToRestore.setCounty(logToRestoreFrom.getCounty());
 		recordToRestore.setFolder(logToRestoreFrom.getFolder());
 		recordToRestore.setLink(logToRestoreFrom.getLink());
 		recordToRestore.setNotes(logToRestoreFrom.getNotes());
 		recordToRestore.setSummaryText(logToRestoreFrom.getSummary());
 		recordToRestore.setRegisterDate(logToRestoreFrom.getDate());
 		recordToRestore.setProcessId(logToRestoreFrom.getProcessId());
+		
+		recordToRestore.setCommentDate(logToRestoreFrom.getCommentsDate());
+		recordToRestore.setCommentsFilename(logToRestoreFrom.getCommentsFilename());
+
+		recordToRestore.setDraftNoa(logToRestoreFrom.getDraftNoa());
+		recordToRestore.setFinalNoa(logToRestoreFrom.getFinalNoa());
+		recordToRestore.setFirstRodDate(logToRestoreFrom.getFirstRodDate());
+		recordToRestore.setNoiDate(logToRestoreFrom.getNoiDate());
+
+		recordToRestore.setStatus(logToRestoreFrom.getStatus());
+		recordToRestore.setSubtype(logToRestoreFrom.getSubtype());
+		
+		recordToRestore.setDecision(logToRestoreFrom.getDecision());
+		recordToRestore.setAction(logToRestoreFrom.getAction());
 		
 		return recordToRestore;
 	}
