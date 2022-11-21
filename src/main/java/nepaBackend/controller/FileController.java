@@ -2595,6 +2595,20 @@ public class FileController {
 			oldRecord.setSubtype(itr.subtype);
 			isChanged = true;
 		}
+
+		if(saneAndDifferent(itr.department, oldRecord.getDepartment())) {
+			oldRecord.setDepartment(itr.department);
+			isChanged = true;
+		}
+
+		if(saneAndDifferent(itr.action, oldRecord.getAction())) {
+			oldRecord.setAction(itr.action);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.decision, oldRecord.getDecision())) {
+			oldRecord.setDecision(itr.decision);
+			isChanged = true;
+		}
 		
 		if(isChanged) {
 			docRepository.save(oldRecord); // save to db, ID shouldn't change
@@ -2753,6 +2767,16 @@ public class FileController {
 		}
 		if(saneAndDifferent(itr.department, existingRecord.getDepartment())) {
 			existingRecord.setDepartment(itr.department);
+			isChanged = true;
+		}
+		
+
+		if(saneAndDifferent(itr.action, existingRecord.getAction())) {
+			existingRecord.setAction(itr.action);
+			isChanged = true;
+		}
+		if(saneAndDifferent(itr.decision, existingRecord.getDecision())) {
+			existingRecord.setDecision(itr.decision);
 			isChanged = true;
 		}
 		

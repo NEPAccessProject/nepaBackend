@@ -63,7 +63,7 @@ public class EISDoc implements Serializable {
     @Column(name="comments_filename",columnDefinition="VARCHAR(256)")
     private String commentsFilename; // name of zip file of comment PDF(s) (optional)
 
-    @Column(name="folder",columnDefinition="text")
+    @Column(name="folder",columnDefinition="VARCHAR(256)")
     private String folder; // path to multiple associated files (optional)
     
     @Column(name="size",columnDefinition="BIGINT(20)")
@@ -102,18 +102,18 @@ public class EISDoc implements Serializable {
     @Column(name="process_id")
     private Long processId;
     
-    // String location; // Location for proposed project is desired, but don't have metadata
-    // String action; // Type of action is desired, but don't have metadata
+    @Column(name="action_type",columnDefinition="text")
+    private String action;
+    @Column(name="decision",columnDefinition="text")
+    private String decision;
     
-    // Long processId; // ID of process with related documents, if there are any, metadata doesn't exist for this yet
-
 	public EISDoc() { }
 
 	public EISDoc(Long id, String title, String documentType, LocalDate commentDate, LocalDate registerDate, 
 			String agency, String department, String cooperatingAgency, String summaryText, String state,
 			String filename, String commentsFilename, String folder, Long size, String link, String notes,
 			LocalDate noiDate, LocalDate draftNoa, LocalDate finalNoa, LocalDate firstRodDate,
-			Long processId, String county, String status, String subtype) {
+			Long processId, String county, String status, String subtype, String action, String decision) {
 		this.id = id;
 		this.title = title;
 		this.documentType = documentType;
@@ -138,6 +138,8 @@ public class EISDoc implements Serializable {
 		this.county = county;
 		this.status = status;
 		this.subtype = subtype;
+		this.action = action;
+		this.decision = decision;
 	}
 
 	public Long getId() {
@@ -333,6 +335,21 @@ public class EISDoc implements Serializable {
 
 	public void setSubtype(String subtype) {
 		this.subtype = subtype;
+	}
+	
+
+    public String getAction() {
+		return action;
+	}
+	public void setAction(String action) {
+		this.action = action;
+	}
+	
+    public String getDecision() {
+		return decision;
+	}
+	public void setDecision(String decision) {
+		this.decision = decision;
 	}
 	
 }

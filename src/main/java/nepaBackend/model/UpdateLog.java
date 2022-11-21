@@ -34,34 +34,34 @@ public class UpdateLog {
 		this.documentId = documentId;
 	}
 
-	@Column(name="title", columnDefinition ="TEXT") // Updated title
+	@Column(name="title", columnDefinition ="TEXT") 
     private String title;
 	
-	@Column(name="document") // Updated document type, etc.
+	@Column(name="document",columnDefinition="VARCHAR(255)") 
     private String document;
 	
-    @Column(name="agency")
+    @Column(name="agency", columnDefinition = "TEXT")
     private String agency;
     
-    @Column(name="department")
+    @Column(name="department",columnDefinition="VARCHAR(255)")
     private String department;
     
-    @Column(name="cooperating_agency")
+    @Column(name="cooperating_agency", columnDefinition = "TEXT")
     private String cooperatingAgency;
   
-    @Column(name="state")
+    @Column(name="state", columnDefinition = "TEXT")
     private String state;
 
-    @Column(name="county")
+    @Column(name="county", columnDefinition = "TEXT")
     private String county;
     
-    @Column(name="filename", columnDefinition ="TEXT")
+    @Column(name="filename",columnDefinition="VARCHAR(256)")
     private String filename;
 
-    @Column(name="comments_filename", columnDefinition ="TEXT")
+    @Column(name="comments_filename",columnDefinition="VARCHAR(256)")
     private String commentsFilename;
 
-    @Column(name="folder")
+    @Column(name="folder",columnDefinition="VARCHAR(256)")
     private String folder;
 
     @Column(name="web_link", columnDefinition ="TEXT")
@@ -102,6 +102,11 @@ public class UpdateLog {
 
 	@Column(name = "saved_time", columnDefinition="TIMESTAMP")
 	private LocalDateTime savedTime;
+	
+	@Column(name= "action_type", columnDefinition="TEXT")
+	private String action;
+	@Column(name= "decision", columnDefinition="TEXT")
+	private String decision;
 
 	public UpdateLog() {
 		this.savedTime = LocalDateTime.now();
@@ -112,7 +117,8 @@ public class UpdateLog {
     		String agency, String cooperatingAgency, String department, String state, String county, 
     		String filename, String commentsFilename, String folder, 
     		String link, String notes, String summary, String status, String subtype,
-    		LocalDate date, LocalDate commentsDate) {
+    		LocalDate date, LocalDate commentsDate,
+    		String action, String decision) {
 		super();
 		this.id = id;
 		this.userId = userId;
@@ -134,7 +140,25 @@ public class UpdateLog {
 		this.subtype = subtype;
 		this.date = date;
 		this.commentsDate = commentsDate;
+		this.action = action;
+		this.decision = decision;
 		this.savedTime = LocalDateTime.now();
+	}
+
+	public String getAction() {
+		return action;
+	}
+
+	public void setAction(String action) {
+		this.action = action;
+	}
+
+	public String getDecision() {
+		return decision;
+	}
+
+	public void setDecision(String decision) {
+		this.decision = decision;
 	}
 
 	public Long getId() {

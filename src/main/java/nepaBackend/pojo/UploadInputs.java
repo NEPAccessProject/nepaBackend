@@ -32,6 +32,8 @@ public class UploadInputs {
 	public String county;
 	public String status;
 	public String subtype;
+	public String action;
+	public String decision;
 	
 	public UploadInputs() {
 	}

@@ -1004,7 +1004,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					rs.getLong("process_id"),
 					rs.getString("county"), 
 					rs.getString("status"),
-					rs.getString("subtype")
+					rs.getString("subtype"),
+					rs.getString("action_type"),
+					rs.getString("decision")
 				)
 			);
 	}
