@@ -2043,6 +2043,7 @@ public class FileController {
 	}
 	
 	/** Saves pre-validated metadata record to database and returns the EISDoc with new ID */
+	@Deprecated
 	private EISDoc saveMetadata(UploadInputs dto) throws org.springframework.orm.jpa.JpaSystemException{
 		EISDoc saveDoc = new EISDoc();
 		saveDoc.setAgency(dto.agency.trim());
@@ -2435,33 +2436,34 @@ public class FileController {
 			itr.filename = "";
 		}
 		
-		// update filename if it doesn't have one yet and a new one is actually incoming,
+		// update files if it doesn't have one yet and a new one is actually incoming,
 		// OR update if there's a new, non-blank, different one than existing, and force_update
-		if( (oldRecord.getFilename() == null || oldRecord.getFilename().isBlank())
-				&& itr.filename != null 
-				&& !itr.filename.isBlank() ) {
-			oldRecord.setFilename(itr.filename.strip());
-			isChanged = true;
-		} else if ( itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")
-				&& itr.filename != null && !itr.filename.isBlank()
-				&& oldRecord.getFilename() != null
-				&& !oldRecord.getFilename().contentEquals(itr.filename)) {
-			oldRecord.setFilename(itr.filename.strip());
-			isChanged = true;
+
+		if(saneAndDifferent(itr.eis_identifier, oldRecord.getFolder())) {
+			// Files on disk? 
+			if(oldRecord.getSize() == null || oldRecord.getSize() <= 178) { // No
+				oldRecord.setFolder(itr.eis_identifier); // Update
+				isChanged = true;
+			} else { // Yes
+				if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
+					// Only save if force update when files on disk
+					oldRecord.setFolder(itr.eis_identifier);
+					isChanged = true;
+				}
+			}
 		}
-		// update folder if it doesn't have one yet and a new one is actually incoming,
-		// OR update if there's a new, non-blank, different one than existing, and force_update
-		if( (oldRecord.getFolder() == null || oldRecord.getFolder().isBlank())
-				&& itr.eis_identifier != null 
-				&& !itr.eis_identifier.isBlank() ) {
-			oldRecord.setFolder(itr.eis_identifier.strip());
-			isChanged = true;
-		} else if ( itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")
-				&& itr.eis_identifier != null && !itr.eis_identifier.isBlank()
-				&& oldRecord.getFolder() != null
-				&& !oldRecord.getFolder().contentEquals(itr.eis_identifier)) {
-			oldRecord.setFolder(itr.eis_identifier.strip());
-			isChanged = true;
+		if(saneAndDifferent(itr.filename, oldRecord.getFilename())) {
+			// Files on disk? 
+			if(oldRecord.getSize() == null || oldRecord.getSize() <= 178) { // No
+				oldRecord.setFilename(itr.filename); // Update
+				isChanged = true;
+			} else { // Yes
+				if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
+					// Only save if force update when files on disk
+					oldRecord.setFilename(itr.filename);
+					isChanged = true;
+				}
+			}
 		}
 
 		// at this point we've matched on title, date and document type already;
@@ -2680,12 +2682,30 @@ public class FileController {
 			isChanged = true;
 		}
 		if(saneAndDifferent(itr.eis_identifier, existingRecord.getFolder())) {
-			existingRecord.setFolder(itr.eis_identifier);
-			isChanged = true;
+			// Files on disk? 
+			if(existingRecord.getSize() == null || existingRecord.getSize() <= 178) { // No
+				existingRecord.setFolder(itr.eis_identifier); // Update
+				isChanged = true;
+			} else { // Yes
+				if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
+					// Only save if force update when files on disk
+					existingRecord.setFolder(itr.eis_identifier);
+					isChanged = true;
+				}
+			}
 		}
 		if(saneAndDifferent(itr.filename, existingRecord.getFilename())) {
-			existingRecord.setFilename(itr.filename);
-			isChanged = true;
+			// Files on disk? 
+			if(existingRecord.getSize() == null || existingRecord.getSize() <= 178) { // No
+				existingRecord.setFilename(itr.filename); // Update
+				isChanged = true;
+			} else { // Yes
+				if(itr.force_update != null && itr.force_update.equalsIgnoreCase("Yes")) {
+					// Only save if force update when files on disk
+					existingRecord.setFilename(itr.filename);
+					isChanged = true;
+				}
+			}
 		}
 		if(saneAndDifferent(itr.comments_filename, existingRecord.getCommentsFilename())) {
 			isChanged = true;
