@@ -977,9 +977,15 @@ public class FileController {
 		itr.action = Globals.normalizeSpace(itr.action);
 		itr.decision = Globals.normalizeSpace(itr.decision);
 		
-		itr.comments_filename = itr.comments_filename.strip();
-		itr.filename = itr.filename.strip();
-		itr.eis_identifier = itr.eis_identifier.strip();
+		if(itr.comments_filename != null) {
+			itr.comments_filename = itr.comments_filename.strip();
+		}
+		if(itr.filename != null) {
+			itr.filename = itr.filename.strip();
+		}
+		if(itr.eis_identifier != null) {
+			itr.eis_identifier = itr.eis_identifier.strip();
+		}
 		
 		return itr;
 	}
