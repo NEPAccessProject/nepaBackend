@@ -46,7 +46,7 @@ public interface GeojsonLookupRepository extends JpaRepository<GeojsonLookup, Lo
 	boolean existsByGeojsonAndEisdoc(Geojson geojson, EISDoc eisdoc);
 	@Query(value = "SELECT IF( EXISTS("
 			+ " SELECT gl.eisdoc_id,gl.geojson_id,g.id,g.geo_id FROM geojson_lookup gl" +
-			"   INNER JOIN test.geojson g ON g.id = gl.geojson_id" + 
+			"   INNER JOIN geojson g ON g.id = gl.geojson_id" + 
 			"	WHERE gl.eisdoc_id = :eid AND g.geo_id = :gid)," + 
 			"    'true','false' )AS result",
 			nativeQuery=true)

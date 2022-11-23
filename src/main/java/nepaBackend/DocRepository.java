@@ -98,14 +98,14 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** Return count of each type */
 	@Query(value = "SELECT document_type, COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "GROUP BY document_type",
 			nativeQuery = true)
 	public List<Object> getTypeCount();
 	
 	/** Return count of filenames by document type */
 //	@Query(value = "SELECT document_type, COUNT(*) "
-//			+ "FROM test.eisdoc "
+//			+ "FROM eisdoc "
 //			+ "WHERE LENGTH(filename)>0 "
 //			+ "GROUP BY document_type;",
 //			nativeQuery = true)
@@ -113,14 +113,14 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** Return count of valid size by document type */
 	@Query(value = "SELECT document_type, COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE size>200 "
 			+ "GROUP BY document_type;",
 			nativeQuery = true)
 	public List<Object> getDownloadableCountByType();
 	
 //	@Query(value = "SELECT document_type, YEAR(register_date), COUNT(*) "
-//			+ "FROM test.eisdoc "
+//			+ "FROM eisdoc "
 //			+ "GROUP BY YEAR(register_date), document_type "
 //			+ "ORDER BY document_type, YEAR(register_date);",
 //			nativeQuery = true)
@@ -128,7 +128,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** Return counts of drafts and finals by year */
 	@Query(value = "SELECT document_type, YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE document_type='Final' OR document_type='Draft' "
 			+ "OR document_type='Final and ROD' "
 			+ "GROUP BY YEAR(register_date), document_type "
@@ -139,7 +139,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** Return EIS metadata counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='Final'"
 			+ " OR document_type='Final and ROD'"
 			+ " OR document_type='Draft'"
@@ -160,7 +160,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getMetadataCountByYear();
 	
 	@Query(value = "SELECT COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='Final'"
 			+ " OR document_type='Final and ROD'"
 			+ " OR document_type='Draft'"
@@ -180,7 +180,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	
 	/** Return downloadable EIS counts by year according to file size */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='Final'"
 			+ " OR document_type='Final and ROD'"
 			+ " OR document_type='Draft'"
@@ -202,7 +202,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getDownloadableCountByYear();
 	/** Return downloadable ROD counts by year according to file size */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='ROD') "
 			+ "OR (document_type='Final and ROD') "
 			+ "AND size>200 "
@@ -213,7 +213,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getRODDownloadableCountByYear();
 	/** Return downloadable ROD counts by year according to file size */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='ROD' "
 			+ "OR document_type='Final and ROD') "
 			+ "GROUP BY YEAR(register_date) "
@@ -224,7 +224,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** Return supplement metadata counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='Final Revised'"
 			+ " OR document_type='Draft Revised'"
 		    + " OR document_type = 'Second Draft'"
@@ -244,7 +244,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getSupplementCountByYear();
 	/** Return downloadable supplement counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
-			+ " FROM test.eisdoc"
+			+ " FROM eisdoc"
 			+ " WHERE (document_type='Final Revised'"
 			+ " OR document_type='Draft Revised'"
 		    + " OR document_type = 'Second Draft'"
@@ -265,7 +265,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getDownloadableSupplementCountByYear();
 	/** Return draft metadata counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='Draft') "
 			+ "GROUP BY YEAR(register_date) "
 			+ "ORDER BY YEAR(register_date) "
@@ -274,7 +274,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getDraftCountByYear();
 	/** Return downloadable draft counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
-			+ " FROM test.eisdoc"
+			+ " FROM eisdoc"
 			+ " WHERE (document_type='Draft')"
 			+ " AND size>200"
 			+ " GROUP BY YEAR(register_date)"
@@ -284,7 +284,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getDownloadableDraftCountByYear();
 	/** Return final metadata counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE (document_type='Final' OR document_type='Final and ROD') "
 			+ "GROUP BY YEAR(register_date) "
 			+ "ORDER BY YEAR(register_date) "
@@ -293,7 +293,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getFinalCountByYear();
 	/** Return downloadable final counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
-			+ " FROM test.eisdoc"
+			+ " FROM eisdoc"
 			+ " WHERE (document_type='Final' OR document_type='Final and ROD') "
 			+ " AND size>200"
 			+ " GROUP BY YEAR(register_date)"
@@ -305,7 +305,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	
 	/** Return downloadable "other" counts by year aka non-final/draft/rod/ea */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
-			+ " FROM test.eisdoc"
+			+ " FROM eisdoc"
 			+ " WHERE (document_type!='Final'"
 			+ " AND document_type!='Final and ROD'"
 			+ " AND document_type!='Draft'"
@@ -319,7 +319,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	public List<Object> getDownloadableOtherCountByYear();
 	/** Return all "other" counts by year */
 	@Query(value = "SELECT YEAR(register_date), COUNT(*)"
-			+ " FROM test.eisdoc"
+			+ " FROM eisdoc"
 			+ " WHERE (document_type!='Final'"
 			+ " AND document_type!='Final and ROD'"
 			+ " AND document_type!='Draft'"
@@ -334,7 +334,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** Return counts of drafts and finals by state */
 	@Query(value = "SELECT document_type, state, COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE document_type='Final' OR document_type='Draft' "
 			+ "OR document_type='Final and ROD' "
 			+ "GROUP BY state, document_type "
@@ -344,7 +344,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** Return count of drafts and finals by agency */
 	@Query(value = "SELECT document_type, agency, COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE document_type='Final' OR document_type='Draft' "
 			+ "OR document_type='Final and ROD' "
 			+ "GROUP BY agency, document_type "
@@ -352,27 +352,27 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 			nativeQuery = true)
 	public List<Object> getDraftFinalCountByAgency();
 
-	@Query(value = "SELECT DISTINCT document_type FROM test.eisdoc ORDER BY document_type;",
+	@Query(value = "SELECT DISTINCT document_type FROM eisdoc ORDER BY document_type;",
 			nativeQuery = true)
 	public List<String> getDocumentTypes();
 
-	@Query(value = "SELECT DISTINCT agency FROM test.eisdoc ORDER BY agency;",
+	@Query(value = "SELECT DISTINCT agency FROM eisdoc ORDER BY agency;",
 			nativeQuery = true)
 	public List<String> getAgencies();
 	
-	@Query(value = "SELECT DISTINCT state FROM test.eisdoc ORDER BY state;",
+	@Query(value = "SELECT DISTINCT state FROM eisdoc ORDER BY state;",
 			nativeQuery = true)
 	public List<String> getStates();
 
 	@Query(value = "SELECT DISTINCT YEAR(register_date) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "ORDER BY YEAR(register_date) "
 			+ "DESC;",
 			nativeQuery = true)
 	public List<Object> getYears();
 
 	@Query(value = "SELECT COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE document_type='Final' "
 			+ "OR document_type='Final and ROD' "
 			+ "AND size>200;",
@@ -380,40 +380,40 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	long getFinalCountDownloadable();
 
 	@Query(value = "SELECT COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE document_type='Final'"
 			+ "OR document_type='Final and ROD';",
 			nativeQuery = true)
 	long getFinalCount();
 
 	@Query(value = "SELECT COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE document_type='Draft' "
 			+ "AND size>200;",
 			nativeQuery = true)
 	long getDraftCountDownloadable();
 	
 	@Query(value = "SELECT COUNT(*) "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE document_type='Draft';",
 			nativeQuery = true)
 	long getDraftCount();
 
-	@Query(value = "SELECT COUNT(*) FROM test.eisdoc WHERE size > 178;",
+	@Query(value = "SELECT COUNT(*) FROM eisdoc WHERE size > 178;",
 			nativeQuery = true)
 	Long getDownloadableCount();
 	
 	List<EISDoc> findAllByAgency(String agency);
 
 	@Query(value = "SELECT * "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE size<=200 "
 			+ "OR size is null;",
 			nativeQuery = true)
 	List<EISDoc> findMissingSize();
 	
 	@Query(value = "SELECT DISTINCT filename "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE size<=200 "
 			+ "OR size is null AND LENGTH(filename)>0 ;",
 			nativeQuery = true)
@@ -422,7 +422,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	/** For finding documents that expect files on disk (filename or folder listed) 
 	 * but have no size recorded, implying they're missing the actual files (nothing to download/index) */
 	@Query(value = "SELECT folder,id,document_type,filename "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "where (size is null OR size <=200) and (length(filename)>0 OR length(folder)>0) "
 			+ "ORDER BY folder",
 			nativeQuery = true)
@@ -455,20 +455,20 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	Optional<EISDoc> findByProcessId(long processId);
 	
 	@Query(value = "SELECT * "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE process_id IS NULL",
 			nativeQuery = true)
 	List<EISDoc> findMissingProcesses();
 
 	@Query(value = "SELECT * "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "WHERE process_id IS NULL "
 			+ "AND folder is not null and length(folder) > 0",
 			nativeQuery = true)
 	List<EISDoc> findAllWithFolderMissingProcess();
 
 	@Query(value = "SELECT MAX(process_id) "
-			+ "FROM test.eisdoc",
+			+ "FROM eisdoc",
 			nativeQuery = true)
 	long findMaxProcessId();
 
@@ -540,7 +540,7 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 	/** For finding documents that expect files on disk (filename or folder listed) 
 	 * but have no size recorded, implying they're missing the actual files (nothing to download/index) */
 	@Query(value = "SELECT * "
-			+ "FROM test.eisdoc "
+			+ "FROM eisdoc "
 			+ "where (size is null OR size <=200) and (length(filename)>0 OR length(folder)>0)",
 			nativeQuery = true)
 	List<EISDoc> sizeUnder200();

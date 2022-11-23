@@ -10,7 +10,7 @@ import nepaBackend.model.Excel;
 public interface ExcelRepository extends JpaRepository<Excel, Long> {
 
 	@Query(value = 
-			"SELECT * FROM test.excel ORDER BY saved_time DESC LIMIT 1;",
+			"SELECT * FROM excel ORDER BY saved_time DESC LIMIT 1;",
 			nativeQuery = true)
 	Optional<Excel> findMostRecent();
 }
