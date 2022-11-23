@@ -42,61 +42,61 @@ repositories {
 
 dependencies {
 	// Integral for web app
- 	compile("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-web")
  	  
     // We might use this for analytics
-    compile("org.springframework.boot:spring-boot-devtools")
+    implementation("org.springframework.boot:spring-boot-devtools")
     
     // JPA Data (We are going to use Repositories, Entities, Hibernate, etc...)
-    compile 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
-    compile("org.springframework:spring-jdbc")
-    compile("com.h2database:h2")
+    implementation("org.springframework:spring-jdbc")
+    implementation("com.h2database:h2")
 	
 	// MySQL
-    compile 'mysql:mysql-connector-java'
+    implementation 'mysql:mysql-connector-java'
 	
     // JUnit test framework
     testImplementation 'junit:junit:4.12'
     
     // Ensure Java 10 compability
-    compile('javax.xml.bind:jaxb-api:2.3.0')
+    implementation('javax.xml.bind:jaxb-api:2.3.0')
     
     // Security framework
-    compile("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-security")
     
     // JWT for Java, Android
-    compile("com.auth0:java-jwt:3.4.0")
+    implementation("com.auth0:java-jwt:3.4.0")
     
     // https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-mail
-	compile group: 'org.springframework.boot', name: 'spring-boot-starter-mail', version: '1.2.0.RELEASE'
+	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-mail', version: '1.2.0.RELEASE'
     
     // WebClient
-    compile 'org.springframework.boot:spring-boot-starter-webflux'
-    compile 'org.projectreactor:reactor-spring:1.0.1.RELEASE'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.projectreactor:reactor-spring:1.0.1.RELEASE'
     
     /** Lucene basic dependencies 
     */
     // https://mvnrepository.com/artifact/org.hibernate/hibernate-core
-	compile group: 'org.hibernate', name: 'hibernate-core', version: '5.4.12.Final'
+	implementation group: 'org.hibernate', name: 'hibernate-core', version: '5.4.12.Final'
     // https://mvnrepository.com/artifact/org.hibernate/hibernate-search-orm
 	//compile group: 'org.hibernate', name: 'hibernate-search-orm', version: '5.11.5.Final'
     
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-core
- 	compile group: 'org.apache.lucene', name: 'lucene-core', version: '8.7.0'
+ 	implementation group: 'org.apache.lucene', name: 'lucene-core', version: '8.7.0'
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-queryparser
-	compile group: 'org.apache.lucene', name: 'lucene-queryparser', version: '8.7.0'
+	implementation group: 'org.apache.lucene', name: 'lucene-queryparser', version: '8.7.0'
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-queries
-	compile group: 'org.apache.lucene', name: 'lucene-queries', version: '8.7.0'
+	implementation group: 'org.apache.lucene', name: 'lucene-queries', version: '8.7.0'
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-analyzers-common
-	compile group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: '8.7.0'
+	implementation group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: '8.7.0'
 	
     /** Lucene advanced dependencies (highlighter et al)
     */
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-highlighter
-	compile group: 'org.apache.lucene', name: 'lucene-highlighter', version: '8.7.0'
+	implementation group: 'org.apache.lucene', name: 'lucene-highlighter', version: '8.7.0'
 	// https://mvnrepository.com/artifact/org.apache.lucene/lucene-suggest
-	compile group: 'org.apache.lucene', name: 'lucene-suggest', version: '8.7.0'
+	implementation group: 'org.apache.lucene', name: 'lucene-suggest', version: '8.7.0'
 	/** Gradle should install these artifact dependencies unless otherwise noted
 	https://mvnrepository.com/artifact/org.apache.lucene/lucene-grouping
 	compile group: 'org.apache.lucene', name: 'lucene-grouping', version: '5.5.0'	
@@ -115,12 +115,12 @@ dependencies {
 	/** Note: Tika causes a lot of spurious Class-Path manifest attribute runtime warnings that are safe to ignore 
 	*/
 	// https://mvnrepository.com/artifact/org.apache.tika/tika-parsers
-	compile group: 'org.apache.tika', name: 'tika-parsers', version: '1.24'
+	implementation group: 'org.apache.tika', name: 'tika-parsers', version: '1.24'
 	
 	// https://mvnrepository.com/artifact/org.glassfish/javax.json
-    compile group: 'org.glassfish', name: 'javax.json', version: '1.1.4'
+    implementation group: 'org.glassfish', name: 'javax.json', version: '1.1.4'
 	// https://mvnrepository.com/artifact/javax.json/javax.json-api
-	compile group: 'javax.json', name: 'javax.json-api', version: '1.1.4'
+	implementation group: 'javax.json', name: 'javax.json-api', version: '1.1.4'
 	
     
 }
