@@ -40,7 +40,7 @@ public class UpdateLog {
 	@Column(name="document",columnDefinition="VARCHAR(255)") 
     private String document;
 	
-    @Column(name="agency", columnDefinition = "TEXT")
+    @Column(name="agency", columnDefinition = "VARCHAR(255)")
     private String agency;
     
     @Column(name="department",columnDefinition="VARCHAR(255)")
