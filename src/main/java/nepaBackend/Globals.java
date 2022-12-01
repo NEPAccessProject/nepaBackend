@@ -12,6 +12,10 @@ public class Globals {
     
     private static final String PROD_DB_BASE_URL = SecurityConstants.DB_ADDRESS;
 
+    private static final String BIGHORN_META_INDEX_DIRECTORY_PATH = "/media/data/EISDoc";
+    private static final String BIGHORN_INDEX_DIRECTORY_PATH = "/media/data/DocumentText";
+    private static final String BIGHORN_SUGGEST_PATH = "/media/data/LuceneSuggest";
+
     private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
     private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
     private static final String SUGGEST_PATH = "/LuceneSuggest";
@@ -28,6 +32,8 @@ public class Globals {
     public static final Path getIndexPath() {
     	if(TESTING) {
     		return Path.of(TESTING_INDEX_DIRECTORY_PATH);
+    	} else if (SecurityConstants.BIGHORN) {
+    		return Path.of(BIGHORN_INDEX_DIRECTORY_PATH);
     	} else {
     		return Path.of(INDEX_DIRECTORY_PATH);
     	}
@@ -35,6 +41,8 @@ public class Globals {
     public static final String getIndexString() {
     	if(TESTING) {
     		return (TESTING_INDEX_DIRECTORY_PATH);
+    	} else if (SecurityConstants.BIGHORN) {
+    		return (BIGHORN_INDEX_DIRECTORY_PATH);
     	} else {
     		return (INDEX_DIRECTORY_PATH);
     	}
@@ -42,6 +50,8 @@ public class Globals {
 	public static String getMetaIndexString() {
     	if(TESTING) {
     		return (META_TESTING_INDEX_DIRECTORY_PATH);
+    	} else if (SecurityConstants.BIGHORN) {
+    		return (BIGHORN_META_INDEX_DIRECTORY_PATH);
     	} else {
     		return (META_INDEX_DIRECTORY_PATH);
     	}
@@ -49,12 +59,15 @@ public class Globals {
 	public static Path getSuggestPath() {
 		if(TESTING) {
 			return Path.of(TEST_SUGGEST_PATH);
+    	} else if (SecurityConstants.BIGHORN) {
+    		return Path.of(BIGHORN_SUGGEST_PATH);
 		} else {
 			return Path.of(SUGGEST_PATH);
 		}
 	}
 
     // Database/file server URL to base folder containing all files exposed to DAL for download
+	// Note: Might change this after migration
     public static final String DOWNLOAD_URL = "http://"+PROD_DB_BASE_URL+":80/test/";
     // Database/file server URL for Express service which handles new file uploads (and potentially updating or deleting files)
     public static final String UPLOAD_URL = "http://"+PROD_DB_BASE_URL+":"+SecurityConstants.EXPRESS_PORT+"/";
