@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,7 +36,6 @@ import nepaBackend.DocService;
 import nepaBackend.EISMatchService;
 import nepaBackend.Globals;
 import nepaBackend.NEPAFileRepository;
-import nepaBackend.NameRanker;
 import nepaBackend.ProcessRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.UpdateLogService;
@@ -47,6 +45,7 @@ import nepaBackend.model.NEPAFile;
 import nepaBackend.model.SearchLog;
 import nepaBackend.model.UpdateLog;
 import nepaBackend.pojo.DocWithFilenames;
+import nepaBackend.pojo.EISMatchData;
 import nepaBackend.pojo.MatchParams;
 import nepaBackend.pojo.UploadInputs;
 import nepaBackend.security.SecurityConstants;
@@ -129,7 +128,6 @@ public class EISController {
 		}
     }
 
-	@CrossOrigin
 	@PostMapping(path = "/match", 
 	consumes = "application/json", 
 	produces = "application/json", 
@@ -240,7 +238,6 @@ public class EISController {
 		}
 	}
 	
-	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs")
 	public @ResponseBody ResponseEntity<Object> getAllPairs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -250,7 +247,6 @@ public class EISController {
 			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs_one")
 	public @ResponseBody ResponseEntity<Object> getAllPairsOne(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -260,7 +256,6 @@ public class EISController {
 			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/match_all_pairs_two")
 	public @ResponseBody ResponseEntity<Object> getAllPairsTwo(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -270,7 +265,6 @@ public class EISController {
 			return new ResponseEntity<Object>(HttpStatus.UNAUTHORIZED);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/search_logs")
 	public @ResponseBody ResponseEntity<List<Object>> getAllSearchLogs(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -298,7 +292,6 @@ public class EISController {
 	 * in the original query.)
 	 * 
 	 * All of this can be done in either the frontend, here or in the SQL query. */
-	@CrossOrigin
 	@PostMapping(path = "/match_advanced", 
 	consumes = "application/json", 
 	produces = "application/json", 
@@ -411,7 +404,6 @@ public class EISController {
 	}
 	
 	/** Get a list of matches (only data from Match table: ID pair, percentage) */
-	@CrossOrigin
 	@PostMapping(path = "/matchTest", 
 	consumes = "application/json", 
 	produces = "application/json", 
@@ -424,20 +416,17 @@ public class EISController {
 		// Don't want to allow match_percent < 1, etc.
 	}
 	
-	@CrossOrigin
 	@PostMapping(path = "/check") // to simply verify user has access to /test/**
 	public void check() {
 	}
 	
 	/** Get close titles */
-	@CrossOrigin
 	@PostMapping(path = "/titles")
 	public List<String> titles(@RequestParam("title") String title)
 	{
 		return docService.getByTitle(title);
 	}
 	
-	@CrossOrigin
 	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
 	public Optional<EISDoc> getById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
 		try {
@@ -455,7 +444,6 @@ public class EISController {
 	 * 401: Not curator/admin 
 	 * 404: No document for ID 
 	 * 500: Something broke before we even got to the ID */
-	@CrossOrigin
 	@RequestMapping(path = "/update_doc", method = RequestMethod.POST)
 	public ResponseEntity<Void> updateDoc(@RequestPart(name="doc") String doc, 
 			@RequestHeader Map<String, String> headers) {
@@ -536,7 +524,6 @@ public class EISController {
 	}
 	
 	/** Fix errors by the federal government, return before/afters */
-	@CrossOrigin
 	@RequestMapping(path = "/fix_abbrev", method = RequestMethod.POST)
 	public ResponseEntity<String> fixAbbrev(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -641,7 +628,6 @@ public class EISController {
 		}
 	}
 
-	@CrossOrigin
 	@RequestMapping(path = "/add_rods", method = RequestMethod.POST)
 	public ResponseEntity<List<String>> addRodsFromFinals(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");

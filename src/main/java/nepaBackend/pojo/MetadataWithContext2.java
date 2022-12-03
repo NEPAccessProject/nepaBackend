@@ -1,4 +1,4 @@
-package nepaBackend.controller;
+package nepaBackend.pojo;
 
 import java.util.List;
 

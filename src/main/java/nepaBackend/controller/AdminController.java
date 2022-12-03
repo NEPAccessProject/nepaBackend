@@ -21,7 +21,6 @@ import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -254,7 +253,6 @@ public class AdminController {
     }
     
 
-    @CrossOrigin
     @RequestMapping(path = "/exec_delete_requests", method = RequestMethod.POST)
     ResponseEntity<String> execDeleteRequests(@RequestHeader Map<String,String> headers) {
 		String token = headers.get("authorization");
@@ -305,7 +303,6 @@ public class AdminController {
     
     /** Given DocumentText ID, delete the DocumentText and any NEPAFile(s) for it from the linked EISDoc.
      * File is also deleted */
-    @CrossOrigin
     @RequestMapping(path = "/delete_text", method = RequestMethod.POST)
     ResponseEntity<String> deleteFileByDocumentTextId(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	// Normally probably want to go by NEPAFile ID but for the original files there are no NEPAFiles anyway
@@ -360,7 +357,6 @@ public class AdminController {
 
     
     // Deletes NEPAFile, file on disk and related text, sets as not imported
-    @CrossOrigin
     @RequestMapping(path = "/delete_nepa_file", method = RequestMethod.POST)
     ResponseEntity<String> deleteNepaFileById(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	try {
@@ -425,7 +421,6 @@ public class AdminController {
     /** Delete all NEPAFiles and DocumentTexts from an EISDoc by its ID, then delete the actual files on disk, 
      * and finally delete the Folder field for the EISDoc and update it.
      * Using ORM to delete allows Lucene to automatically also delete the relevant data from its index. */
-    @CrossOrigin
     @RequestMapping(path = "/deleteAllFiles", method = RequestMethod.POST)
     ResponseEntity<String> deleteAllFiles(@RequestBody String id, @RequestHeader Map<String, String> headers) {
     	List<String> deletedList = new ArrayList<String>();
@@ -504,7 +499,6 @@ public class AdminController {
     }
 
     // Deletes the eisdoc itself after calling deleteAllFiles and deleteTitleAlignmentScores
-    @CrossOrigin
     @RequestMapping(path = "/deleteDoc", method = RequestMethod.POST)
     ResponseEntity<String> deleteDoc(@RequestBody String id, @RequestHeader Map<String, String> headers) {
 

@@ -934,7 +934,6 @@ public class UserController {
 	}
 
 
-    @CrossOrigin
 	@GetMapping(path = "/getFields")
 	public ResponseEntity<ContactForm> getFields(@RequestHeader Map<String, String> headers) {
 
@@ -960,7 +959,6 @@ public class UserController {
 	}
 
     @SuppressWarnings("unused")
-	@CrossOrigin
 	@PostMapping(path = "/contact")
 	public ResponseEntity<Boolean> contact(@RequestParam String contactData, @RequestParam String recaptchaToken, @RequestHeader Map<String, String> headers) {
 

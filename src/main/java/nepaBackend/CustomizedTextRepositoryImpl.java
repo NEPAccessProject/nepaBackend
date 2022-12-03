@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import nepaBackend.controller.MetadataWithContext3;
+import nepaBackend.pojo.MetadataWithContext3;
 import nepaBackend.enums.EntityType;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;

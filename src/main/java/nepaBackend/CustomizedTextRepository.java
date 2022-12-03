@@ -5,9 +5,9 @@ import java.util.List;
 
 import org.apache.lucene.queryparser.classic.ParseException;
 
-import nepaBackend.controller.MetadataWithContext3;
 import nepaBackend.enums.SearchType;
 import nepaBackend.model.EISDoc;
+import nepaBackend.pojo.MetadataWithContext3;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.Suggestion;
 import nepaBackend.pojo.UnhighlightedDTO;

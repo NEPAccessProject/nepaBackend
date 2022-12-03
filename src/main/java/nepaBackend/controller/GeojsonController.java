@@ -1,7 +1,6 @@
 package nepaBackend.controller;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,7 +52,6 @@ public class GeojsonController {
 	ApplicationUserService applicationUserService;
 
 	/** Returns entire lookup table of objects */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all", method = RequestMethod.GET)
 	private ResponseEntity<List<GeojsonLookup>> getAll(@RequestHeader Map<String, String> headers) {
 		try {
@@ -69,7 +66,6 @@ public class GeojsonController {
 	}
 
 	/** Returns all state and county geojson data */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_state_county", method = RequestMethod.GET)
 	private ResponseEntity<List<Geojson>> findAllGeojsonStateCounty(@RequestHeader Map<String, String> headers) {
 
@@ -84,7 +80,6 @@ public class GeojsonController {
 
 	/** Returns state and county geojson data for all documents listed 
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
-	@CrossOrigin
 	@RequestMapping(path = "/get_geodata_other_for_eisdocs", method = RequestMethod.POST)
 	private ResponseEntity<List<GeodataWithCount>> findOtherGeojsonByDocList(@RequestHeader Map<String, String> headers,
 				@RequestBody String ids) {
@@ -107,7 +102,6 @@ public class GeojsonController {
 	}
 	/** Returns state and county geojson data for all documents listed 
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_geodata_for_eisdocs", method = RequestMethod.POST)
 	private ResponseEntity<List<GeodataWithCount>> findAllGeojsonByDocList(@RequestHeader Map<String, String> headers,
 				@RequestBody String ids) {
@@ -130,7 +124,6 @@ public class GeojsonController {
 	}
 	/** Returns state and county geojson data for all documents listed 
 	 * Need to use POST because the payload is somewhat large (~100kb+) */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_state_county_for_eisdocs", method = RequestMethod.POST)
 	private ResponseEntity<List<GeodataWithCount>> findAllGeojsonStateCountyByDocList(@RequestHeader Map<String, String> headers,
 				@RequestBody String ids) {
@@ -153,7 +146,6 @@ public class GeojsonController {
 	}
 	
 	/** Returns geojson strings for a specific document */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_geojson_for_eisdoc", method = RequestMethod.GET)
 	private ResponseEntity<List<String>> getAllGeojsonForEisdoc(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
@@ -170,7 +162,6 @@ public class GeojsonController {
 	}
 
 	/** Returns geojson strings for a specific process */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_geojson_for_process", method = RequestMethod.GET)
 	private ResponseEntity<List<String>> getAllGeojsonForProcess(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
@@ -187,7 +178,6 @@ public class GeojsonController {
 	}
 
 	/** Returns all eisdocs for a specific geo_id (for potential use by a map-first search) */
-	@CrossOrigin
 	@RequestMapping(path = "/find_all_eisdoc_for_geojson", method = RequestMethod.GET)
 	private ResponseEntity<List<EISDoc>> findAllDocsForGeojson(@RequestHeader Map<String, String> headers,
 				@RequestParam String geoId) {
@@ -204,7 +194,6 @@ public class GeojsonController {
 	}
 
 
-	@CrossOrigin
 	@RequestMapping(path = "/exists_for_eisdoc", method = RequestMethod.GET)
 	private ResponseEntity<Boolean> existsForEisdoc(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
@@ -220,7 +209,6 @@ public class GeojsonController {
 			return new ResponseEntity<Boolean>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@RequestMapping(path = "/exists_for_process", method = RequestMethod.GET)
 	private ResponseEntity<Boolean> existsForProcess(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
@@ -239,7 +227,6 @@ public class GeojsonController {
 	 * @return list of results 
 	 * */
 
-	@CrossOrigin
 	@RequestMapping(path = "/import_geo", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importGeo(
 				@RequestPart(name="geo") String geo, 
@@ -313,7 +300,6 @@ public class GeojsonController {
 	 * @return result
 	 * */
 
-	@CrossOrigin
 	@RequestMapping(path = "/import_geo_one", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importGeoOne(
 				@RequestPart(name="geo") String geo, 
@@ -369,7 +355,6 @@ public class GeojsonController {
 		return new ResponseEntity<List<String>>(results,HttpStatus.OK);
 	}
 
-	@CrossOrigin
 	@RequestMapping(path = "/import_geo_links", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importGeoLinks(
 				@RequestPart(name="geoLinks") String geoLinks, 
@@ -447,7 +432,6 @@ public class GeojsonController {
 
 
 	// run-once county name replacer for all records with county names
-	@CrossOrigin
 	@RequestMapping(path = "/replace_county_names", method = RequestMethod.POST)
 	private ResponseEntity<String> replace_county_names(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -471,7 +455,6 @@ public class GeojsonController {
 	
 	/** For individually setting the county names based on linked geodata. Replaces any existing county names
 	 * for the eisdoc for the id provided */
-	@CrossOrigin
 	@RequestMapping(path = "/replace_county_name", method = RequestMethod.POST)
 	private ResponseEntity<String> replace_county_name(
 				@RequestPart(name="id") String id, 
@@ -600,7 +583,6 @@ public class GeojsonController {
 
 
 	/** UNUSED Returns lookup table for a specific document */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_for_eisdoc", method = RequestMethod.GET)
 	private ResponseEntity<List<GeojsonLookup>> getAllForEisdoc(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
@@ -615,7 +597,6 @@ public class GeojsonController {
 	}
 
 	/** UNUSED Returns lookup table for a specific process */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_for_process", method = RequestMethod.GET)
 	private ResponseEntity<List<GeojsonLookup>> getAllForProcess(@RequestHeader Map<String, String> headers,
 				@RequestParam String id) {
@@ -632,7 +613,6 @@ public class GeojsonController {
 	}
 
 
-//	@CrossOrigin
 //	@RequestMapping(path = "/get_all_geojson", method = RequestMethod.GET)
 //	private ResponseEntity<List<Geojson>> getAllGeojson(@RequestHeader Map<String, String> headers) {
 //		try {
@@ -652,7 +632,6 @@ public class GeojsonController {
 //		}
 //	}
 	
-//	@CrossOrigin
 //	@RequestMapping(path = "/save", method = RequestMethod.POST, consumes = "multipart/form-data")
 //	private ResponseEntity<Boolean> save(@RequestPart(name="surveyResult") String surveyResult, 
 //				@RequestPart(name="searchTerms", required = false) String searchTerms, 

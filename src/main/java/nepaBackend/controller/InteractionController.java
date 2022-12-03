@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -51,7 +50,6 @@ public class InteractionController {
 	@Autowired
 	SearchLogRepository searchLogRepo;
 	
-	@CrossOrigin
 	@RequestMapping(path = "/set", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<Boolean> interactionSet(@RequestPart(name="source") String source, 
 				@RequestPart(name="type") String type, 
@@ -80,7 +78,6 @@ public class InteractionController {
 		}
 	}
 
-	@CrossOrigin
 	@RequestMapping(path = "/get_all", method = RequestMethod.GET)
 	private ResponseEntity<List<InteractionLog>> interactionGet(
 				@RequestHeader Map<String, String> headers) {
@@ -106,7 +103,6 @@ public class InteractionController {
 		return exclusionUsernames.contains(username);
 	}
 	/** Get search logs also */
-	@CrossOrigin
 	@RequestMapping(path = "/get_all_combined", method = RequestMethod.GET)
 	private ResponseEntity<List<InteractionSearchLog>> interactionGetCombined(
 				@RequestHeader Map<String, String> headers, 

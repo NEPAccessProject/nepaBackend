@@ -7,22 +7,16 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.auth0.jwt.JWT;
-
-import nepaBackend.ApplicationUserRepository;
 import nepaBackend.ApplicationUserService;
 import nepaBackend.DocRepository;
 import nepaBackend.SearchLogRepository;
 import nepaBackend.TextRepository;
-import nepaBackend.model.ApplicationUser;
-import nepaBackend.security.SecurityConstants;
 
 @RestController
 @RequestMapping("/stats")
@@ -40,7 +34,6 @@ public class StatsController {
 	public StatsController() {
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/type_count", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -57,7 +50,6 @@ public class StatsController {
 	}
 	
 
-	@CrossOrigin
 	@GetMapping(path = "/text_count", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -74,7 +66,6 @@ public class StatsController {
 	}
 	
 
-	@CrossOrigin
 	@GetMapping(path = "/downloadable_count_type", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -94,7 +85,6 @@ public class StatsController {
 	/** Stats for Paul */
 
 	
-	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -105,7 +95,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable_rod", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -116,7 +105,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -127,7 +115,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_rod", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -138,7 +125,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_draft", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -149,7 +135,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable_draft", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -160,7 +145,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_final", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -171,7 +155,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable_final", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -182,7 +165,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_supplement", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -193,7 +175,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable_supplement", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -204,7 +185,6 @@ public class StatsController {
 			return new ResponseEntity<List<Object>>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/count_year_other", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -216,7 +196,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/count_year_downloadable_other", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -232,7 +211,6 @@ public class StatsController {
 	/**  */
 
 	
-	@CrossOrigin
 	@GetMapping(path = "/draft_final_count_year", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -248,7 +226,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/draft_final_count_state", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -264,7 +241,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/draft_final_count_agency", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -280,7 +256,6 @@ public class StatsController {
 		}
 	}
 	
-	@CrossOrigin
 	@GetMapping(path = "/agencies", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -296,7 +271,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/states", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -312,7 +286,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/years", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -335,7 +308,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/earliest_year", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -348,7 +320,6 @@ public class StatsController {
 			return new ResponseEntity<Integer>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/latest_year", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -361,7 +332,6 @@ public class StatsController {
 			return new ResponseEntity<Integer>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/eis_count", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -373,7 +343,6 @@ public class StatsController {
 			return new ResponseEntity<Long>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
-	@CrossOrigin
 	@GetMapping(path = "/total_count", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -393,7 +362,6 @@ public class StatsController {
 		- Then, if possible add another sentence like, “Of these, x1 draft and y1 final EISs 
 		are in a format that supports full-text searching and downloading.” */
 
-	@CrossOrigin
 	@GetMapping(path = "/final_count", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -409,7 +377,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/final_count_downloadable", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -425,7 +392,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/draft_count", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -441,7 +407,6 @@ public class StatsController {
 		}
 	}
 
-	@CrossOrigin
 	@GetMapping(path = "/draft_count_downloadable", 
 	produces = "application/json", 
 	headers = "Accept=application/json")
@@ -457,7 +422,6 @@ public class StatsController {
 		}
 	}
 	
-	@CrossOrigin
 	@GetMapping(path = "/find_all_searches")
 	public @ResponseBody ResponseEntity<List<Object>> findAllWithUsername(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");

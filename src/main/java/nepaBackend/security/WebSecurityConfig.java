@@ -14,6 +14,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import nepaBackend.Globals;
 import nepaBackend.UserDetailsServiceImpl;
 
+import java.util.Arrays;
+
 import org.springframework.context.annotation.Bean;
 
 @EnableWebSecurity
@@ -37,11 +39,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         .antMatchers("/user/verify")
         .antMatchers("/reset/change")
         .antMatchers("/reset/send")
-        .antMatchers("/reset/check")
-        .antMatchers("/stats/eis_count")
-        .antMatchers("/stats/total_count")
-        .antMatchers("/stats/latest_year")
-        .antMatchers("/stats/earliest_year");
+        .antMatchers("/reset/check");
     }
     
     @Override
@@ -79,6 +77,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .antMatchers(HttpMethod.POST,"/geojson/get_all_state_county_for_eisdocs").permitAll()
          .antMatchers(HttpMethod.POST,"/geojson/get_all_geodata_for_eisdocs").permitAll()
          .antMatchers(HttpMethod.POST,"/geojson/get_geodata_other_for_eisdocs").permitAll()
+         .antMatchers(HttpMethod.GET, "/stats/eis_count").permitAll()
+         .antMatchers(HttpMethod.GET, "/stats/total_count").permitAll()
+         .antMatchers(HttpMethod.GET, "/stats/latest_year").permitAll()
+         .antMatchers(HttpMethod.GET, "/stats/earliest_year").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/check").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/**").permitAll()
@@ -100,6 +102,9 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("https://localhost", "http://localhost"));
+        configuration.setAllowedMethods(Arrays.asList("GET","POST"));
 	    final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 	    source.registerCorsConfiguration("/**", new CorsConfiguration().applyPermitDefaultValues());
 	    return source;

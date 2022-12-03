@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,6 +36,8 @@ import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.DocumentText;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.SearchLog;
+import nepaBackend.pojo.MetadataWithContext;
+import nepaBackend.pojo.MetadataWithContext3;
 import nepaBackend.pojo.SearchInputs;
 import nepaBackend.pojo.Suggestion;
 import nepaBackend.pojo.UnhighlightedDTO;
@@ -61,20 +62,17 @@ public class FulltextController {
 	private boolean testing = Globals.TESTING;
 	private static final Logger logger = LoggerFactory.getLogger(FulltextController.class);
 	
-	@CrossOrigin
 	@GetMapping(path = "/test_terms")
 	public ResponseEntity<String> testTerms(@RequestParam String terms) {
 		return new ResponseEntity<String>(textRepository.testTerms(terms), HttpStatus.OK);
 	}
 	
-	@CrossOrigin
 	@GetMapping(path = "/search/suggest")
 	public ResponseEntity<List<Suggestion>> suggest(@RequestParam String terms) {
 		return new ResponseEntity<List<Suggestion>>(textRepository.lookup(terms), HttpStatus.OK);
 	}
 
 	// Metadata search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
-	@CrossOrigin
 	@PostMapping(path = "/search")
 	public ResponseEntity<List<MetadataWithContext>> search(@RequestBody SearchInputs searchInputs,
 			@RequestHeader Map<String, String> headers)
@@ -117,7 +115,6 @@ public class FulltextController {
 	// Only get the top 100 results to get something back to the user much faster
 	// TODO?: Could just be the top ~10 metadata results and the top text highlight for each.
 	// Or later the top 10 processes, etc.
-	@CrossOrigin
 	@PostMapping(path = "/search_top")
 	public ResponseEntity<List<MetadataWithContext3>> searchTop(@RequestBody SearchInputs searchInputs,
 			@RequestHeader Map<String, String> headers)
@@ -163,7 +160,6 @@ public class FulltextController {
 	}
 
 	// Metadata without context search using Lucene (and JDBC) returns ArrayList of MetadataWithContext
-	@CrossOrigin
 	@PostMapping(path = "/search_no_context")
 	public ResponseEntity<List<MetadataWithContext3>> searchNoContext(@RequestBody SearchInputs searchInputs,
 			@RequestHeader Map<String, String> headers)
@@ -191,7 +187,6 @@ public class FulltextController {
 	}
 
 	// Returns highlights for given list of IDs and filenames
-	@CrossOrigin
 	@PostMapping(path = "/get_highlightsFVH")
 	public ResponseEntity<List<List<String>>> getHighlightsFVH(@RequestBody UnhighlightedDTO unhighlighted) throws IOException
 	{
@@ -230,7 +225,6 @@ public class FulltextController {
 		}
 	}
 	
-//	@CrossOrigin
 //	@GetMapping(path = "/new_test")
 //	ResponseEntity<List<HighlightedResult>> newTest(@RequestBody String query) {
 //		try {
@@ -244,7 +238,6 @@ public class FulltextController {
 //	}
 
 //	/** Mostly for testing, returns raw results from a .getResultList() call */
-//	@CrossOrigin
 //	@PostMapping(path = "/get_raw")
 //	public ResponseEntity<List<Object[]>> getRaw(@RequestBody SearchInputs searchInputs)
 //	{
@@ -263,7 +256,6 @@ public class FulltextController {
 
 
 //	// Testing getting data offset# results at a time
-//	@CrossOrigin
 //	@PostMapping(path = "/search_test")
 //	public ResponseEntity<List<MetadataWithContext>> searchTest(@RequestBody SearchInputs searchInputs)
 //	{
@@ -282,7 +274,6 @@ public class FulltextController {
 	 * (adds MySQL document_text table to Lucene with denormalization) 
 	 * Now also adds eisdoc because it's set to @Indexed and the title field is set to @Field 
 	 * Shouldn't need to be run again unless adding entirely new fields or tables to Lucene */
-	@CrossOrigin
 	@RequestMapping(path = "/sync", method = RequestMethod.GET)
 	public boolean sync(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -297,7 +288,6 @@ public class FulltextController {
 
 	/** Rewrite all existing titles for normalized space (deduplication should compare with normalized input)
 	 * Legacy titles all had a \r at the end, and we don't want that.  Also turns double spaces into single */
-	@CrossOrigin
 	@RequestMapping(path = "/normalize_titles", method = RequestMethod.GET)
 	public List<String> normalizeTitleSpace(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -329,7 +319,6 @@ public class FulltextController {
 	}
 	
 	/** Get a list of DocumentTexts for a given EIS ID (DocumentText.document_id) */
-	@CrossOrigin
 	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
 	public List<DocumentText> getById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -350,7 +339,6 @@ public class FulltextController {
 	}
 	
 	/** Get a list of DocumentTexts for a given EIS title (EISDoc.title) (title is not unique)*/
-	@CrossOrigin
 	@RequestMapping(path = "/get_by_title", method = RequestMethod.GET)
 	public List<DocumentText> getByTitle(@RequestParam String title, @RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -375,7 +363,6 @@ public class FulltextController {
 	
 
 	/** Get a list of DocumentTexts by the first EISDoc to match on filename (filename is not unique)*/
-	@CrossOrigin
 	@RequestMapping(path = "/get_by_filename", method = RequestMethod.GET)
 	public List<DocumentText> getByFilename(@RequestParam String filename, @RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
@@ -396,7 +383,6 @@ public class FulltextController {
 
 	/** Given id, returns length of plaintext for document_text if found.  If not found, returns -1
 	 */
-	@CrossOrigin
 	@RequestMapping(path = "/get_length", method = RequestMethod.GET)
 	public int getLengthOfDocumentText(@RequestParam long id) {
 		try {
@@ -409,7 +395,6 @@ public class FulltextController {
 	/** Get a list of document_text IDs who have the same length(plaintext) as for the given document_text ID. 
 	 * It's one method for finding potential duplicates which may or may not have the same filename or be associated
 	 * with the same EISDoc record */
-	@CrossOrigin
 	@RequestMapping(path = "/get_length_ids", method = RequestMethod.GET)
 	public List<BigInteger> getIdsByLengthFromId(@RequestParam long id) {
 		if(testing) {

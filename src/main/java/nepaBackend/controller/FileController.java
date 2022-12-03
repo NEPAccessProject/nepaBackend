@@ -52,7 +52,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -91,7 +90,6 @@ import nepaBackend.model.FileLog;
 import nepaBackend.model.NEPAFile;
 import nepaBackend.model.NEPAProcess;
 import nepaBackend.model.UpdateLog;
-import nepaBackend.pojo.DumbProcessInputs;
 import nepaBackend.pojo.FolderDelete;
 import nepaBackend.pojo.ProcessInputs;
 import nepaBackend.pojo.UploadInputs;
@@ -164,7 +162,6 @@ public class FileController {
     }
 
 	/** Check all possible file sizes for entities with filenames or folders */
-	@CrossOrigin
 	@RequestMapping(path = "/filesizes", method = RequestMethod.GET)
 	public ResponseEntity<String> filesizes() {
 		try {
@@ -197,7 +194,6 @@ public class FileController {
 	
 
 	/** Check all missing files for entities with filenames or folders, set new size if found */
-	@CrossOrigin
 	@RequestMapping(path = "/filesizes_missing", method = RequestMethod.GET)
 	public ResponseEntity<String> filesizesMissing() {
 		try {
@@ -229,7 +225,6 @@ public class FileController {
 	}
 
 	/** Return list of "missing" files (no size on record, has folder/filename) */
-	@CrossOrigin
 	@RequestMapping(path = "/missing_files", method = RequestMethod.GET)
 	public ResponseEntity<List<Object[]>> missingFiles() {
 		try {
@@ -243,7 +238,6 @@ public class FileController {
 	}
 
 	/** Return list of no files (no size on record) */
-	@CrossOrigin
 	@RequestMapping(path = "/missing_size", method = RequestMethod.GET)
 	public ResponseEntity<List<EISDoc>> missingSize() {
 		try {
@@ -256,7 +250,6 @@ public class FileController {
 		}
 	}
 	
-	@CrossOrigin
 	@RequestMapping(path = "/filenames", method = RequestMethod.GET)
 	public ResponseEntity<List<String>> filenames(@RequestParam long document_id) {
 		try {
@@ -282,7 +275,6 @@ public class FileController {
 	}
 
 	// as of August '21 this probably only operates on epa comment letters?
-	@CrossOrigin
 	@RequestMapping(path = "/downloadFile", method = RequestMethod.GET)
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String filename) {
@@ -312,7 +304,6 @@ public class FileController {
 	}
 
 	/** Handles multiple files to download for an EISDoc record, given its ID */
-	@CrossOrigin
 	@RequestMapping(path = "/downloadFolder", method = RequestMethod.GET)
 	public ResponseEntity<Void> downloadFolderById(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String id) {
@@ -383,7 +374,6 @@ public class FileController {
 	
 	
 	/** Handles individual downloads using nepafile path */
-	@CrossOrigin
 	@RequestMapping(path = "/download_nepa_file", method = RequestMethod.GET)
 	public ResponseEntity<Void> downloadNepaFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String id, String filename) {
@@ -426,7 +416,6 @@ public class FileController {
 	}
 
 	/** Return all file logs for an eisdoc */
-	@CrossOrigin
 	@RequestMapping(path = "/nepafiles", method = RequestMethod.GET)
 	public ResponseEntity<List<NEPAFile>> getAllNEPAFilesByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
 		try {
@@ -439,7 +428,6 @@ public class FileController {
 	}
 	
 	/** Return all document texts for an eisdoc */
-	@CrossOrigin
 	@RequestMapping(path = "/doc_texts", method = RequestMethod.GET)
 	public ResponseEntity<List<DocumentText>> getAllTextsByEISDocID(@RequestParam String id, @RequestHeader Map<String, String> headers) {
 //		System.out.println(id);
@@ -452,7 +440,6 @@ public class FileController {
 	/** Run convertRecord for all IDs in db.  (Conversion handles null filenames 
 	 * (of which there are none because they're empty strings by default) and deduplication). 
 	 * Does not handle folders. */
-	@CrossOrigin
 	@RequestMapping(path = "/bulk", method = RequestMethod.GET)
 	public ResponseEntity<ArrayList<String>> bulk(@RequestHeader Map<String, String> headers) {
 		
@@ -500,7 +487,6 @@ public class FileController {
 	 * @throws FileUploadException
 	 * @throws IOException
 	 */
-	@CrossOrigin
 	@Deprecated
 	@RequestMapping(path = "/uploadFile", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<boolean[]> importDocument(@RequestPart(name="file") MultipartFile file, 
@@ -619,7 +605,6 @@ public class FileController {
 	 * For each file, assumes a base folder that ends in a number (identifying folder)
 	 * If that doesn't exist, NEPAFile folder field instead uses the new ID from saving the metadata EISDoc
 	 * */
-	@CrossOrigin
 	@Deprecated
 	@RequestMapping(path = "/uploadFiles", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<String> importDocuments(@RequestPart(name="files") MultipartFile[] files, 
@@ -778,7 +763,6 @@ public class FileController {
 	 * 
 	 * @return List of strings with message per record (zero-based list) indicating success/error/duplicate 
 	 * and potentially more details */
-	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importCSV(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
@@ -802,7 +786,6 @@ public class FileController {
 	 * 
 	 * @return List of strings with message per record (zero-based list) indicating success/error 
 	 * and potentially more details */
-	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV_ids", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> updateWithCsvByIds(@RequestPart(name="csv") String csv, @RequestHeader Map<String, String> headers) 
 										throws IOException { 
@@ -824,7 +807,6 @@ public class FileController {
 	 * 
 	 * @return List of strings with message per record (zero-based) indicating would-be 
 	 * success/error/duplicate and potentially more details */
-	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV_dummy", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importCSVDummy(@RequestPart(name="csv") String csv, 
 				@RequestHeader Map<String, String> headers) 
@@ -993,7 +975,6 @@ public class FileController {
 	/** 
 	 * Returns if the given path can be linked to any records, either through folder+type, or filename 
 	 * */
-	@CrossOrigin
 	@GetMapping(path = "/can_link_folder_type")
 	public ResponseEntity<Boolean> canLinkFolderAndType(@RequestParam String path) {
 		String folder = getUniqueFolderNameOrEmpty(path);
@@ -1028,7 +1009,6 @@ public class FileController {
 	 * Or, upload one or more archives. It's extracted to a self-named folder automatically and each
 	 * internal file is also converted and indexed after getting their own NEPAFile record.
 	 * */
-	@CrossOrigin
 	@RequestMapping(path = "/uploadFilesBulk", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<String[]> importFilesBulk(@RequestPart(name="files") MultipartFile[] files, 
 								@RequestHeader Map<String, String> headers) 
@@ -1877,14 +1857,12 @@ public class FileController {
 	}
 
 	/** Returns if database contains at least one instance of a title/type/date combination */
-	@CrossOrigin
 	@RequestMapping(path = "/existsTitleTypeDate", method = RequestMethod.GET)
 	private boolean recordExists(@RequestParam String title, @RequestParam String type, @RequestParam String date) {
 		return docRepository.findByTitleTypeDateCompareAlphanumericOnly(title, type, parseDate(date)).isPresent();
 	}
 	
 	// Experimental, probably useless (was trying to get document outlines)
-//	@CrossOrigin
 //	@RequestMapping(path = "/xhtml", method = RequestMethod.GET)
 //	public ResponseEntity<List<String>> xhtml(@RequestHeader Map<String, String> headers) {
 //		
@@ -2016,7 +1994,6 @@ public class FileController {
 	 * So if we ever care about and have 178 byte-sized files on disk, maybe this is a problem.  Until then,
 	 * the frontend should ignore that size as if it's 0 or -1.
 	 **/
-	@CrossOrigin
 	@RequestMapping(path = "/file_size", method = RequestMethod.GET)
 	public ResponseEntity<Long> getFileSizeFromFilename(@RequestParam String filename) {
 		
@@ -2796,7 +2773,6 @@ public class FileController {
 	}
 
 	/** Minimal upload test to make sure uploading works (saves nothing to db, does save file to disk) */
-	@CrossOrigin
 	@RequestMapping(path = "/uploadTest", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<String> uploadTest(@RequestPart(name="file") MultipartFile file, 
 			@RequestHeader Map<String, String> headers) 
@@ -2845,7 +2821,6 @@ public class FileController {
 	 * 
 	 * @return List of strings with message per record (zero-based) indicating success/error 
 	 * and potentially more details */
-	@CrossOrigin
 	@RequestMapping(path = "/uploadCSV_processes", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importProcessIDs(
 			@RequestPart(name="csv") String csv, 
@@ -2993,7 +2968,6 @@ public class FileController {
 	 * and updates the appropriate EISDoc while skipping eisdocs that already have folders
 	 * @returns list of all files extracted successfully
 	 * */
-	@CrossOrigin
 	@RequestMapping(
 			path = "/extract_all", 
 			method = RequestMethod.POST, 
@@ -3212,7 +3186,6 @@ public class FileController {
 	}
 	
 
-	@CrossOrigin
 	@RequestMapping(path = "/get_multi_folder", method = RequestMethod.GET)
 	private ResponseEntity<List<NEPAFile>> getMultiFolder(@RequestHeader Map<String, String> headers) 
 										throws IOException { 
@@ -3228,7 +3201,6 @@ public class FileController {
 		return new ResponseEntity<List<NEPAFile>>(results, HttpStatus.OK);
 	}
 
-	@CrossOrigin
 	@RequestMapping(path = "/delete_folder", method = RequestMethod.POST, consumes = "application/json")
 	private ResponseEntity<List<String>> deleteFolder(
 				@RequestBody FolderDelete deleteSet, 
@@ -3304,7 +3276,6 @@ public class FileController {
 	 * @return
 	 * @throws IOException
 	 */
-	@CrossOrigin
 	@RequestMapping(path = "/import_json_alignment", method = RequestMethod.POST, consumes = "multipart/form-data")
 	private ResponseEntity<List<String>> importJsonAlignmentData(@RequestPart(name="alignment") String alignment, @RequestHeader Map<String, String> headers) 
 										throws IOException { 

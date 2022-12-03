@@ -1,9 +1,7 @@
 package nepaBackend.controller;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
@@ -13,12 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.MailAuthenticationException;
-import org.springframework.mail.MailException;
-import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,7 +27,6 @@ import nepaBackend.ApplicationUserService;
 import nepaBackend.DeleteRequestRepository;
 import nepaBackend.DocRepository;
 import nepaBackend.ExcelRepository;
-import nepaBackend.Globals;
 import nepaBackend.model.DeleteRequest;
 import nepaBackend.model.EISDoc;
 import nepaBackend.model.Excel;

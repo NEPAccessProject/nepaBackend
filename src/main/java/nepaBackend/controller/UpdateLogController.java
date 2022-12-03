@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -61,7 +60,6 @@ public class UpdateLogController {
 	}
 
 	/** restore EISDoc by update log ID, using update log contents therein */
-	@CrossOrigin
 	@RequestMapping(path = "/restore", method = RequestMethod.POST)
 	public ResponseEntity<Void> restoreDoc(@RequestParam("id") String updateLogID, 
 											@RequestHeader Map<String, String> headers) {
@@ -98,7 +96,6 @@ public class UpdateLogController {
 	}
 
 	/** restore meta record by ID, using the most recent update */
-	@CrossOrigin
 	@RequestMapping(path = "/restore_doc_last", method = RequestMethod.POST)
 	public ResponseEntity<Void> restoreDocFromMostRecentUpdate(@RequestParam("id") String docID, 
 											@RequestHeader Map<String, String> headers) {
@@ -130,7 +127,6 @@ public class UpdateLogController {
 	/** 
 	 *  Restores all changes after a given date by a given userID, for a given docID, 
 	 *  to the earliest version of the record since that date. */
-	@CrossOrigin
 	@RequestMapping(path = "/restore_doc_date_user", method = RequestMethod.POST)
 	public ResponseEntity<Void> restoreDocFromGivenDateAndUser(
 											@RequestParam("id") String docID, 
@@ -173,7 +169,6 @@ public class UpdateLogController {
 	
 	/** Restore all distinct documents from the earliest date within given date range (start and end datetime).
 	* Returns list of updated IDs.  Supports empty string or integer for userid param */
-	@CrossOrigin
 	@RequestMapping(path = "/restore_date_range", method = RequestMethod.POST)
 	public ResponseEntity<List<Long>> restoreByDateRange(
 											@RequestParam("datetimeStart") String dateStart, 
@@ -221,7 +216,6 @@ public class UpdateLogController {
 	}
 	/** Restore all distinct documents from the lowest id within given id range (first and last id).
 	* Returns list of updated IDs.  Supports empty string or integer for userid param */
-	@CrossOrigin
 	@RequestMapping(path = "/restore_id_range", method = RequestMethod.POST)
 	public ResponseEntity<List<Long>> restoreByIdRange(
 											@RequestParam("idStart") String idStart, 
