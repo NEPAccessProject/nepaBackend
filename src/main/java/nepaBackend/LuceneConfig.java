@@ -35,7 +35,9 @@ public class LuceneConfig {
      */
     @Bean
     public StandardAnalyzer analyzer() {
-        return new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+    	StandardAnalyzer standardAnalyzer = new StandardAnalyzer(EnglishAnalyzer.ENGLISH_STOP_WORDS_SET);
+    	standardAnalyzer.setVersion(org.apache.lucene.util.Version.LUCENE_8_7_0);
+        return standardAnalyzer;
     }
     
     @Bean
