@@ -20,9 +20,9 @@ public class Globals {
     private static final String INDEX_DIRECTORY_PATH = "/DocumentText";
     private static final String SUGGEST_PATH = "/LuceneSuggest";
     
-    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\DocumentText";
-    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\eclipse-workspace\\nepaBackend\\EISDoc";
-    private static final String TEST_SUGGEST_PATH = "C:\\lucene_suggest";
+    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:\\Lucene\\DocumentText";
+    private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\Lucene\\EISDoc";
+    private static final String TEST_SUGGEST_PATH = "C:\\Lucene\\lucene_suggest";
     
     // old test paths
 //    private static final String TESTING_INDEX_DIRECTORY_PATH = "C:/lucene/nepaBackend.model.DocumentText";
