@@ -3073,28 +3073,31 @@ public class FileController {
 					
 					// need to make a nepafile entry for every extracted file to support downloads
 					for(int j = 0; j < result.size(); j++) {
-						// eliminate any possibility of duplicates
-						Optional<NEPAFile> possibleFile = 
-							nepaFileRepository.findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(
-									doc.getDocumentType(),doc,folder,result.get(j),'/'+folder+'/'
-							);
-						
-						if(possibleFile.isEmpty()) {
-							NEPAFile x = new NEPAFile();
-							x.setDocumentType(doc.getDocumentType());
-							x.setEisdoc(doc);
-							x.setFolder(folder);
-							x.setFilename(result.get(j));
-							x.setRelativePath('/'+folder+'/');
-							x = nepaFileRepository.save(x);
+						try {
+							// eliminate any possibility of duplicates
+							Optional<NEPAFile> possibleFile = 
+								nepaFileRepository.findByDocumentTypeAndEisdocAndFolderAndFilenameAndRelativePathIn(
+										doc.getDocumentType(),doc,folder,result.get(j),'/'+folder+'/'
+								);
 							
-							// Run through tika, add document texts to db and index them
-							if(convertAfterSave) {
-							    this.convertNEPAFile(x);
+							if(possibleFile.isEmpty()) {
+								NEPAFile x = new NEPAFile();
+								x.setDocumentType(doc.getDocumentType());
+								x.setEisdoc(doc);
+								x.setFolder(folder);
+								x.setFilename(result.get(j));
+								x.setRelativePath('/'+folder+'/');
+								x = nepaFileRepository.save(x);
+								
+								// Run through tika, add document texts to db and index them
+								if(convertAfterSave) {
+								    this.convertNEPAFile(x);
+								}
+							} else {
+								System.out.println("Already have " + result.get(j) + " in " + '/'+folder+'/');
 							}
-						} else {
-							System.out.println("Already have " + result.get(j) + " in " + '/'+folder+'/');
-							
+						} catch(Exception e) {
+							// try to skip any individual problem files, and still extract good ones.
 						}
 					}
 
@@ -3118,6 +3121,7 @@ public class FileController {
 			}
 		} catch(Exception e) {
 			createdFolder = ("***EXCEPTION WITH: " + filename + "***");
+			logger.error(".zip problem with " + filename + ":: " + e.getLocalizedMessage());
 		}
 		
 		return createdFolder;

@@ -19,26 +19,37 @@ public class MultiSearcher {
  
 	private IndexSearcher indexSearcher;
 	private IndexReader textReader;
+	private IndexReader metaReader;
 	private MultiReader multiIndexReader;
   
 	public MultiSearcher() throws Exception {
 		File indexFile = new File(Globals.getIndexString());
 		Directory directory = FSDirectory.open(indexFile.toPath());
+//		System.out.println("Text index? " + DirectoryReader.indexExists(directory));
 		textReader = DirectoryReader.open(directory);
+		
 
 		File indexFile2 = new File(Globals.getMetaIndexString());
 		Directory directory2 = FSDirectory.open(indexFile2.toPath());
-		IndexReader metaReader = DirectoryReader.open(directory2);
+//		System.out.println("Meta index? " + DirectoryReader.indexExists(directory2));
+		metaReader = DirectoryReader.open(directory2);
+		
 		multiIndexReader = new MultiReader(textReader, metaReader);
 		indexSearcher = new IndexSearcher(multiIndexReader);
+		
  	}
 	
 	public MultiReader getIndexReader() {
 		return multiIndexReader;
 	}
 
+	/** Returns textReader specifically; used for highlighting **/
 	public IndexReader getTextReader() {
 		return textReader;
+	}
+	
+	public IndexReader getMetaReader() {
+		return metaReader;
 	}
  
 	public TopDocs search(Query query, int n) throws Exception {
