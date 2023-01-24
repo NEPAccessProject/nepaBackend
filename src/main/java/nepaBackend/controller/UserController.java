@@ -1024,16 +1024,7 @@ public class UserController {
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message);
             
-            if(Globals.TESTING) {
-            	helper.setTo(SecurityConstants.EMAIL_HANDLE);
-            } else {
-	            helper.setTo(new String[] {
-	            		"paulmirocha@arizona.edu", 
-	            		"emcgove@arizona.edu",
-//	            		"derbridge@email.arizona.edu", 
-	            		"ashleystava@arizona.edu"
-	    		});
-            }
+        	helper.setTo(SecurityConstants.EMAIL_HANDLE);
 //          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject("(NEPAccess Contact) " + contactForm.subject);

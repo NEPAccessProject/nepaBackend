@@ -12,9 +12,9 @@ public class Globals {
     
     private static final String PROD_DB_BASE_URL = SecurityConstants.DB_ADDRESS;
 
-    private static final String BIGHORN_META_INDEX_DIRECTORY_PATH = "/media/data/EISDoc";
-    private static final String BIGHORN_INDEX_DIRECTORY_PATH = "/media/data/DocumentText";
-    private static final String BIGHORN_SUGGEST_PATH = "/media/data/LuceneSuggest";
+    private static final String BIGHORN_META_INDEX_DIRECTORY_PATH = "/media/data/nepaccess/EISDoc";
+    private static final String BIGHORN_INDEX_DIRECTORY_PATH = "/media/data/nepaccess/DocumentText";
+    private static final String BIGHORN_SUGGEST_PATH = "/media/data/nepaccess/LuceneSuggest";
 
     private static final String META_INDEX_DIRECTORY_PATH = "/EISDoc";
     private static final String INDEX_DIRECTORY_PATH = "/DocumentText";

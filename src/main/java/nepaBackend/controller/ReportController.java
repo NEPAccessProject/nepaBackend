@@ -73,10 +73,7 @@ public class ReportController {
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message);
 
-            helper.setTo(new String[] {
-            		"ashleystava@arizona.edu",
-            		SecurityConstants.EMAIL_HANDLE
-    		});
+            helper.setTo(SecurityConstants.EMAIL_HANDLE);
 //            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
             message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
             helper.setSubject("NEPAccess Data Issue Report");
