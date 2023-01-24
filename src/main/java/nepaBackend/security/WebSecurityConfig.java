@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 
 import nepaBackend.Globals;
 import nepaBackend.UserDetailsServiceImpl;
@@ -28,7 +29,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         this.userDetailsService = userDetailsService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
     }
-
+    
     // Need to do this to get custom JWT (for password reset) checks through the filter.
     @Override
     public void configure(WebSecurity web) throws Exception {
@@ -103,10 +104,15 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("https://localhost", "http://localhost"));
-        configuration.setAllowedMethods(Arrays.asList("GET","POST"));
+//        configuration.setAllowedOrigins(Arrays.asList("https://localhost", "http://localhost"));
+        configuration.setAllowedOrigins(Arrays.asList("*"));
+//        configuration.setAllowedMethods(Arrays.asList("GET","POST","OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("*"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+//      configuration.setAllowCredentials(false);
 	    final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-	    source.registerCorsConfiguration("/**", new CorsConfiguration().applyPermitDefaultValues());
+//	    source.registerCorsConfiguration("/**", new CorsConfiguration().applyPermitDefaultValues());
+	    source.registerCorsConfiguration("/**", configuration);
 	    return source;
     }
 }
