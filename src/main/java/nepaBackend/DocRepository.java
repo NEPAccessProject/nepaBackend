@@ -41,7 +41,6 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 //			nativeQuery = true)
 //	List<String> queryAllTitles();
 
-	/** TODO: Do this in Lucene instead */
 	@Query(value = "SELECT DISTINCT title FROM eisdoc"
 			+ " WHERE MATCH(title) AGAINST(? IN NATURAL LANGUAGE MODE)"
 			+ " LIMIT 5",
@@ -657,7 +656,8 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 
 	/** compares titles on alphanumeric and spaces only.  We probably want this most of the time.
 	/* New titles should also have their space normalized 
-	/* (remove tabs, newlines, reduce double spaces+ to one space and remove trailing/leading space) */
+	/* (remove tabs, newlines, reduce double spaces+ to one space and remove trailing/leading space) 
+	 * (the inner ^ is to replace everything except the ranges, and the + at the end is implicit) */
 	@Query(value ="select * from eisdoc where REGEXP_REPLACE(title, '[^0-9a-zA-Z]', '') " + 
 			"LIKE REGEXP_REPLACE(:title, '[^0-9a-zA-Z]', '') " + 
 			"AND document_type = :type " +
