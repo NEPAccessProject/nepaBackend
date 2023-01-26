@@ -16,6 +16,7 @@ import nepaBackend.Globals;
 import nepaBackend.UserDetailsServiceImpl;
 
 import java.util.Arrays;
+import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 
@@ -50,7 +51,13 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
             .anyRequest()
             .requiresSecure();
     	}
-    	http.cors().and().csrf().disable().authorizeRequests()
+        CorsConfiguration corsConfiguration = new CorsConfiguration();
+        corsConfiguration.setAllowedHeaders(List.of("Authorization", "Cache-Control", "Content-Type"));
+        corsConfiguration.setAllowedOrigins(List.of("*"));
+        corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        corsConfiguration.setAllowCredentials(true);
+        corsConfiguration.setExposedHeaders(List.of("Authorization"));
+    	http.cors().configurationSource(request -> corsConfiguration).and().csrf().disable().authorizeRequests()
     	 .antMatchers(HttpMethod.OPTIONS, "**").permitAll()
          .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll() // allow registration
 //         .antMatchers(HttpMethod.POST, "/**").permitAll() // allow all (when post)
@@ -106,10 +113,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         CorsConfiguration configuration = new CorsConfiguration();
 //        configuration.setAllowedOrigins(Arrays.asList("https://localhost", "http://localhost"));
         configuration.setAllowedOrigins(Arrays.asList("*"));
-//        configuration.setAllowedMethods(Arrays.asList("GET","POST","OPTIONS"));
-        configuration.setAllowedMethods(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
+//        configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
 //      configuration.setAllowCredentials(false);
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("Authorization"));
 	    final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 //	    source.registerCorsConfiguration("/**", new CorsConfiguration().applyPermitDefaultValues());
 	    source.registerCorsConfiguration("/**", configuration);
