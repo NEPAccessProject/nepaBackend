@@ -1,0 +1,77 @@
+# this file would normally be called application-prod.properties
+
+spring.datasource.url=jdbc:mysql://localhost:3306/nepaccess?useSSL=false
+spring.datasource.username=username
+spring.datasource.password=password
+
+spring.datasource.hikari.connectionTimeout=30000
+spring.datasource.hikari.idleTimeout=600000
+spring.datasource.hikari.maxLifetime=1800000
+
+# port/ssl
+# server. properties are only if using embedded server for testing,
+# so port/ssl will be managed externally through the tomcat 9 server
+server.port=8080
+
+spring.main.web-environment=false
+
+# try true when configuring for live deployment with certs in place?
+security.require-ssl=false
+
+# Do not initialize anything
+spring.jpa.hibernate.ddl-auto=none
+spring.datasource.initialization-mode=never
+
+
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
+spring.datasource.connectionProperties=useUnicode=true;characterEncoding=utf-8
+spring.datasource.platform=mysql
+spring.main.allow-bean-definition-overriding=true
+spring.jpa.properties.hibernate.connection.driver_class=com.mysql.jdbc.Driver
+
+
+# true is default, but explicitly defined to disable warning that db queries may be performed during view rendering
+spring.jpa.open-in-view=true
+
+
+#Email
+
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.host=mail.smtp2go.com
+spring.mail.port=2525
+spring.mail.username=username
+spring.mail.password=password
+
+# Other properties
+spring.mail.properties.mail.smtp.connectiontimeout=25000
+spring.mail.properties.mail.smtp.timeout=25000
+spring.mail.properties.mail.smtp.writetimeout=25000
+
+# without this it complains it can't find the version and uses LATEST (8.7.0); we'll use 8.7.0 explicitly
+spring.jpa.properties.hibernate.search.backend.lucene_version=LUCENE_8_7_0
+hibernate.search.backend.lucene_version=LUCENE_8_7_0
+# To configure the defaults for all indexes:
+hibernate.search.backend.directory.type=local-filesystem
+spring.jpa.properties.hibernate.search.backend.directory.root=/media/data/nepaccess/
+hibernate.search.backend.directory.root=/media/data/nepaccess/
+hibernate.search.backend.directory.filesystem_access.strategy=auto
+hibernate.search.automatic_indexing.synchronization.strategy=sync
+
+# http://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#common-application-properties
+# any server. or servlet. is for configuring the embedded, internal tomcat servlet for testing only:
+server.tomcat.max-http-post-size: 64MB
+# individual size
+spring.servlet.multipart.max-file-size=8GB
+# multipart/form-data request
+spring.servlet.multipart.max-request-size=8GB
+
+
+#server.ssl.key-store-type=PKCS12
+#server.ssl.key-store=/etc/letsencrypt/live/www.nepaccess.org/certificate.pfx
+#server.ssl.key-store-password=password
+
+
+# logs
+logging.file = ./logs/nepaccess.log
+logging.level.root = INFO
