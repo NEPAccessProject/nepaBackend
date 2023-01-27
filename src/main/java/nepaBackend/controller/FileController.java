@@ -3,6 +3,7 @@ package nepaBackend.controller;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +14,9 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -174,8 +178,8 @@ public class FileController {
 					addUpAndSaveFolderSize(doc);
 				}
 				else if(filename != null && filename.strip().length() > 0) {
-					Long response = (getFileSizeFromFilename(doc.getFilename()).getBody());
-					if(response != null) {
+					Long response = getFileSize(dbURL + doc.getFilename());
+					if(response > 0) {
 						doc.setSize(response);
 					} 
 //					else {
@@ -206,8 +210,8 @@ public class FileController {
 					addUpAndSaveFolderSize(doc);
 				}
 				else if(filename != null && filename.strip().length() > 0) {
-					Long response = (getFileSizeFromFilename(doc.getFilename()).getBody());
-					if(response != null) {
+					Long response = getFileSize(dbURL + doc.getFilename());
+					if(response > 0) {
 						doc.setSize(response);
 					} 
 					else {
@@ -279,16 +283,16 @@ public class FileController {
 	public ResponseEntity<Void> downloadFile(HttpServletRequest request, HttpServletResponse response,
 			@RequestParam String filename) {
 		try {
-			URL fileURL = new URL(dbURL + encodeURIComponent(filename));
-			if(testing) {
-				System.out.println("Got ask for "+ filename + ": " + encodeURIComponent(filename));
-				fileURL = new URL(testURL + encodeURIComponent(filename));
-			}
-			InputStream in = new BufferedInputStream(fileURL.openStream());
-			long length = getFileSize(fileURL); // for Content-Length for progress bar
+			String fileURL = dbURL + filename;
+
+			InputStream in = new BufferedInputStream(new FileInputStream(fileURL));
+			long length = getFileSize(fileURL); // for Content-Length for progress barlengthTest
 			
 			response.addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\""); 
 			response.addHeader("Content-Length", length + ""); 
+			
+			System.out.println("File path: " + fileURL);
+			System.out.println("Length: " + Long.toString(length));
 			
 			ServletOutputStream out = response.getOutputStream();
 			IOUtils.copy(in, out);
@@ -328,15 +332,11 @@ public class FileController {
 			
 			for(NEPAFile nepaFile : nepaFiles) {
 
-				// Format URI properly (%20 for spaces in folder, file name...)
-				String fullPath = encodeURIComponent(nepaFile.getRelativePath() + nepaFile.getFilename());
+				String fullPath = nepaFile.getRelativePath() + nepaFile.getFilename();
 				
-				URL fileURL = new URL(dbURL + fullPath);
-				if(testing) {
-					fileURL = new URL(testURL + fullPath);
-				}
+				String fileURL = dbURL + fullPath;
 
-				InputStream in = new BufferedInputStream(fileURL.openStream());
+				InputStream in = new BufferedInputStream(new FileInputStream(fileURL));
 				
 				zip.putNextEntry(new ZipEntry(nepaFile.getFilename()));
 		        int length;
@@ -381,21 +381,20 @@ public class FileController {
 
 			// Get full folder path from nepafile for eis (or path would work) and then zip that folder's contents
 			List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(docRepository.findById(Long.parseLong(id)).get());
-//			System.out.println("Size " + nepaFiles.size());
+
 			if(nepaFiles.size() == 0) {
 				return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
 			}
 			
-			// Format URI properly (%20 for spaces in folder, file name...)
-			String fullPath = encodeURIComponent(nepaFiles.get(0).getRelativePath() + filename);
+			String fullPath = nepaFiles.get(0).getRelativePath() + filename;
+			String fileURL = dbURL + fullPath;
 			
-			URL fileURL = new URL(dbURL + fullPath);
-			if(testing) {
-				fileURL = new URL(testURL + fullPath);
-			}
+			InputStream in = new BufferedInputStream(new FileInputStream(fileURL));
 			
-			InputStream in = new BufferedInputStream(fileURL.openStream());
 			long length = getFileSize(fileURL); // for Content-Length for progress bar
+			
+			System.out.println("File path: " + fileURL);
+			System.out.println("Length: " + Long.toString(length));
 			
 			response.addHeader("Content-Disposition", "attachment; filename=\"" + filename + "\""); 
 			response.addHeader("Content-Length", length + ""); 
@@ -1387,19 +1386,13 @@ public class FileController {
 		for(NEPAFile file : nepaFiles) {
 			// 2: Iterate over each NEPAFile's relative path + filename, calling
 			// getFileSizeFromFilename each time and adding up the Longs
-			try {
-				String pathURL = URLEncoder
-						.encode(file.getRelativePath()+file.getFilename(), StandardCharsets.UTF_8.toString())
-						.replace("+", "%20");
-
-				Long sizeResponse = getFileSizeFromFilename(pathURL).getBody();
-				if(sizeResponse != null) {
-					total = total + sizeResponse;
-				}
-				if(Globals.TESTING) {System.out.println("Size of "+pathURL+": "+sizeResponse);}
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
+//				String pathURL = pathEncoder(file.getRelativePath()+file.getFilename());
+			String pathURL = file.getRelativePath() + file.getFilename();
+			Long response = getFileSize(dbURL + pathURL);
+			if(response > 0) {
+				total = total + response;
 			}
+			if(Globals.TESTING) {System.out.println("Size of "+pathURL+": "+response);}
 			
 		}
 		
@@ -1558,16 +1551,13 @@ public class FileController {
 			}
 			
 			String relevantURL = dbURL;
-			if(testing) {
-				relevantURL = testURL;
-			}
 			
 			// Note: because the relative path always begins with / and relevantURL already has /,
 			// we drop the first character of fullPath when we build it here:
 			String fullPath = (savedNEPAFile.getRelativePath() + filename).substring(1);
 
 			// Handle things like spaces in folder names:
-			URL fileURL = new URL(relevantURL + encodeURIComponent(fullPath));
+			String fileURL = relevantURL + fullPath;
 			
 			if(testing) {
 				System.out.println("FileURL " + fileURL.toString());
@@ -1618,7 +1608,7 @@ public class FileController {
 	}
 
 	// helper method for bulk file import gets file, converts to text, indexing is then automatic
-	private HttpStatus pdfConvertImportAndIndex(EISDoc foundDoc, URL fileURL, String filename) throws IOException {
+	private HttpStatus pdfConvertImportAndIndex(EISDoc foundDoc, String fileURL, String filename) throws IOException {
 		final int BUFFER = 2048;
 
 		Tika tikaParser = new Tika();
@@ -1627,7 +1617,7 @@ public class FileController {
 		// 1: Download the file
 		try {
 			
-			InputStream in = new BufferedInputStream(fileURL.openStream());
+			InputStream in = new BufferedInputStream(new FileInputStream(fileURL));
 			
 			DocumentText docText = new DocumentText();
 			docText.setEisdoc(foundDoc);
@@ -1666,14 +1656,14 @@ public class FileController {
 	}
 
 	// helper method for bulk file import gets file, iterates through archive contents, converts to text, auto-indexed
-	private HttpStatus archiveConvertImportAndIndex(EISDoc nepaDoc, URL fileURL) throws IOException {
+	private HttpStatus archiveConvertImportAndIndex(EISDoc nepaDoc, String fileURL) throws IOException {
 		final int BUFFER = 2048;
 
 		Tika tikaParser = new Tika();
 		tikaParser.setMaxStringLength(-1); // disable limit
 
 		try {
-			InputStream in = new BufferedInputStream(fileURL.openStream());
+			InputStream in = new BufferedInputStream(new FileInputStream(fileURL));
 			ZipInputStream zis = new ZipInputStream(in);
 			ZipEntry ze;
 			
@@ -1772,17 +1762,14 @@ public class FileController {
 			}
 			
 			String relevantURL = dbURL;
-			if(testing) {
-				relevantURL = testURL;
-			}
-			URL fileURL = new URL(relevantURL + eis.getFilename());
+			String fileURL = relevantURL + eis.getFilename();
 			
 			if(testing) {
 				System.out.println("FileURL " + fileURL.toString());
 			}
 			
 			// 1: Download the archive
-			InputStream in = new BufferedInputStream(fileURL.openStream());
+			InputStream in = new BufferedInputStream(new FileInputStream(fileURL));
 			ZipInputStream zis = new ZipInputStream(in);
 			ZipEntry ze;
 			
@@ -1971,7 +1958,7 @@ public class FileController {
 		return docToReturn;
 	}
 
-	public long getFileSize(URL url) {
+	public long getFileSizeHTTP(URL url) {
 		HttpURLConnection conn = null;
 		try {
 			conn = (HttpURLConnection) url.openConnection();
@@ -1987,6 +1974,17 @@ public class FileController {
 		}
 	}
 	
+	public long getFileSize(String filePath) {
+		try {
+			Path path = Paths.get(filePath);
+			long size = Files.size(path);
+			return size;
+		} catch(Exception e) {
+			e.printStackTrace();
+			return 0;
+		}
+	}
+	
 
 	/** 
 	 * Returns file size starting from base path if available.
@@ -1994,8 +1992,9 @@ public class FileController {
 	 * So if we ever care about and have 178 byte-sized files on disk, maybe this is a problem.  Until then,
 	 * the frontend should ignore that size as if it's 0 or -1.
 	 **/
-	@RequestMapping(path = "/file_size", method = RequestMethod.GET)
-	public ResponseEntity<Long> getFileSizeFromFilename(@RequestParam String filename) {
+	@Deprecated
+	@RequestMapping(path = "/file_size_http", method = RequestMethod.GET)
+	public ResponseEntity<Long> getFileSizeFromFilenameHttp(@RequestParam String filename) {
 		
 		HttpURLConnection conn = null;
 		URL url = null;
@@ -3579,5 +3578,19 @@ public class FileController {
 		}
 	}
 	
+	private String pathEncoder(String string) {
+		String result;
+		try {
+			result = URLEncoder
+				.encode(string, StandardCharsets.UTF_8.toString())
+				.replace("+", "%20");
+			return result;
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return "";
+		}
+		
+	}
 	
 }

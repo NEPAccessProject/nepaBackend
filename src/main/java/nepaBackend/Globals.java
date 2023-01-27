@@ -11,6 +11,7 @@ public class Globals {
     public static final boolean TESTING = SecurityConstants.TEST_ENVIRONMENT;
     
     private static final String PROD_DB_BASE_URL = SecurityConstants.DB_ADDRESS;
+    private static final String IMPORT_ADDRESS = SecurityConstants.IMPORT_URL;
 
     private static final String BIGHORN_META_INDEX_DIRECTORY_PATH = "/media/data/nepaccess/EISDoc";
     private static final String BIGHORN_INDEX_DIRECTORY_PATH = "/media/data/nepaccess/DocumentText";
@@ -66,11 +67,10 @@ public class Globals {
 		}
 	}
 
-    // Database/file server URL to base folder containing all files exposed to DAL for download
-	// Note: Might change this after migration
-    public static final String DOWNLOAD_URL = "http://"+PROD_DB_BASE_URL+":80/test/";
+    // Bighorn disk location of base folder containing all files exposed to DAL for download
+    public static final String DOWNLOAD_URL = PROD_DB_BASE_URL+"/test/";
     // Database/file server URL for Express service which handles new file uploads (and potentially updating or deleting files)
-    public static final String UPLOAD_URL = "http://"+PROD_DB_BASE_URL+":"+SecurityConstants.EXPRESS_PORT+"/";
+    public static final String UPLOAD_URL = "http://"+IMPORT_ADDRESS+":"+SecurityConstants.EXPRESS_PORT+"/";
     
     public static final List<String> EIS_TYPES = Arrays.asList("Draft Supplement",
 			"Final Supplement",
