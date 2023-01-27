@@ -1,4 +1,8 @@
 package nepaBackend.controller;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -300,7 +304,6 @@ public class AdminController {
 		}
     }
     
-    
     /** Given DocumentText ID, delete the DocumentText and any NEPAFile(s) for it from the linked EISDoc.
      * File is also deleted */
     @RequestMapping(path = "/delete_text", method = RequestMethod.POST)
@@ -329,9 +332,13 @@ public class AdminController {
     				NEPAFile presentFile = nepaFile.get();
         			
         			// Log + Delete NEPAFile, file from disk
-    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+//    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+    				Boolean deleteResult = fileDeleterLocal(presentFile.getRelativePath() + presentFile.getFilename());
     				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
     				nepaFileRepository.delete(presentFile);
+    				if(deleteResult) {
+    					addUpAndSaveFolderSize(eisDoc);
+    				}
     			}
     			
     			// Log + Delete DocumentText
@@ -386,9 +393,13 @@ public class AdminController {
         			}
         			
         			// Log + Delete NEPAFile, file on disk
-    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+//    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+    				Boolean deleteResult = fileDeleterLocal(presentFile.getRelativePath() + presentFile.getFilename());
     				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
     				nepaFileRepository.delete(presentFile);
+    				if(deleteResult) {
+    					addUpAndSaveFolderSize(eisDoc);
+    				}
     			} catch(org.springframework.dao.IncorrectResultSizeDataAccessException e) {
     				// Duplicate filename: Can't differentiate now, have to delete one arbitrarily
     				List<DocumentText> records = textRepository.findAllByEisdocAndFilenameIn(eisDoc, presentFile.getFilename());
@@ -396,9 +407,13 @@ public class AdminController {
     				
     				logDelete(presentText.getEisdoc(), "Deleted: DocumentText", user, presentText.getFilename());
     				textRepository.delete(presentText);
-    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+//    				fileDeleter(headers, presentFile.getRelativePath() + presentFile.getFilename());
+    				Boolean deleteResult = fileDeleterLocal(presentFile.getRelativePath() + presentFile.getFilename());
     				logDelete(presentFile.getEisdoc(), "Deleted: NEPAFile", user, presentFile.getFilename());
     				nepaFileRepository.delete(presentFile);
+    				if(deleteResult) {
+    					addUpAndSaveFolderSize(eisDoc);
+    				}
     			}
 				
     			return new ResponseEntity<String>(HttpStatus.OK);
@@ -464,8 +479,8 @@ public class AdminController {
     			for(NEPAFile nepaFile : nepaFileList) {
     				
     				// Delete from disk here
-    				fileDeleter(headers, nepaFile.getRelativePath() + nepaFile.getFilename());
-    				
+//    				fileDeleter(headers, nepaFile.getRelativePath() + nepaFile.getFilename());
+    				Boolean deleteResult = fileDeleterLocal(nepaFile.getRelativePath() + nepaFile.getFilename());
     				// if matching (single file link), delete filename from record.
     				if(nepaFile.getFilename().contentEquals(foundDoc.getFilename())) {
     					foundDoc.setFilename("");
@@ -477,6 +492,10 @@ public class AdminController {
     				
     				// Log
     				logDelete(foundDoc, "Deleted: NEPAFile", user, nepaFile.getFilename());
+    				
+    				if(deleteResult) {
+    					addUpAndSaveFolderSize(foundDoc);
+    				}
     			}
 
     			// Remove folder link
@@ -604,29 +623,45 @@ public class AdminController {
     	return new ResponseEntity<String>(serverResponse, HttpStatus.OK);
     }
     
-	private String fileDeleter(Map<String, String> headers, String path) {
-		String token = headers.get("authorization");
-		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
-		{
-			return null;
+
+	
+	private Boolean fileDeleterLocal(String path) {
+		String fullPath = Globals.DOWNLOAD_URL + path;
+		if(Globals.TESTING) { System.out.println("Got fullpath for delete: " + fullPath); }
+		
+		try {
+			return Files.deleteIfExists(Path.of(fullPath));
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
 		}
-	
-	    try {
-	    	// In a single-machine setup, this could be done within Java and not with external services
-		    HttpPost request = new HttpPost(deleteURL);
-		    if(Globals.TESTING) { request = new HttpPost(deleteTestURL); }
-		    request.setHeader("key", SecurityConstants.APP_KEY);
-		    request.setHeader("filename", path);
-	
-		    HttpClient client = HttpClientBuilder.create().build();
-		    HttpResponse response = client.execute(request);
-		    
-		    return response.getStatusLine().toString();
-	    } catch(Exception e) {
-	    	e.printStackTrace();
-	    	return e.getLocalizedMessage();
-	    }
+		
 	}
+    
+	// For use with express_uploader.js
+//	private String fileDeleter(Map<String, String> headers, String path) {
+//		String token = headers.get("authorization");
+//		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
+//		{
+//			return null;
+//		}
+//	
+//	    try {
+//	    	// In a single-machine setup, this could be done within Java and not with external services
+//		    HttpPost request = new HttpPost(deleteURL);
+//		    if(Globals.TESTING) { request = new HttpPost(deleteTestURL); }
+//		    request.setHeader("key", SecurityConstants.APP_KEY);
+//		    request.setHeader("filename", path);
+//	
+//		    HttpClient client = HttpClientBuilder.create().build();
+//		    HttpResponse response = client.execute(request);
+//		    
+//		    return response.getStatusLine().toString();
+//	    } catch(Exception e) {
+//	    	e.printStackTrace();
+//	    	return e.getLocalizedMessage();
+//	    }
+//	}
     
     private void deleteTitleAlignmentScores(EISDoc doc) {
     	List<EISMatch> toDelete1 = matchService.findAllByDocument1( java.lang.Math.toIntExact(doc.getId()) );
@@ -696,4 +731,47 @@ public class AdminController {
     	}
     	return false;
     }
+    
+
+    /** Helper for addUpAndSaveFolderSize() */
+	public long getFileSize(String filePath) {
+		try {
+			Path path = Paths.get(filePath);
+			long size = Files.size(path);
+			return size;
+		} catch(java.nio.file.NoSuchFileException fe) {
+			return 0;
+		} catch(Exception e) {
+			e.printStackTrace();
+			return 0;
+		}
+	}
+	
+	/** Effectively used to update to an accurate size for files on disk for an eis after any delete
+	 * is executed, best to run after deleting any relevant nepaFile record(s) from the database
+	 * just so we don't hit the overhead from java.nio.file.NoSuchFileException */
+	private boolean addUpAndSaveFolderSize(EISDoc eisDoc) {
+		// 1: Get all existing NEPAFiles by folder.
+		List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(eisDoc);
+		Long total = 0L;
+		for(NEPAFile file : nepaFiles) {
+			// 2: Iterate over each NEPAFile's relative path + filename, calling
+			// getFileSizeFromFilename each time and adding up the Longs
+//				String pathURL = pathEncoder(file.getRelativePath()+file.getFilename());
+			String pathURL = file.getRelativePath() + file.getFilename();
+			Long response = getFileSize(Globals.DOWNLOAD_URL + pathURL);
+			if(response > 0) {
+				total = total + response;
+			}
+			if(Globals.TESTING) {System.out.println("Size of "+pathURL+": "+response);}
+			
+		}
+		
+		// 3: Save total to EISDoc.  Need to save totals by EISDoc ID,
+		// because they can have the same base folder name but different type folders.
+		eisDoc.setSize(total);
+		docRepository.save(eisDoc);
+		
+		return true;
+	}
 }

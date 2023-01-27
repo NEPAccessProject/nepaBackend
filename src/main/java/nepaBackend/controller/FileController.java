@@ -1378,7 +1378,7 @@ public class FileController {
 
 
 
-	// Add up filesize.  Note: Spaces must be URI'd
+	// Add up size of all files for eis
 	private boolean addUpAndSaveFolderSize(EISDoc eisDoc) {
 		// 1: Get all existing NEPAFiles by folder.
 		List<NEPAFile> nepaFiles = nepaFileRepository.findAllByEisdoc(eisDoc);
@@ -3229,7 +3229,9 @@ public class FileController {
 
 			List<String> deleteResults = new ArrayList<String>();
 			for(String result: results) {
-				String deleteResult = fileDeleter(headers, result);
+//				String deleteResult = fileDeleter(headers, result);
+				String deleteResult = fileDeleterLocal(Globals.DOWNLOAD_URL + result);
+					
 				deleteResults.add(deleteResult += ":: " + result);
 				System.out.println(deleteResult += ":: " + result);
 			}
@@ -3246,6 +3248,24 @@ public class FileController {
 		
 	}
 	
+	private String fileDeleterLocal(String path) {
+		if(testing) { System.out.println("Got path for delete: " + path); }
+		
+		try {
+			Boolean result = Files.deleteIfExists(Path.of(path));
+			if(result) {
+				return "Deleted " + path;
+			} else {
+				return "Couldn't delete " + path;
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			return "Couldn't delete (IOException)";
+		}
+		
+	}
+	
+	// Delete via express_uploader.js
 	private String fileDeleter(Map<String, String> headers, String path) {
 		String token = headers.get("authorization");
 		if(!applicationUserService.isCurator(token) && !applicationUserService.isAdmin(token)) 
