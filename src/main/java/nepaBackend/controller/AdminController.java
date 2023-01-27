@@ -107,7 +107,7 @@ public class AdminController {
                 MimeMessageHelper helper = new MimeMessageHelper(message);
                  
                 helper.setTo(emailOut.recipientEmail);
-                message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+                message.setFrom(new InternetAddress(Globals.SYSTEM_EMAIL_INTERNET_ADDRESS));
                 helper.setSubject(emailOut.subject);
                 helper.setText(emailOut.body);
                  

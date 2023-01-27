@@ -34,6 +34,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 
 import nepaBackend.ApplicationUserService;
 import nepaBackend.EmailLogRepository;
+import nepaBackend.Globals;
 import nepaBackend.model.ApplicationUser;
 import nepaBackend.model.EmailLog;
 import nepaBackend.pojo.ResetEmail;
@@ -153,7 +154,7 @@ public class ResetEmailController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(resetUser.getEmail());
-            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+            message.setFrom(new InternetAddress(Globals.SYSTEM_EMAIL_INTERNET_ADDRESS));
             helper.setSubject("NEPAccess Reset Password Request");
             helper.setText("This is an automatically generated email in response to"
             		+ " a request to reset the password for the account linked"

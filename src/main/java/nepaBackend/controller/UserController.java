@@ -328,73 +328,6 @@ public class UserController {
     	}
     }
     
-//    private boolean sendApprovalEmail(ApplicationUser user) {
-//    	
-//    	if(Globals.TESTING) {
-//    		return true;
-//    	} else {
-//    		
-//	    	boolean status = true;
-//	    	
-//	    	try {
-//	            MimeMessage message = sender.createMimeMessage();
-//	            MimeMessageHelper helper = new MimeMessageHelper(message);
-//	
-//	            helper.setTo(new String[] {
-//	            		"derbridge@email.arizona.edu", 
-//	            		"lauralh@email.arizona.edu"
-//	    		});
-////	            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
-//	            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
-//	            helper.setSubject("NEPAccess Approval Request");
-//	            helper.setText("This is an automatically generated email due to"
-//	            		+ " a new account being registered."
-//	            		+ "\n\nFrom username: " + user.getUsername()
-//	            		+ "\nEmail: " + user.getEmail()
-//	            		+ "\n\nUser can be approved at: https://www.nepaccess.org/approve"
-//	            		+ "\n(Users are not approved by default)"
-//	            );
-//	             
-//	            sender.send(message);
-//	    		
-//	    	} catch (MailAuthenticationException e) {
-//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-//	
-//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailAuthenticationException");
-//	            
-//	            status = false;
-//	    	} catch (MailSendException e) {
-//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-//	
-//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailSendException");
-//	            
-//	            status = false;
-//	    	} catch (MailException e) {
-//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-//	            
-//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "MailException");
-//	            
-//	            status = false;
-//	    	} catch (Exception e) {
-//	            logEmail(user.getEmail(), e.toString(), "Approval", false);
-//	            
-//	//	            emailAdmin(resetUser.getEmail(), e.getMessage(), "Exception");
-//	            
-//	            status = false;
-//	    	}
-//	    	
-//	    	if(status) {
-//	    		try {
-//	                logEmail(user.getEmail(), "", "Approval", true);
-//	    		} catch (Exception ex) {
-//	    			// Do nothing
-//	    		}
-//	    	}
-//	        
-//	        return status;
-//    	}
-//	}
-
     // More lax requirements.
 	private boolean isValidUserPreRegister(ApplicationUser user) {
 		// TODO: More clever validation
@@ -723,8 +656,7 @@ public class UserController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
              
             helper.setTo(user.getEmail());
-//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
-            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+            message.setFrom(new InternetAddress(Globals.SYSTEM_EMAIL_INTERNET_ADDRESS));
             helper.setSubject("NEPAccess Registration Request");
 //            helper.setText("This is an automatically generated email in response to"
 //            		+ " a request to register an account linked to this email address."
@@ -1025,8 +957,7 @@ public class UserController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
             
         	helper.setTo(SecurityConstants.EMAIL_HANDLE);
-//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
-            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+            message.setFrom(new InternetAddress(Globals.SYSTEM_EMAIL_INTERNET_ADDRESS));
             helper.setSubject("(NEPAccess Contact) " + contactForm.subject);
             helper.setText("Contact from: " + contactForm.name
             		+ "\nEmail address: " + contactForm.email
@@ -1099,8 +1030,7 @@ public class UserController {
             } else {
 	            helper.setTo(setToList);
             }
-//          message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
-            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+            message.setFrom(new InternetAddress(Globals.SYSTEM_EMAIL_INTERNET_ADDRESS));
             helper.setSubject(subj);
             helper.setText(bodyText);
              

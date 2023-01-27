@@ -32,6 +32,8 @@ import nepaBackend.model.EISDoc;
 import nepaBackend.model.Excel;
 import nepaBackend.security.SecurityConstants;
 
+import nepaBackend.Globals;
+
 @RestController
 @RequestMapping("/reports")
 public class ReportController {
@@ -74,8 +76,7 @@ public class ReportController {
             MimeMessageHelper helper = new MimeMessageHelper(message);
 
             helper.setTo(SecurityConstants.EMAIL_HANDLE);
-//            message.setFrom(new InternetAddress("NEPAccess <Eller-NepAccess@email.arizona.edu>"));
-            message.setFrom(new InternetAddress("NEPAccess <NEPAccess@NEPAccess.org>"));
+            message.setFrom(new InternetAddress(Globals.SYSTEM_EMAIL_INTERNET_ADDRESS));
             helper.setSubject("NEPAccess Data Issue Report");
             helper.setText("Reported by: " + userEmail
             		+ "\nFor process ID "+processId+": https://www.nepaccess.org/process-details?id=" + processId
