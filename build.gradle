@@ -28,48 +28,37 @@ apply plugin: 'io.spring.dependency-management'
 apply plugin: 'war'
 
 bootJar {
-    archiveBaseName = 'nepaBackend'
-    archiveVersion =  '1.0.0'
+    baseName = 'nepaBackend'
+    version =  '0.0.1'
 }
 
-sourceCompatibility = 11
-targetCompatibility = 11
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 repositories {
     // Use jcenter for resolving your dependencies.
     // You can declare any Maven/Ivy/file repository here.
-    // jcenter()
-    
-    mavenCentral()
+    jcenter()
 }
-
-// can get info with this and ...-starter-actuator
-//springBoot {
-//    buildInfo()
-//}
 
 dependencies {
 	// Integral for web app
     implementation("org.springframework.boot:spring-boot-starter-web")
-    //implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    
-    // for running with external tomcat
-    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
  	  
     // We might use this for analytics
     implementation("org.springframework.boot:spring-boot-devtools")
     
-    // JPA Data (Repositories, Entities, Hibernate, etc.)
+    // JPA Data (We are going to use Repositories, Entities, Hibernate, etc...)
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     implementation("org.springframework:spring-jdbc")
-    //implementation("com.h2database:h2")
+    implementation("com.h2database:h2")
 	
 	// MySQL
     implementation 'mysql:mysql-connector-java'
 	
     // JUnit test framework
-    //testImplementation 'junit:junit:4.12'
+    testImplementation 'junit:junit:4.12'
     
     // Ensure Java 10 compability
     implementation('javax.xml.bind:jaxb-api:2.3.0')
@@ -84,8 +73,8 @@ dependencies {
 	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-mail', version: '1.2.0.RELEASE'
     
     // WebClient
-    //implementation 'org.springframework.boot:spring-boot-starter-webflux'
-    //implementation 'org.projectreactor:reactor-spring:1.0.1.RELEASE'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.projectreactor:reactor-spring:1.0.1.RELEASE'
     
     /** Lucene basic dependencies 
     */
@@ -135,4 +124,8 @@ dependencies {
 	implementation group: 'javax.json', name: 'javax.json-api', version: '1.1.4'
 	
     
+}
+
+configurations.implementation {
+    exclude group: 'spring-boot-starter-tomcat'
 }
