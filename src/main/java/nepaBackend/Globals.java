@@ -27,8 +27,10 @@ public class Globals {
     private static final String META_TESTING_INDEX_DIRECTORY_PATH = "C:\\Lucene\\EISDoc";
     private static final String TEST_SUGGEST_PATH = "C:\\Lucene\\lucene_suggest";
     
-    // TODO: The idea was to migrate this to noreply@mail.nepaccess.org
-    public static final String SYSTEM_EMAIL_ADDRESS = "NEPAccess@nepaccess.org";
+    // migrate to noreply@mail.nepaccess.org
+    // since we're now using postfix the spring mail config needs only host=localhost
+//    public static final String SYSTEM_EMAIL_ADDRESS = "NEPAccess@nepaccess.org";
+    public static final String SYSTEM_EMAIL_ADDRESS = "noreply@mail.nepaccess.org";
     public static final String SYSTEM_EMAIL_INTERNET_ADDRESS = "NEPAccess <"+SYSTEM_EMAIL_ADDRESS+">";
     
     // old test paths
