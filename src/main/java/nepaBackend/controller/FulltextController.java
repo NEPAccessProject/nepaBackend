@@ -120,6 +120,7 @@ public class FulltextController {
 			@RequestHeader Map<String, String> headers)
 	{
 		String token = headers.get("authorization");
+		System.out.println("search_top searchInputs.title : "+searchInputs.title + " for token: " + token);
 		Long userId = idFromToken(token);
 		saveSearchLog(searchInputs, "all", userId);
 		HttpStatus returnStatus = HttpStatus.OK;
@@ -130,6 +131,7 @@ public class FulltextController {
 					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, 100);
 			
 			int hits = getTotalHits(searchInputs.title);
+			System.out.println("Search Top # Hits: " + hits);
 			if(hits < 100) {
 				// Return special status if results don't reach limit to indicate that user 
 				// won't need to launch /search_no_context because they already have the full results.
@@ -165,7 +167,7 @@ public class FulltextController {
 			@RequestHeader Map<String, String> headers)
 	{
 //		String token = headers.get("authorization");
-
+		
 		try { 
 			List<MetadataWithContext3> metaAndFilenames = 
 					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
@@ -277,6 +279,10 @@ public class FulltextController {
 	@RequestMapping(path = "/sync", method = RequestMethod.GET)
 	public boolean sync(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
+		System.out.println("Starting Text Controller Sync");
+		//[TODO] DEbugging remove
+		textRepository.sync();
+		System.out.println("Text Repository Sync complete!");
 		if(!applicationUserService.isAdmin(token)) 
 		{
 			return false;
@@ -322,6 +328,7 @@ public class FulltextController {
 	@RequestMapping(path = "/get_by_id", method = RequestMethod.GET)
 	public List<DocumentText> getById(@RequestParam String id, @RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
+		System.out.println("get_by_id token: " + token + " is admin? " + applicationUserService.isAdmin(token));
 		Long lid = Long.parseLong(id);
 		
 		if(!applicationUserService.isAdmin(token)) 
@@ -451,7 +458,7 @@ public class FulltextController {
 			try {
 				String id = JWT.decode((token.replace(SecurityConstants.TOKEN_PREFIX, "")))
 						.getId();
-				
+				System.out.println("Got ID " + id + " from token " + token);
 				return Long.parseLong(id);
 			} catch(JWTDecodeException e) {
 				// User isn't logged in

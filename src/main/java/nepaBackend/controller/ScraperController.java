@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -45,8 +47,10 @@ public class ScraperController {
 	ApplicationUserService applicationUserService;
 	
 	public ScraperController() {
-//		scheduleScraper();
+		//scheduleScraper();
+		scrape();
 	}
+	
 	
 	// Schedule scraper for every Sunday, at whatever time this is called, Mountain Time
 	private void scheduleScraper() {
@@ -178,7 +182,11 @@ public class ScraperController {
     		e.printStackTrace();
     	}
 	}
-	
+	@RequestMapping(path = "/test", method = RequestMethod.GET)
+	public String hello(ModelMap Model) {
+		return "list";
+	}
+
 	@RequestMapping(path = "/is_shutdown", method = RequestMethod.GET)
 	private ResponseEntity<Boolean> isShutdown(@RequestHeader Map<String, String> headers) {
 		try {
@@ -230,8 +238,10 @@ public class ScraperController {
 	private ResponseEntity<Void> restartScraper(@RequestHeader Map<String, String> headers) {
 		try {
 			String token = headers.get("authorization");
+			System.out.println(token);
 			ApplicationUser user = applicationUserService.getUserFromToken(token);
-			
+			//[TODO] DEBUG HACK
+			restartScraper();
 			if(applicationUserService.isAdmin(user)) {
 				restartScraper();
 				return new ResponseEntity<Void>(HttpStatus.OK);

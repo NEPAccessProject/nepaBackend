@@ -88,7 +88,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	public List<EISDoc> searchTitles(String terms) throws ParseException {
 		
 		String newTerms = mutateTermModifiers(terms);
-		
+		System.out.println("Searching Title for term");
+		System.out.println(newTerms);
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
 			
 		QueryParser qp = new QueryParser("title", new StandardAnalyzer());
@@ -116,11 +117,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Override
 	public boolean sync() {
 		SearchSession searchSession = org.hibernate.search.mapper.orm.Search.session(em);
-		
+		System.out.println("Text Sync started");
 		try {
 			searchSession.massIndexer().startAndWait();
+		System.out.println("Text Sync Complete");
+
 		} catch (InterruptedException e1) {
 			logger.error("Failed to /sync index");
+			System.out.println(e1);
 			return false;
 		} 
 		

@@ -59,14 +59,14 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         corsConfiguration.setAllowCredentials(true);
         corsConfiguration.setExposedHeaders(List.of("Authorization"));
     	http.cors().configurationSource(request -> corsConfiguration).and().csrf().disable().authorizeRequests()
-    	 .antMatchers(HttpMethod.OPTIONS, "**").permitAll()
          .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).permitAll() // allow registration
-//         .antMatchers(HttpMethod.POST, "/**").permitAll() // allow all (when post)
+
          .antMatchers(HttpMethod.POST, "/user/exists").permitAll()
          .antMatchers(HttpMethod.POST, "/user/email-exists").permitAll()
          .antMatchers(HttpMethod.POST, "/user/contact").permitAll()
          .antMatchers(HttpMethod.POST, "/user/recaptcha_test").permitAll()
          .antMatchers(HttpMethod.POST, "/user/opt_out").permitAll()
+         .antMatchers(HttpMethod.POST,"user/get_role").permitAll()
          /** Here's where we're now allowing anonymous searches/details viewing: **/
          .antMatchers(HttpMethod.POST, "/text/search").permitAll()
          .antMatchers(HttpMethod.GET, "/text/search/**").permitAll()
@@ -90,12 +90,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .antMatchers(HttpMethod.GET, "/stats/total_count").permitAll()
          .antMatchers(HttpMethod.GET, "/stats/latest_year").permitAll()
          .antMatchers(HttpMethod.GET, "/stats/earliest_year").permitAll()
-//         .antMatchers(HttpMethod.POST, "/reset").permitAll()
-//         .antMatchers(HttpMethod.POST, "/reset/check").permitAll()
-//         .antMatchers(HttpMethod.POST, "/reset/**").permitAll()
-//         .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).denyAll() // deny registration
-//         .antMatchers(HttpMethod.POST, "/user/generate").hasAuthority("ADMIN") // TODO: Roles for admin access to generate user
-         .anyRequest().authenticated() // require authentication for the rest
+        .antMatchers(HttpMethod.POST, "/reset").permitAll()
+        .antMatchers(HttpMethod.POST, "/reset/check").permitAll()
+        .antMatchers(HttpMethod.POST, "/reset/**").permitAll()
+        .antMatchers(HttpMethod.POST, SecurityConstants.SIGN_UP_URL).denyAll() // deny registration
+        .antMatchers(HttpMethod.POST, "/user/generate").hasAuthority("ADMIN") // TODO: Roles for admin access to generate user
+         //.anyRequest().authenticated() // require authentication for the rest
          .and() // add our two custom filters to the chain:
          .addFilter(new JWTAuthenticationFilter(authenticationManager()))
          .addFilter(new JWTAuthorizationFilter(authenticationManager()))
@@ -103,7 +103,6 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
     }
     
-
     @Override
     public void configure(AuthenticationManagerBuilder auth) throws Exception {
         auth.userDetailsService(userDetailsService).passwordEncoder(bCryptPasswordEncoder);
@@ -112,11 +111,11 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-//        configuration.setAllowedOrigins(Arrays.asList("https://localhost", "http://localhost"));
+        configuration.setAllowedOrigins(Arrays.asList("https://localhost", "http://localhost"));
         configuration.setAllowedOrigins(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("*"));
-//        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
-//        configuration.setAllowedMethods(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS","PATCH"));
+        configuration.setAllowedMethods(Arrays.asList("*"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
 //      configuration.setAllowCredentials(false);
         configuration.setAllowCredentials(true);

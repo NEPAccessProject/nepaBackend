@@ -1,0 +1,83 @@
+@port = 8080
+@host = http://dev.nepaccess.org:8080/
+
+###
+GET {{host}}stats/eis_count HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+
+###
+POST http://localhost:8080/test/check HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+
+###
+POST http://localhost:8080/text/search_no_context HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+Content-Type: application/json
+Accept: application/json
+
+{
+    "title": "land"
+}
+
+###
+GET http://localhost:8080/text/test_terms?terms=Skeleton HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+Content-Type: application/json
+Accept: application/json
+
+
+### 
+GET http://localhost:8080/stats/earliest_year HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+
+###
+POST {{host}}user/get_role HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+
+###
+POST {{host}}text/search_top/ HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+Content-Type: application/json
+Accept: application/json
+
+{
+ 
+    "title": "Skeleton"
+}
+
+###
+POST {{host}}text/search/ HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+Content-Type: application/json
+Accept: application/json
+
+{
+ 
+    "title": "Skeleton"
+}
+
+
+###
+POST {{host}}user/checkAdmin HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+
+###
+GET {{host}}text/sync HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+\\
+
+###
+GET {{host}}text/get_by_id?id=17576 HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+

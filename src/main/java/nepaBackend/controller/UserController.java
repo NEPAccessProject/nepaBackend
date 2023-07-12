@@ -100,8 +100,7 @@ public class UserController {
     @GetMapping("/getAll")
     private @ResponseBody ResponseEntity<List<Object>> getUsersLimited(@RequestHeader Map<String, String> headers) {
     	
-//    	String token = headers.get("authorization");
-    	
+	   	String token = headers.get("authorization");
     	if(checkAdmin(headers).getBody() || checkCurator(headers).getBody() || checkApprover(headers).getBody() ) {
     		return new ResponseEntity<List<Object>>(applicationUserRepository.findLimited(), HttpStatus.OK);
 		} else {
@@ -198,8 +197,8 @@ public class UserController {
     
     @PostMapping("/get_role")
     private @ResponseBody ResponseEntity<String> getRole(@RequestHeader Map<String, String> headers) {
-    	
-    	String token = headers.get("authorization");
+		String token = headers.get("authorization");
+    	System.out.println("Get Role called - token: " + token);
     	
     	if(applicationUserService.isAdmin(token)) {
     		return new ResponseEntity<String>("admin", HttpStatus.OK);
@@ -208,10 +207,28 @@ public class UserController {
     	} else if(applicationUserService.approverOrHigher(token)) {
     		return new ResponseEntity<String>("approver", HttpStatus.OK);
     	} else {
-    		return new ResponseEntity<String>("user", HttpStatus.OK);
-    	}
+    		//[TODO] Uncomment :  return new ResponseEntity<String>("user", HttpStatus.OK);
+    		return new ResponseEntity<String>("admin", HttpStatus.OK);    	}
     }
     
+	    @GetMapping("/get_role")
+    	private @ResponseBody ResponseEntity<String> testGetRole(@RequestHeader Map<String, String> headers) {
+		String token = headers.get("authorization");
+    	System.out.println("Get Role called - token: " + token);
+    	
+    	if(applicationUserService.isAdmin(token)) {
+    		return new ResponseEntity<String>("admin", HttpStatus.OK);
+    	} else if(applicationUserService.isCurator(token)) {
+    		return new ResponseEntity<String>("curator", HttpStatus.OK);
+    	} else if(applicationUserService.approverOrHigher(token)) {
+    		return new ResponseEntity<String>("approver", HttpStatus.OK);
+    	} else {
+    		//[TODO] Uncomment :  return new ResponseEntity<String>("user", HttpStatus.OK);
+    		return new ResponseEntity<String>("admin", HttpStatus.OK);
+
+		}
+    }
+
     @PostMapping("/setUserRole")
     private @ResponseBody ResponseEntity<Boolean> setUserRole(@RequestParam Long userId, 
     			@RequestParam String role, 

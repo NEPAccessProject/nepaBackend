@@ -26,8 +26,8 @@ public class LuceneConfig {
     /**
      * Lucene index, storage location
      */
-//    private static final String LUCENEINDEXPATHDOCUMENTTEXT="/DocumentText";
-//    private static final String LUCENEINDEXPATHEISDOC="/EISDoc";
+    private static final String LUCENEINDEXPATHDOCUMENTTEXT="/DocumentText";
+    private static final String LUCENEINDEXPATHEISDOC="/EISDoc";
     /**
      * Create an Analyzer instance
      * 
@@ -55,9 +55,9 @@ public class LuceneConfig {
 //        suggester.build(dict);
         List<EISDoc> docs = docRepo.findAll();
         Iterator<EISDoc> iterator = docs.iterator();
-//        System.out.println("Hi");
-//        System.out.println("1 " + iterator.next().getTitle());
-//        System.out.println("2 " + docs.get(0).getTitle());
+       System.out.println("Hi");
+       System.out.println("1 " + iterator.next().getTitle());
+       System.out.println("2 " + docs.get(0).getTitle());
         
         suggester.build(new EISDocIterator(iterator));
 //        suggester2.build(new EISDocIterator(iterator));

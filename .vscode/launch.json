@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Application<nepaBackend>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "nepaBackend.Application",
+            "projectName": "nepaBackend",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

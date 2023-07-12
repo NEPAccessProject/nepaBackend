@@ -25,13 +25,13 @@ public class MultiSearcher {
 	public MultiSearcher() throws Exception {
 		File indexFile = new File(Globals.getIndexString());
 		Directory directory = FSDirectory.open(indexFile.toPath());
-//		System.out.println("Text index? " + DirectoryReader.indexExists(directory));
+		System.out.println("Text index? " + DirectoryReader.indexExists(directory));
 		textReader = DirectoryReader.open(directory);
 		
 
 		File indexFile2 = new File(Globals.getMetaIndexString());
 		Directory directory2 = FSDirectory.open(indexFile2.toPath());
-//		System.out.println("Meta index? " + DirectoryReader.indexExists(directory2));
+		System.out.println("Meta index? " + DirectoryReader.indexExists(directory2));
 		metaReader = DirectoryReader.open(directory2);
 		
 		multiIndexReader = new MultiReader(textReader, metaReader);
