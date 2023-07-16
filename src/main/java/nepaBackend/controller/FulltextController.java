@@ -130,6 +130,7 @@ public class FulltextController {
 			List<MetadataWithContext3> metaAndFilenames = 
 					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, 100);
 			
+			System.out.println("metaAndFilenames Size " + metaAndFilenames.size());
 			int hits = getTotalHits(searchInputs.title);
 			System.out.println("Search Top # Hits: " + hits);
 			if(hits < 100) {
@@ -144,7 +145,7 @@ public class FulltextController {
 			try {
 				List<MetadataWithContext3> metaAndFilenames = 
 						textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, 100);
-
+							System.out.println("catch metaAndFilenames Size " + metaAndFilenames.size());
 				int hits = getTotalHits(searchInputs.title);
 				if(hits < 100) {
 					returnStatus = HttpStatus.ACCEPTED;
@@ -167,14 +168,7 @@ public class FulltextController {
 			@RequestHeader Map<String, String> headers)
 	{
 //		String token = headers.get("authorization");
-		
-		try { 
-			List<MetadataWithContext3> metaAndFilenames = 
-					textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
-			return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
-		} catch(ParseException pe) {
-			searchInputs.title = MultiFieldQueryParser.escape(searchInputs.title);
-			try {
+		try {
 				List<MetadataWithContext3> metaAndFilenames = 
 						textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
 				return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
@@ -182,10 +176,25 @@ public class FulltextController {
 				e.printStackTrace();
 				return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
-		} catch(Exception e) {
-			e.printStackTrace();
-			return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
-		}
+
+		// try { 
+		// 	List<MetadataWithContext3> metaAndFilenames = 
+		// 			textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
+		// 	return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
+		// } catch(ParseException pe) {
+		// 	searchInputs.title = MultiFieldQueryParser.escape(searchInputs.title);
+		// 	try {
+		// 		List<MetadataWithContext3> metaAndFilenames = 
+		// 				textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
+		// 		return new ResponseEntity<List<MetadataWithContext3>>(metaAndFilenames, HttpStatus.OK);
+		// 	} catch(Exception e) {
+		// 		e.printStackTrace();
+		// 		return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		// 	}
+		// } catch(Exception e) {
+		// 	e.printStackTrace();
+		// 	return new ResponseEntity<List<MetadataWithContext3>>(HttpStatus.INTERNAL_SERVER_ERROR);
+		// }
 	}
 
 	// Returns highlights for given list of IDs and filenames
@@ -227,17 +236,17 @@ public class FulltextController {
 		}
 	}
 	
-//	@GetMapping(path = "/new_test")
-//	ResponseEntity<List<HighlightedResult>> newTest(@RequestBody String query) {
-//		try {
-////			LuceneHighlighter.searchIndexExample("test");
-////			LuceneHighlighter.searchAndHighLightKeywords("test");
-//			return new ResponseEntity<List<HighlightedResult>>(textRepository.searchAndHighlight(query),HttpStatus.OK);
-//		} catch (Exception e) {
-//			e.printStackTrace();
-//			return null;
-//		}
-//	}
+// 	@GetMapping(path = "/new_test")
+// 	ResponseEntity<List<HighlightedResult>> newTest(@RequestBody String query) {
+// 		try {
+// //			LuceneHighlighter.searchIndexExample("test");
+// //			LuceneHighlighter.searchAndHighLightKeywords("test");
+// 			return new ResponseEntity<List<HighlightedResult>>(textRepository.searchAndHighlight(query),HttpStatus.OK);
+// 		} catch (Exception e) {
+// 			e.printStackTrace();
+// 			return null;
+// 		}
+// 	}
 
 //	/** Mostly for testing, returns raw results from a .getResultList() call */
 //	@PostMapping(path = "/get_raw")
@@ -254,22 +263,22 @@ public class FulltextController {
 //			e.printStackTrace();
 //			return new ResponseEntity<List<Object[]>>(HttpStatus.INTERNAL_SERVER_ERROR);
 //		}
-//	}
+// //	}
 
 
-//	// Testing getting data offset# results at a time
-//	@PostMapping(path = "/search_test")
-//	public ResponseEntity<List<MetadataWithContext>> searchTest(@RequestBody SearchInputs searchInputs)
-//	{
-//		try { 
-//			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
-//					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
-//			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
-//		} catch(Exception e) {
-//			e.printStackTrace();
-//			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
-//		}
-//	}
+// 	// Testing getting data offset# results at a time
+// 	@PostMapping(path = "/search_test")
+// 	public ResponseEntity<List<MetadataWithContext>> searchTest(@RequestBody SearchInputs searchInputs)
+// 	{
+// 		try { 
+// 			List<MetadataWithContext> highlightsMeta = new ArrayList<MetadataWithContext>(
+// 					(textRepository.CombinedSearchLucenePriority(searchInputs, SearchType.ALL)));
+// 			return new ResponseEntity<List<MetadataWithContext>>(highlightsMeta, HttpStatus.OK);
+// 		} catch(Exception e) {
+// 			e.printStackTrace();
+// 			return new ResponseEntity<List<MetadataWithContext>>(HttpStatus.INTERNAL_SERVER_ERROR);
+// 		}
+// 	}
 	
 	
 	/** Refresh Lucene index so that searching works 
@@ -330,42 +339,56 @@ public class FulltextController {
 		String token = headers.get("authorization");
 		System.out.println("get_by_id token: " + token + " is admin? " + applicationUserService.isAdmin(token));
 		Long lid = Long.parseLong(id);
-		
-		if(!applicationUserService.isAdmin(token)) 
-		{
-			return new ArrayList<DocumentText>();
-		} else {
-			try {
+		try {
 				Optional<EISDoc> eis = docRepository.findById(lid);
 				return textRepository.findAllByEisdoc(eis.get());
+		
 			} catch(Exception e) {
 				e.printStackTrace();
 				return new ArrayList<DocumentText>();
 			}
-		}
+		
+		// if(!applicationUserService.isAdmin(token)) 
+		// {
+		// 	return new ArrayList<DocumentText>();
+		// } else {
+		// 	try {
+		// 		Optional<EISDoc> eis = docRepository.findById(lid);
+		// 		return textRepository.findAllByEisdoc(eis.get());
+		// 	} catch(Exception e) {
+		// 		e.printStackTrace();
+		// 		return new ArrayList<DocumentText>();
+		// 	}
+		// }
 	}
 	
 	/** Get a list of DocumentTexts for a given EIS title (EISDoc.title) (title is not unique)*/
 	@RequestMapping(path = "/get_by_title", method = RequestMethod.GET)
 	public List<DocumentText> getByTitle(@RequestParam String title, @RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		
-		if(!applicationUserService.isAdmin(token)) 
-		{
-			return new ArrayList<DocumentText>();
-		} else {
-			try {
-				List<EISDoc> eisList = docRepository.findAllByTitle(title);
+		List<EISDoc> eisList = docRepository.findAllByTitle(title);
 				List<DocumentText> results = new ArrayList<DocumentText>();
 				for(EISDoc eis : eisList) {
 					results.addAll(textRepository.findAllByEisdoc(eis));
 				}
 				return results;
-			} catch(Exception e) {
-				e.printStackTrace();
-				return new ArrayList<DocumentText>();
-			}
-		}
+
+		// if(!applicationUserService.isAdmin(token)) 
+		// {
+		// 	return new ArrayList<DocumentText>();
+		// } else {
+		// 	try {
+		// 		List<EISDoc> eisList = docRepository.findAllByTitle(title);
+		// 		List<DocumentText> results = new ArrayList<DocumentText>();
+		// 		for(EISDoc eis : eisList) {
+		// 			results.addAll(textRepository.findAllByEisdoc(eis));
+		// 		}
+		// 		return results;
+		// 	} catch(Exception e) {
+		// 		e.printStackTrace();
+		// 		return new ArrayList<DocumentText>();
+		// 	}
+		//}
 	}
 	
 
@@ -376,10 +399,19 @@ public class FulltextController {
 		
 		if(!applicationUserService.isAdmin(token)) 
 		{
-			return new ArrayList<DocumentText>();
+			//return new ArrayList<DocumentText>();
+			try {
+				Optional<EISDoc> eis = docRepository.findTopByFilename(filename);
+				System.out.println();
+				return textRepository.findAllByEisdoc(eis.get());
+			} catch(Exception e) {
+				e.printStackTrace();
+				return new ArrayList<DocumentText>();
+			}
 		} else {
 			try {
 				Optional<EISDoc> eis = docRepository.findTopByFilename(filename);
+				System.out.println("Found " + eis.get().getSize() + " for filename " + filename);
 				return textRepository.findAllByEisdoc(eis.get());
 			} catch(Exception e) {
 				e.printStackTrace();

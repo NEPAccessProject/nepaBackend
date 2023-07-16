@@ -88,8 +88,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	public List<EISDoc> searchTitles(String terms) throws ParseException {
 		
 		String newTerms = mutateTermModifiers(terms);
-		System.out.println("Searching Title for term");
-		System.out.println(newTerms);
+		System.out.println("Searching Title for term: " + newTerms);
 		FullTextEntityManager fullTextEntityManager = Search.getFullTextEntityManager(em); // Create fulltext entity manager
 			
 		QueryParser qp = new QueryParser("title", new StandardAnalyzer());
@@ -97,7 +96,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 
 		// this may throw a ParseException which the caller has to deal with
 		Query luceneQuery = qp.parse(newTerms);
-		
+		System.out.println("Lucene Query to Searcg Titles "+ luceneQuery.toString());
 		
 		// wrap Lucene query in org.hibernate.search.jpa.FullTextQuery
 		org.hibernate.search.jpa.FullTextQuery jpaQuery =
@@ -107,7 +106,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		jpaQuery.setFirstResult(0);
 		
 		List<EISDoc> docs = jpaQuery.getResultList();
-
+		System.out.println(" Search Titles esult List Size: " + docs.size());
 		fullTextEntityManager.close(); // Because this is created on demand, close it when we're done
 		
 		return docs;
@@ -213,12 +212,13 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			// get filtered records
 			List<EISDoc> records = doQuery(searchInputs,1000000);
+			System.out.println("doQuery returned #records: "+ records.size());
 
-			// Run Lucene query on title if we have one, join with JDBC results, return final results
+			// Run Lucene query on title if  we have one, join with JDBC results, return final results
 			if(!searchInputs.title.isBlank()) {
 
 				List<EISDoc> results = searchTitles(searchInputs.title);
-				
+				System.out.println("searchTitles returned " + results.size() + " results.");
 				HashSet<Long> justRecordIds = new HashSet<Long>();
 				for(EISDoc record: records) {
 					justRecordIds.add(record.getId());
@@ -227,7 +227,9 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
 				List<EISDoc> finalResults = new ArrayList<EISDoc>();
 				for(EISDoc result : results) {
+					System.out.println("Checking Results for ID: " + result.getId());
 					if(justRecordIds.contains(result.getId())) {
+						System.out.println("Adding result to final results with id: " +result.getId() + "title: " + result.getTitle() );
 						finalResults.add(result);
 					}
 				}
@@ -236,13 +238,15 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					System.out.println("Records filtered " + records.size());
 					System.out.println("Records by term " + results.size());
 				}
-				
+				System.out.println("Returning " + finalResults.size() + " final results." );
 				return finalResults;
 			} else { // no title: simply return JDBC results
+				System.out.println("returning ODBC Records Only with #Records: " + records.size());
 				return records;
 			}
 			
 		} catch (ParseException pe) {
+			pe.printStackTrace();
 			throw pe;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -323,7 +327,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				
 				if(Globals.TESTING) {
 					System.out.println("Meta record count after filtering: " + records.size());
-					System.out.println("Records 2 (final result set of combined metadata and filenames) " + results.size());
+					System.out.println("Records (final result set of combined metadata and filenames) " + results.size());
 					stopTime = System.currentTimeMillis();
 					elapsedTime = stopTime - initTime;
 					System.out.println("Total (Filtering, lucene search, results combining and ordering time): " + elapsedTime + "ms");
@@ -331,12 +335,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				return results;
 			} else { // no title: simply return JDBC results...  however they have to be translated
 				List<MetadataWithContext3> finalResults = new ArrayList<MetadataWithContext3>();
+				var idx = 0;
 				for(EISDoc record : records) {
+					idx++;
 					finalResults.add(new MetadataWithContext3(new ArrayList<Integer>(), record, new ArrayList<String>(), "", 0));
 				}
+				System.out.println("Processed " + records.size() + " records.");
 				return finalResults;
 			}
 		} catch(ParseException pe) {
+			System.out.println("Parser Exception wihle combining resultset " + pe.getMessage());
 			throw pe;
 //			String problem = pe.getLocalizedMessage();
 //			MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
@@ -349,6 +357,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
 			List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
 			results.add(result);
+			System.out.println("Exception occured combining result set. Returning #results: " + results.size());
 			return results;
 		}
 	}
@@ -386,6 +395,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		new SimpleAnalyzer());
 		mfqp.setDefaultOperator(Operator.AND);
 		Query query = mfqp.parse(formattedTerms);
+		System.out.println("SOLR mfqp query " + query.toString());
 		// This results in requiring the terms be found in both title and plaintext fields if using .MUST,
 		// otherwise it doesn't require all fields at all with .SHOULD.
 //	    Query query = MultiFieldQueryParser.parse(
@@ -395,17 +405,16 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //	    		analyzer);
 		
 		// This is the best compromise I can come up with
-//		QueryParser qpText = new QueryParser("plaintext",analyzer);
-//		qpText.setDefaultOperator(Operator.AND);
-//		QueryParser qpTitle = new QueryParser("title",analyzer);
-//		qpTitle.setDefaultOperator(Operator.AND);
-//		org.apache.lucene.search.BooleanQuery.Builder combined = 
-//				new org.apache.lucene.search.BooleanQuery.Builder();
-//		combined.add(qpText.parse(formattedTerms), BooleanClause.Occur.SHOULD);
-//		combined.add(qpTitle.parse(formattedTerms), BooleanClause.Occur.SHOULD);
-//		System.out.println(combined.build().toString());
-//		Query query = combined.build();
-		
+		QueryParser qpText = new QueryParser("plaintext",analyzer);
+		qpText.setDefaultOperator(Operator.AND);
+		QueryParser qpTitle = new QueryParser("title",analyzer);
+		qpTitle.setDefaultOperator(Operator.AND);
+		org.apache.lucene.search.BooleanQuery.Builder combined = 
+				new org.apache.lucene.search.BooleanQuery.Builder();
+		combined.add(qpText.parse(formattedTerms), BooleanClause.Occur.SHOULD);
+		combined.add(qpTitle.parse(formattedTerms), BooleanClause.Occur.SHOULD);
+		System.out.println(combined.build().toString());
+		//above to comment was commented
 		
 	    System.out.println("Parsed query: " + query.toString());
 	    
@@ -504,7 +513,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				.setParameter("ids", textIds)
 				.getResultList();
 		
-		if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
+		if(Globals.TESTING){
+			System.out.println("Found #ids: "+ textIds.size()  );
+			System.out.println("Texts results size: " + textIdMetaAndFilenames.size());
+		}
 		
 		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
 		for(Object[] obj : textIdMetaAndFilenames) {
@@ -978,6 +990,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			System.out.println(sQuery); 
 		}
 		
+		System.out.println("Query Template " + sQuery);
 		// This simply uses the EISDoc(...) constructor in EISDoc.java, so they should line up in the same order
 		// or it could get confused.
 		return jdbcTemplate.query
