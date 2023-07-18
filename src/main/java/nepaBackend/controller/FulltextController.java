@@ -78,6 +78,9 @@ public class FulltextController {
 			@RequestHeader Map<String, String> headers)
 	{
 		String token = headers.get("authorization");
+				System.out.println("Search Token " + token);
+
+		System.out.println(" **** RECEIVED TOKEN *** "+ token);
 		Long userId = idFromToken(token);
 		saveSearchLog(searchInputs, "title", userId);
 
@@ -120,6 +123,8 @@ public class FulltextController {
 			@RequestHeader Map<String, String> headers)
 	{
 		String token = headers.get("authorization");
+				System.out.println(" **** RECEIVED TOKEN *** "+ token);
+
 		System.out.println("search_top searchInputs.title : "+searchInputs.title + " for token: " + token);
 		Long userId = idFromToken(token);
 		saveSearchLog(searchInputs, "all", userId);
@@ -167,7 +172,8 @@ public class FulltextController {
 	public ResponseEntity<List<MetadataWithContext3>> searchNoContext(@RequestBody SearchInputs searchInputs,
 			@RequestHeader Map<String, String> headers)
 	{
-//		String token = headers.get("authorization");
+		String token = headers.get("authorization");
+		System.out.println("Search No Context Token " + token);
 		try {
 				List<MetadataWithContext3> metaAndFilenames = 
 						textRepository.CombinedSearchNoContextHibernate6(searchInputs, SearchType.ALL, Integer.MAX_VALUE);
@@ -288,7 +294,7 @@ public class FulltextController {
 	@RequestMapping(path = "/sync", method = RequestMethod.GET)
 	public boolean sync(@RequestHeader Map<String, String> headers) {
 		String token = headers.get("authorization");
-		System.out.println("Starting Text Controller Sync");
+		System.out.println("Starting Text Controller Sync with token: " + token);
 		//[TODO] DEbugging remove
 		textRepository.sync();
 		System.out.println("Text Repository Sync complete!");
