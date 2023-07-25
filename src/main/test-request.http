@@ -3,17 +3,18 @@
 
 ###
 GET {{host}}stats/eis_count HTTP/1.1
-authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2OTA4NDY5ODgsImp0aSI6IjY0NSJ9.rF3uctOM2yxzdHFbBFpEH1q2QbjToxLhM3vrs4FA9pxsF6F8bHS61OFEVrnVzrhe4iM9jLlXBrBmverbsvSUVw
+
 key: test_key_only
 
 ###
 POST {{host}}test/check HTTP/1.1
-authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2OTA4NDY5ODgsImp0aSI6IjY0NSJ9.rF3uctOM2yxzdHFbBFpEH1q2QbjToxLhM3vrs4FA9pxsF6F8bHS61OFEVrnVzrhe4iM9jLlXBrBmverbsvSUVw
 key: test_key_only
 
 ###
 POST {{host}}text/search_no_context HTTP/1.1
-authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+authorization: Bearer 
 key: test_key_only
 Content-Type: application/json
 Accept: application/json
@@ -23,16 +24,79 @@ Accept: application/json
 }
 
 ###
-POST GET {{host}}text/search_test HTTP/1.1
+POST {{host}}text/search_top/ HTTP/1.1
 authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
 key: test_key_only
 Content-Type: application/json
 Accept: application/json
 
 {
-    "id": 1020
+ 
+    "title": "WA-34"
 }
 
+###
+POST {{host}}text/search/ HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+Content-Type: application/json
+Accept: application/json
+
+{
+ 
+    "title": "WA-34" 
+}
+
+###
+POST {{host}}text/search_test HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+Content-Type: application/json
+Accept: application/json
+
+{
+    "id": 24155
+}
+
+###
+POST {{host}}text/get_highlightsFVH HTTP/1.1
+authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
+key: test_key_only
+Content-Type: application/json
+Accept: application/json
+
+
+{
+  "unhighlighted": [
+    {
+      "luceneIds": [
+        1020
+      ],
+      "filename": "01-17-aprcs-feis-record-of-decision.pdf"
+    },
+    {
+      "luceneIds": [
+        36525
+      ],
+      "filename": "040070/040070_0001-cprs.pdf"
+    },
+    {
+      "luceneIds": [
+        29006
+      ],
+      "filename": "050407/050407_0001-cprs.pdf"
+    },
+    {
+      "luceneIds": [
+        52533
+      ],
+      "filename": "feddocs2_484.pdf"
+    }
+  ],
+  "terms": "Tucson",
+  "markup": true,
+  "fragmentSizeValue": 2
+}  
 ###
 GET {{host}}text/test_terms?terms=2020 HTTP/1.1
 authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
@@ -89,32 +153,10 @@ key: test_key_only
 
 
 ###
-GET {{host}}scraper/sync HTTP/1.1
+POST {{host}}scraper/sync HTTP/1.1
 authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
 key: test_key_only
 ###
-POST {{host}}text/search_top/ HTTP/1.1
-authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
-key: test_key_only
-Content-Type: application/json
-Accept: application/json
-
-{
- 
-    "title": "WA-34"
-}
-
-###
-POST {{host}}text/search/ HTTP/1.1
-authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
-key: test_key_only
-Content-Type: application/json
-Accept: application/json
-
-{
- 
-    "title": "WA-34" 
-}
 
 
 ###
@@ -129,11 +171,11 @@ key: test_key_only
 
 
 ###
-GET {{host}}text/get_by_id?id=1020 HTTP/1.1
+GET {{host}}text/get_by_id?id=24155 HTTP/1.1
 authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
 key: test_key_only
 
 ###
-GET {{host}}text/get_length_ids?id=1020 HTTP/1.1
+GET {{host}}text/get_length_ids?id=24155 HTTP/1.1
 authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJnbXMiLCJleHAiOjE2ODk0Njg2MTIsImp0aSI6IjY0NSJ9.xeq97UA4CxkHukarpVBYH8iy6NoPMsGx_NOK7kEra3Y_C7UO9xz9zA5SsmVQCJ6U1D4cVwSf6-k3afs0fK0tAA
 key: test_key_only
