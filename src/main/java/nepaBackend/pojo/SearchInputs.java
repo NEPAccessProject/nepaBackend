@@ -19,10 +19,12 @@ public class SearchInputs {
 	public boolean typeFinal;
 	public boolean typeDraft;
 	public boolean typeOther;
+	public boolean typeFast41;	
 	public boolean needsComments;
 	public boolean needsDocument;
 	public int limit;
 	public int offset;
+	public boolean isFast41;
 	
 	public SearchInputs() {
 	}
