@@ -109,7 +109,14 @@ public interface DocRepository extends JpaRepository<EISDoc, Long> {
 //			+ "GROUP BY document_type;",
 //			nativeQuery = true)
 //	public List<Object> getDownloadableCountByType();
-
+    /**  Return the count of docs Fast41 Document Type **/
+	//[TODO] get rid of the like clause once the name of doc type is finalized
+    @Query(value = "SELECT COUNT(*) "
+            + "FROM eisdoc "
+            + "WHERE is_fast41 = 1 ",
+            nativeQuery = true)
+    public Long getFast41DocumentCount();
+	
 	/** Return count of valid size by document type */
 	@Query(value = "SELECT document_type, COUNT(*) "
 			+ "FROM eisdoc "
