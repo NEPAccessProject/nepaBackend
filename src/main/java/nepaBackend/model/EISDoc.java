@@ -96,6 +96,8 @@ public class EISDoc implements Serializable {
     @Column(name="first_rod_date",columnDefinition="DATE")
     private LocalDate firstRodDate; 
     
+	@Column(name="is_fast41", columnDefinition="BOOLEAN DEFAULT 0")
+    private Boolean isFast41; // (optional)
     // could build this as a link to an actual process model (table) with hibernate, 
     // but that ends up being more work in some areas.  
     // All we probably want most of the time is the unique ID
@@ -113,7 +115,7 @@ public class EISDoc implements Serializable {
 			String agency, String department, String cooperatingAgency, String summaryText, String state,
 			String filename, String commentsFilename, String folder, Long size, String link, String notes,
 			LocalDate noiDate, LocalDate draftNoa, LocalDate finalNoa, LocalDate firstRodDate,
-			Long processId, String county, String status, String subtype, String action, String decision) {
+			Long processId, String county, String status, String subtype, String action, String decision, Boolean isFast41) {
 		this.id = id;
 		this.title = title;
 		this.documentType = documentType;
@@ -140,6 +142,7 @@ public class EISDoc implements Serializable {
 		this.subtype = subtype;
 		this.action = action;
 		this.decision = decision;
+		this.isFast41 = isFast41;
 	}
 
 	public Long getId() {
@@ -210,6 +213,7 @@ public class EISDoc implements Serializable {
 	public String getCommentsFilename() {
 		return commentsFilename;
 	}
+
 
 	public void setCommentsFilename(String commentsFilename) {
 		this.commentsFilename = commentsFilename;
@@ -350,6 +354,11 @@ public class EISDoc implements Serializable {
 	}
 	public void setDecision(String decision) {
 		this.decision = decision;
+	}	
+	public void setIsFast41(boolean isFast41) {
+		this.setIsFast41(isFast41);
 	}
-	
+	public boolean getIsFast41() {
+        return this.isFast41;
+    }
 }
