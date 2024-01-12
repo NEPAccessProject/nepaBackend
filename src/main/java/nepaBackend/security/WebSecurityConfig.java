@@ -90,6 +90,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
          .antMatchers(HttpMethod.GET, "/stats/total_count").permitAll()
          .antMatchers(HttpMethod.GET, "/stats/latest_year").permitAll()
          .antMatchers(HttpMethod.GET, "/stats/earliest_year").permitAll()
+         .antMatchers(HttpMethod.GET, "/stats/fast41_count").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/check").permitAll()
 //         .antMatchers(HttpMethod.POST, "/reset/**").permitAll()
