@@ -14,3 +14,20 @@ src/main/resources/application-prod.properties
 src/main/java/nepaBackend/LuceneHighlighter.java
 logs/
 *.properties
+*/express service/**
+*/node_modules/**
+src/.DS_Store
+.project
+.DS_Store
+media/**
+*.lock
+*.cfe
+*.cfs
+~/code/nepa/nepaccess/Lucene/DocumentText/lucene_suggest/_6.si
+~/code/nepa/nepaccess/Lucene/DocumentText/lucene_suggest/_7.si
+~/code/nepa/nepaccess/Lucene/DocumentText/lucene_suggest/segments_4
+*.pdf
+src/main/requests.http
+nepaBackend.p12
+nepaBackend.jks
+*.jks
