@@ -71,7 +71,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	DocRepository docRepo;
 	
 	@Autowired
-	Analyzer analyzer;
+	Analyzer analyzer;;
 	
 	@Autowired
 	AnalyzingInfixSuggester suggester;
@@ -116,7 +116,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 	@Override
 	public boolean sync() {
 		SearchSession searchSession = org.hibernate.search.mapper.orm.Search.session(em);
-		
+		System.out.println("--- Started Syncing index ----");
 		try {
 			searchSession.massIndexer().startAndWait();
 		} catch (InterruptedException e1) {
@@ -288,7 +288,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			
 			// get filtered records
 			List<EISDoc> records = doQuery(searchInputs, 1000000);
-			
+			System.out.println("Query Returned " + records.size() +" records: ");
 			long stopTime = System.currentTimeMillis();
 			long elapsedTime = stopTime - startTime;
 			System.out.println("Filtered records time: " + elapsedTime + "ms");
@@ -302,7 +302,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				for(EISDoc record: records) {
 					justRecordIds.add(record.getId());
 				}
-
+				System.out.println("# Of Just Record IDS: " + justRecordIds.size());
 //				startTime = System.currentTimeMillis();
 				List<MetadataWithContext3> results = getScoredWithLuceneId(title, limit);
 //				stopTime = System.currentTimeMillis();
@@ -310,6 +310,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //				System.out.println("Score time: " + elapsedTime + "ms");
 				
 				// Build new result list in the same order but excluding records that don't appear in the first result set (records).
+				//System.out.println("getScoredWithLuceneId Results with "+ results.size() + " results to get final results");
 				List<MetadataWithContext3> finalResults = new ArrayList<MetadataWithContext3>();
 				for(int i = 0; i < results.size(); i++) {
 					if(justRecordIds.contains(results.get(i).getDoc().getId())) {
@@ -324,16 +325,21 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					elapsedTime = stopTime - initTime;
 					System.out.println("Total (Filtering, lucene search, results combining and ordering time): " + elapsedTime + "ms");
 				}
+				System.out.println("# of Final results: " + finalResults.size());
 				return results;
-			} else { // no title: simply return JDBC results...  however they have to be translated
+			} else { 
+				System.out.println("no title: returning all results");
 				List<MetadataWithContext3> finalResults = new ArrayList<MetadataWithContext3>();
-				for(EISDoc record : records) {
+				System.out.println("Returning - FinalResults: " +  finalResults.size() + " Final Results JDBC Results ONLY!: " + records.size());
+				for(EISDoc record : records)    {
 					finalResults.add(new MetadataWithContext3(new ArrayList<Integer>(), record, new ArrayList<String>(), "", 0));
 				}
 				return finalResults;
 			}
 		} catch(ParseException pe) {
+			System.out.println("PARSER EXCEPTION " + pe.getLocalizedMessage());
 			throw pe;
+
 //			String problem = pe.getLocalizedMessage();
 //			MetadataWithContext3 result = new MetadataWithContext3(null, null, null, problem, 0);
 //			List<MetadataWithContext3> results = new ArrayList<MetadataWithContext3>();
@@ -434,14 +440,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
         	if(textId == null) {
         		// Handle meta ID
         		Long id = Long.parseLong(metaId);
-//        		System.out.print(" meta ID " + id);
+        		//System.out.print(" Text ID is null for meta ID " + id);
         		metaIds.add(id);
     			convert.id = id;
     			convert.entityName = EntityType.META;
         	} else {
         		// Handle text ID
         		Long id = Long.parseLong(textId);
-//        		System.out.print(" text ID " + id);
+//        		System.out.print("Scored DocText with the id: " + id);
         		textIds.add(id);
     			convert.id = id;
     			convert.entityName = EntityType.TEXT;
@@ -486,7 +492,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //		List<EISDoc> docs = em.createQuery("SELECT d FROM EISDoc d WHERE d.id IN :ids")
 //			.setParameter("ids", metaIds).getResultList();
 	
-		if(Globals.TESTING){System.out.println("Docs results size: " + docs.size());}
+		if(Globals.TESTING){System.out.println("\r\nDocs results size: " + docs.size());}
 		
 		HashMap<Long, EISDoc> hashDocs = new HashMap<Long, EISDoc>();
 		for(EISDoc doc : docs) {
@@ -494,13 +500,14 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 	
 		// 2: Get DocumentTexts by IDs WITHOUT getting the entire texts.
-	
-		List<Object[]> textIdMetaAndFilenames = em
+		System.out.println("\r\n # of matched documents size: " + hashDocs.size());
+		
+		 List<Object[]> textIdMetaAndFilenames = em
         		.createQuery("SELECT d.id, d.eisdoc, d.filename FROM DocumentText d WHERE d.id IN :ids")
 				.setParameter("ids", textIds)
 				.getResultList();
 		
-		if(Globals.TESTING){System.out.println("Texts results size: " + textIdMetaAndFilenames.size());}
+		if(Globals.TESTING){System.out.println("textIdMetaAndFilenamesGot Texts results size: " + textIdMetaAndFilenames.size());}
 		
 		HashMap<Long, ReducedText> hashTexts = new HashMap<Long, ReducedText>();
 		for(Object[] obj : textIdMetaAndFilenames) {
@@ -543,6 +550,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 				ReducedText rd = hashTexts.get(ordered.id);
 				EISDoc eisFromDoc = rd.eisdoc;
 				if(!added.containsKey(eisFromDoc.getId())) {
+					//System.out.println(" The EisFromDoc DOEST NOT CONTAIN A KEY " + eisFromDoc.getId());
 					// Add DocumentText into logical position plus lucene ID, filename
 					MetadataWithContext3 combinedResult = new MetadataWithContext3(
 							new ArrayList<Integer>(),
@@ -632,8 +640,10 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			// Run query to get each text via eisdoc ID and filename?
 			// Need to split filenames by >
 //			String[] filenames = input.getFilename().split(">");
+
 			for(int i = 0; i < input.getLuceneIds().size(); i++) {
 				int luceneId = input.getId(i).intValue();
+				System.out.println("Trying to highlight Lucene ID: " + luceneId);
 //	        	Document document = searcher.getDocument(luceneId);
 //				if(document != null) {
 					// We can just get the highlight here, immediately.
@@ -653,6 +663,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					// Try UnifiedHighlighter as a backup?  It could be slower.  Also, it doesn't actually
 	    			// necessarily show both terms.
 					if(fragment != null) { 
+						System.out.println("No Fragment found Lucene ID: " + luceneId);
 						result.add(
 //								"<span class=\"fragment\">... " + 
 								Globals.normalizeSpace(fragment)
@@ -663,6 +674,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 //							.concat("Sorry, this fragment was too large to return (term distance exceeded current maximum fragment value).")
 //							.concat("</span>"));
 					} else {
+						System.out.println("FRAGMENT FOUND Lucene ID: " + luceneId);
 			        	Document document = indexSearcher.doc(luceneId,fieldsToLoad);
 			        	// Highlight necessarily non-null for any non-empty document.get("plaintext")
 						String highlight = highlighter.highlightWithoutSearcher(
@@ -678,6 +690,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 							// for a file that the text search can't find.
 							highlight = "No text snippet found";
 						} else if(highlight.length() > fragmentSizeCustom) { //c'mon
+							System.out.println("Highlighting Lucene ID: " + luceneId);
 							int firstHitAt = highlight.indexOf("<b>");
 							highlight = highlight.substring(Math.max(firstHitAt - (fragmentSizeCustom / 2), 0), Math.min(firstHitAt + (fragmentSizeCustom / 2), highlight.length()));
 						}
@@ -689,8 +702,7 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					}
 //				}
 			}
-
-			results.add(result);
+			System.out.println("\r\n Found " + result.size() + " fragments to highlight");
 		}
 		
 //		analyzer.close();
@@ -870,7 +882,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 			inputList.add(searchInputs.endComment);
 			whereList.add(" ((comment_date) <= ?)");
 		}
-		
+		System.out.println("IS FAST41: " + searchInputs.isFast41);
+		if(searchInputs.isFast41 && searchInputs.isFast41 == true) {
+            System.out.println("IS FAST41 IS TRUE");
+			whereList.add(" ((is_fast41 = 1))");
+		}
+
 		if(Globals.saneInput(searchInputs.typeAll)) { 
 			// do nothing
 		} else {
@@ -967,11 +984,12 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 		}
 		
 		sQuery += " LIMIT " + String.valueOf(queryLimit);
-		
+		System.out.println("Running Query: /r/n" + sQuery);
+
 
 		// debugging
 		if(Globals.TESTING) {
-			System.out.println(sQuery); 
+			System.out.println("--USING QUERY: \r\n -----"+ sQuery); 
 		}
 		
 		// This simply uses the EISDoc(...) constructor in EISDoc.java, so they should line up in the same order
@@ -1006,7 +1024,8 @@ public class CustomizedTextRepositoryImpl implements CustomizedTextRepository {
 					rs.getString("status"),
 					rs.getString("subtype"),
 					rs.getString("action_type"),
-					rs.getString("decision")
+					rs.getString("decision"),
+					rs.getBoolean("is_fast41")
 				)
 			);
 	}
